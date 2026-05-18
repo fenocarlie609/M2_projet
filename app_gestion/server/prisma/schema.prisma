@@ -1,0 +1,33 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// MODULE : UTILISATEURS & ROLES
+// ==========================================
+
+model User {
+  id        String   @id @default(uuid()) // UUID pour plus de sécurité
+  email     String   @unique
+  name      String
+  password  String
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users") // Renomme la table en minuscules dans Postgres
+}
+
+model Role {
+  id    String @id @default(uuid())
+  name  String @unique // ex: "ADMIN", "USER", "LOGISTIC_MANAGER"
+  users User[]
+
+  @@map("roles")
+}
