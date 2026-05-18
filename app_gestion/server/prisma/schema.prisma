@@ -1,33 +1,47 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
   provider = "prisma-client-js"
+  output = "../src/generated/prisma"
 }
 
-// ==========================================
-// MODULE : UTILISATEURS & ROLES
-// ==========================================
+datasource db {
+  provider = "postgresql"
+}
 
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?  // Optionnel car un utilisateur non connecté peut tenter une action (ex: échec login)
+  action      String   // Ex: "USER_LOGIN", "PRODUCT_CREATE", "USER_UPDATE", "USER_DELETE"
+  method      String   // GET, POST, PUT, DELETE
+  route       String   // La route appelée (ex: /api/v1/users/123)
+  ipAddress   String
+  
+  // Stockage des données sous format JSON (très puissant avec PostgreSQL)
+  payload     Json?    // Les données envoyées par l'utilisateur (req.body ou req.query)
+  oldValues   Json?    // En cas de modification : l'état de la ligne AVANT la modification
+  newValues   Json?    // En cas de modification : l'état de la ligne APRÈS la modification
+  
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs") // Pour avoir un nom de table en snake_case dans Postgres
+}
+
+// 2. EXEMPLE D'UNE TABLE AVEC SOFT DELETE (Ex: Utilisateur)
 model User {
-  id        String   @id @default(uuid()) // UUID pour plus de sécurité
-  email     String   @unique
-  name      String
+  id        String    @id @default(uuid())
+  email     String    @unique
   password  String
-  roleId    String
-  role      Role     @relation(fields: [roleId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name      String?
+  role      String    @default("USER")
+  
+  // Briques indispensables pour le Soft Delete et le suivi temporel
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Si ce champ est NULL -> la ligne est active. S'il contient une date -> la ligne est "supprimée"
 
-  @@map("users") // Renomme la table en minuscules dans Postgres
-}
-
-model Role {
-  id    String @id @default(uuid())
-  name  String @unique // ex: "ADMIN", "USER", "LOGISTIC_MANAGER"
-  users User[]
-
-  @@map("roles")
+  @@map("users")
 }

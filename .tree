@@ -1,0 +1,14 @@
+server ┣ logs ┣ prisma ┃ ┣ migrations ┃ ┃ ┣ 20260518105935_init ┃ ┃ ┃ ┗
+migration.sql ┃ ┃ ┗ migration_lock.toml ┃ ┗ schema.prisma ┣ src ┃ ┣ common ┃ ┃ ┣
+middleware ┃ ┃ ┃ ┣ audit.middleware.js ┃ ┃ ┃ ┣ auth.middleware.js ┃ ┃ ┃ ┣
+csrf.middleware.js ┃ ┃ ┃ ┣ error.middleware.js ┃ ┃ ┃ ┣ rateLimiter.middleware.js
+┃ ┃ ┃ ┗ validate.middleware.js ┃ ┃ ┗ utils ┃ ┃ ┃ ┣ AppError.js ┃ ┃ ┃ ┗
+catchAsync.js ┃ ┣ config ┃ ┃ ┣ database.js ┃ ┃ ┣ logger.js ┃ ┃ ┗ security.js ┃ ┣
+generated ┃ ┃ ┗ prisma ┃ ┃ ┃ ┣ internal ┃ ┃ ┃ ┃ ┣ class.ts ┃ ┃ ┃ ┃ ┣
+prismaNamespace.ts ┃ ┃ ┃ ┃ ┗ prismaNamespaceBrowser.ts ┃ ┃ ┃ ┣ models ┃ ┃ ┃ ┃ ┣
+AuditLog.ts ┃ ┃ ┃ ┃ ┗ User.ts ┃ ┃ ┃ ┣ browser.ts ┃ ┃ ┃ ┣ client.ts ┃ ┃ ┃ ┣
+commonInputTypes.ts ┃ ┃ ┃ ┣ enums.ts ┃ ┃ ┃ ┗ models.ts ┃ ┣ modules ┃ ┃ ┣ users ┃
+┃ ┃ ┣ user.controller.js ┃ ┃ ┃ ┣ user.routes.js ┃ ┃ ┃ ┗ user.service.js ┃ ┃ ┗
+_routes.js ┃ ┗ app.js ┣ .env ┣ .env.development ┣ .env.example ┣ .env.production
+┣ .env.test ┣ .gitignore ┣ package-lock.json ┣ package.json ┣ prisma.config.ts ┗
+server.js
