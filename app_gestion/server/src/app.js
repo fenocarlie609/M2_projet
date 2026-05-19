@@ -3,7 +3,7 @@ const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const mongoSanitize = require("express-mongo-sanitize");
+// const mongoSanitize = require("express-mongo-sanitize");
 
 const { errorHandler } = require("./common/middlewares/error.middleware");
 const auditTrail = require("./common/middlewares/audit.middleware");
@@ -44,7 +44,7 @@ app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // Assainissement des données entrantes (Sanitization) contre les injections de caractères suspects
-app.use(mongoSanitize());
+// app.use(mongoSanitize());
 
 // 3. LOG TRACEUR DES REQUÊTES ENTRANTES (Winston)
 app.use((req, res, next) => {

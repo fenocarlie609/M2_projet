@@ -1,0 +1,8 @@
+$kind: collection
+name: 'App Gestion API'
+variables:
+  - key: base_url
+    value: 'http://localhost:3000/api/v1'
+  - key: bearer_token
+    value: ''
+    description: 'JWT token for protected routes'

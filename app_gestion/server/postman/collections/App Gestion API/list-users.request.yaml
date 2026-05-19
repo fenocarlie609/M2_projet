@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'List users'
+method: GET
+url: '{{base_url}}/users'
+order: 3000
+headers:
+  - key: Authorization
+    value: 'Bearer {{bearer_token}}'

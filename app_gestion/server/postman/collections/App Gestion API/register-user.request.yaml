@@ -1,0 +1,17 @@
+$kind: http-request
+name: Register user
+method: POST
+url: "{{base_url}}/users/register"
+order: 2000
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{bearer_token}}
+body:
+  type: json
+  content: |-
+    {
+      "email": "aidanecarlie@gmail.com",
+      "password": "Azertyui?1532",
+      "name": "FENO Carlie",
+      "role": "SUPERADMIN"
+    }

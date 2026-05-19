@@ -2,7 +2,7 @@
 const jwt = require("jsonwebtoken");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-// const { prisma } = require('../../config/database'); // Prêt pour plus tard
+const { prisma } = require("../../config/database"); // Câblé sur ton Prisma !
 
 const protect = catchAsync(async (req, res, next) => {
   let token;
@@ -12,7 +12,7 @@ const protect = catchAsync(async (req, res, next) => {
     token = req.signedCookies.token;
   }
 
-  // Sécurité additionnelle : acceptation optionnelle du header Authorization (Utile pour les tests ou outils comme Postman)
+  // Fallback sur le header Authorization (Pratique pour Postman)
   if (
     !token &&
     req.headers.authorization &&
@@ -31,15 +31,35 @@ const protect = catchAsync(async (req, res, next) => {
   }
 
   // 2. Vérification de la validité du token
-  // jwt.verify est synchrone par défaut, mais catchAsync attrapera l'erreur si le token est expiré ou invalide
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  // 3. Plus tard : Vérifier si l'utilisateur existe toujours en BDD
-  // const currentUser = await prisma.user.findUnique({ where: { id: decoded.id } });
-  // if (!currentUser) return next(new AppError('L\'utilisateur propriétaire de ce token n\'existe plus.', 401));
+  // 3. Vérification de l'existence de l'utilisateur en BDD + Soft Delete check
+  const currentUser = await prisma.user.findUnique({
+    where: { id: decoded.id },
+  });
 
-  // Pour l'instant, on simule l'injection des données décodées du token dans la requête
-  req.user = { id: decoded.id, role: decoded.role };
+  if (!currentUser) {
+    return next(
+      new AppError(
+        "L'utilisateur propriétaire de ce token n'existe plus.",
+        401,
+      ),
+    );
+  }
+
+  // Sécurité additionnelle : Si l'utilisateur est archivé (Soft Deleted), on refuse l'accès
+  if (currentUser.deletedAt) {
+    return next(new AppError("Ce compte a été supprimé ou désactivé.", 401));
+  }
+
+  // 4. Injection des données complètes de l'utilisateur dans la requête
+  // On récupère req.ip pour que l'extension d'audit récupère l'IP réelle du client
+  req.user = {
+    id: currentUser.id,
+    role: currentUser.role,
+    email: currentUser.email,
+    ip: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+  };
 
   next();
 });
