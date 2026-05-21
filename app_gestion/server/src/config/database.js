@@ -13,35 +13,70 @@ const pool = new Pool({
 // 3. Création de l'adaptateur requis par Prisma v7
 const adapter = new PrismaPg(pool);
 
-// 4. Instanciation de base de Prisma
+// 4. Instanciation de base de Prisma (Instancié UNE SEULE fois pour l'application)
 const basePrisma = new PrismaClient({
   adapter: adapter,
   log:
     process.env.NODE_ENV === "development"
-      ? ["query", "info", "warn", "error"]
+      ? ["info", "warn", "error"] // On évite de dupliquer "query" car l'extension s'en charge
       : ["error", "warn"],
 });
 
-// 5. Remplacement du middleware $use par les extensions Prisma v7
-const prisma =
-  process.env.NODE_ENV === "development"
-    ? basePrisma.$extends({
-        query: {
-          $allModels: {
-            async $allOperations({ model, operation, args, query }) {
-              const start = Date.now();
-              const result = await query(args);
-              const duration = Date.now() - start;
+// 5. Remplacement des middlewares par les extensions Prisma v7
+// Actif sur tous les environnements pour capturer l'audit et mesurer les performances
+const prisma = basePrisma.$extends({
+  query: {
+    // Écoute absolument toutes les opérations sur tous les modèles
+    $allOperations: async ({ model, operation, args, query }) => {
+      const start = Date.now();
 
-              logger.info(
-                `Prisma Query: ${model}.${operation} - Exécutée en ${duration}ms`,
-              );
-              return result;
-            },
-          },
-        },
-      })
-    : basePrisma;
+      // EXTRACTION ET NETTOYAGE DU CONTEXTE D'AUDIT
+      // On récupère le contexte passé depuis le service s'il existe
+      const auditContext = args.context;
+
+      // CRUCIAL : On supprime la propriété 'context' de l'objet args.
+      // Si on la laisse, le validateur strict de Prisma lève une exception 'PrismaClientValidationError'
+      if (args.context) {
+        delete args.context;
+      }
+
+      // Exécution de la requête SQL normale (Valide pour Prisma désormais)
+      const result = await query(args);
+
+      const duration = Date.now() - start;
+
+      // 1. Log de performance (uniquement en développement pour ne pas polluer les fichiers logs de prod)
+      if (process.env.NODE_ENV === "development") {
+        logger.info(
+          `Prisma Query: ${model}.${operation} - Exécutée en ${duration}ms`,
+        );
+      }
+
+      // 2. Système d'audit (Actif en Dev et en Production)
+      // Si un contexte d'audit est fourni et qu'il s'agit d'une modification de données
+      if (
+        auditContext &&
+        ["create", "update", "delete", "updateMany", "deleteMany"].includes(
+          operation,
+        )
+      ) {
+        try {
+          // Ici, tu pourras appeler ton service ou client brut pour insérer la ligne d'audit
+          // Exemple :
+          // await basePrisma.auditLog.create({ data: { ...auditContext, action: `${model}_${operation.toUpperCase()}` } });
+        } catch (auditError) {
+          // On capture l'erreur d'audit pour éviter de bloquer l'action principale de l'utilisateur
+          logger.error(
+            "Échec de l'enregistrement de l'audit log :",
+            auditError,
+          );
+        }
+      }
+
+      return result;
+    },
+  },
+});
 
 // 6. Fonction pour tester proprement la connexion au démarrage du serveur principal
 const connectDB = async () => {
@@ -60,7 +95,7 @@ const connectDB = async () => {
   }
 };
 
-// On exporte l'instance "prisma" (éventuellement étendue) et la fonction connectDB
+// On exporte l'instance "prisma" sécurisée et la fonction connectDB
 module.exports = {
   prisma,
   connectDB,
