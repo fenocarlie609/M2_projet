@@ -19,7 +19,6 @@ model AuditLog {
   method      String   // GET, POST, PUT, DELETE
   route       String   // La route appelée (ex: /api/v1/users/123)
   ipAddress   String
-  
   // Stockage des données sous format JSON (très puissant avec PostgreSQL)
   payload     Json?    // Les données envoyées par l'utilisateur (req.body ou req.query)
   oldValues   Json?    // En cas de modification : l'état de la ligne AVANT la modification
@@ -36,12 +35,17 @@ model User {
   email     String    @unique
   password  String
   name      String?
-  role      String    @default("USER")
+  phone     String?   // Ajout pour pouvoir envoyer des notifications SMS/WhatsApp
+  role      String    @default("USER") // USER, ADMIN, SUPERADMIN
   
-  // Briques indispensables pour le Soft Delete et le suivi temporel
+  // STATUT DE VALIDATION
+  // false = En attente de validation par l'admin ou désactivé
+  // true = Validé et accès autorisé
+  isActive  Boolean   @default(false) 
+  
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  deletedAt DateTime? // Si ce champ est NULL -> la ligne est active. S'il contient une date -> la ligne est "supprimée"
+  deletedAt DateTime? 
 
   @@map("users")
 }
