@@ -1,14 +1,85 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@import "tailwindcss";
+
+/* @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"); */
+
+@layer base {
+  body {
+    @apply bg-[#F8FAFC] text-slate-800 antialiased font-sans selection:bg-brand-primary/10 selection:text-brand-primary;
+  }
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f5f6fa;
+@theme {
+  /* Police d'écriture SaaS premium */
+  --font-sans: "Inter", sans-serif;
+
+  /* Thème Couleur Obligatoire */
+  --color-brand-primary: #0f6e56;
+  --color-brand-link: #0f6e56;
+
+  --color-navy-sider: #001f3f;
+  --color-navy-trigger: #002a52;
+  --color-navy-item: #001f3f;
+  --color-navy-sub: #001429;
+  --color-navy-selected: #002a52;
+
+  /* Ombres douces (Premium & Glassmorphism) */
+  --shadow-premium:
+    0 4px 30px -10px rgba(0, 31, 63, 0.05),
+    0 2px 12px -2px rgba(0, 31, 63, 0.04);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 31, 63, 0.04);
 }
 
-#root {
-  min-height: 100vh;
+/* Conteneur de la notification */
+.Toastify__toast {
+  background-color: #0f172a !important; /* Slate-900 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  padding: 12px !important;
+}
+
+/* Texte à l'intérieur */
+.Toastify__toast-body {
+  font-family: "Inter", sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  font-size: 0.75rem;
+  color: #e2e8f0; /* Slate-200 */
+}
+
+/* Barre de progression */
+.Toastify__progress-bar {
+  height: 4px !important;
+  border-radius: 0 0 20px 20px;
+}
+
+/* Couleurs des barres selon le type */
+.Toastify__progress-bar--success {
+  background: #22c55e !important;
+}
+.Toastify__progress-bar--error {
+  background: #ef4444 !important;
+}
+.Toastify__progress-bar--info {
+  background: #3b82f6 !important;
+}
+
+/* Bouton de fermeture */
+.Toastify__close-button {
+  color: #64748b;
+  opacity: 1;
+  align-self: center;
+}
+
+/* Optimisation de la scrollbar pour un effet ERP épuré */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-slate-300;
 }
