@@ -28,7 +28,7 @@ const validate = (schemas) => {
     } catch (error) {
       // Si c'est une erreur de validation Zod, on extrait proprement les messages
       if (error.name === "ZodError") {
-        const errorsFormatted = error.errors.map((err) => ({
+        const errorsFormatted = error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,
         }));

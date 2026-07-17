@@ -1,22 +1,36 @@
 import { useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContext";
+import axiosInstance from "../../services/axiosInstance";
+import { showToast } from "../../components/utils/toast";
 
 function Login() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setLoading(true);
 
-    const fakeUser = {
-      user: {
-        name: "Administrateur",
-        role: "SUPERADMIN",
-      },
-    };
+    try {
+      const response = await axiosInstance.post("/auth/login", {
+        email,
+        password,
+      });
 
-    login(fakeUser);
+      console.log("Login response:", response); // Debug: Log the response data
+
+      login(response.data.data);
+      showToast.success("Connexion réussie !");
+    } catch (error) {
+      const message =
+        error.response?.data?.message ||
+        "Erreur lors de la connexion. Vérifiez vos identifiants.";
+      showToast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -51,9 +65,10 @@ function Login() {
 
         <button
           type="submit"
-          className="w-full rounded-2xl bg-brand-primary py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary"
+          disabled={loading}
+          className="w-full rounded-2xl bg-brand-primary py-3 text-sm font-semibold text-white transition hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Se connecter
+          {loading ? "Connexion..." : "Se connecter"}
         </button>
       </form>
     </div>

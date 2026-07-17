@@ -4,14 +4,16 @@ const logger = require("../../config/logger");
 
 // Limiteur ultra strict pour le brute-force (Login, Register, Password Reset)
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  // windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 60 * 1000, // 60 secondes pour les tests
   max: 5, // Seulement 5 tentatives autorisées !
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     status: "fail",
     message:
-      "Trop de tentatives de connexion. Veuillez réessayer dans 15 minutes.",
+      // "Trop de tentatives de connexion. Veuillez réessayer dans 15 minutes.",
+      "Trop de tentatives de connexion. Veuillez réessayer dans 1 minutes.",
   },
   handler: (req, res, next, options) => {
     logger.warn(

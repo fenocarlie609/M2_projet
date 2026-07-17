@@ -1,17 +1,13 @@
 import axios from "axios";
 
-// URL de base de ton API (Locale ou Cloud Render)
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://nanotech-crm-api.onrender.com/api/v2";
+// URL de base de ton API en développement modulaire
+const API_URL = import.meta.env.VITE_API_URL || "/api/v1";
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },
-  // OBLIGATOIRE POUR LES COOKIES : Autorise l'envoi et la réception automatique
-  // des cookies (ex: HttpOnly, Access Token, etc.) lors des requêtes Cross-Origin
   withCredentials: true,
 });
 
@@ -24,11 +20,18 @@ axiosInstance.interceptors.response.use(
   (error) => {
     // Si le serveur renvoie 401 (Non autorisé / Session expirée)
     if (error.response && error.response.status === 401) {
-      // Nettoyage des données de l'interface utilisateur uniquement
-      localStorage.removeItem("mada_user");
+      // Ne pas rediriger si c'est un appel de login (identifiants incorrects)
+      const isLoginRoute =
+        error.config?.url?.includes("/auth/login") ||
+        error.config?.url?.includes("/auth/me");
 
-      // Redirection vers la page de login
-      window.location.href = "/login";
+      if (!isLoginRoute) {
+        // Nettoyage des données de l'interface utilisateur uniquement
+        localStorage.removeItem("mada_user");
+
+        // Redirection vers la page de login (session expirée)
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   },

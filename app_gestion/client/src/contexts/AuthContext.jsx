@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import axiosInstance from "../services/axiosInstance";
 
 export const AuthContext = createContext(null);
 
@@ -14,16 +15,34 @@ export const AuthProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(true);
 
-  // Synchronisation au démarrage : On vérifie si l'utilisateur est toujours connecté côté serveur
+  // Synchronisation au démarrage : vérifie la session côté serveur.
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        // Optionnel mais recommandé : Fais un appel léger à ton API (ex: /api/me ou /api/validate-session)
-        // Le cookie sera envoyé automatiquement par le navigateur.
-        // const response = await fetch('/api/me', { credentials: 'include' });
-        // if (response.ok) { const data = await response.json(); setUser(data.user); } else { logout(); }
+        // Vérifier d'abord le localStorage pour éviter les appels inutiles
+        const userSaved = localStorage.getItem("mada_user");
+        if (!userSaved) {
+          setLoading(false);
+          return; // Pas d'utilisateur sauvegardé, pas besoin d'appeler /auth/me
+        }
+
+        console.log("Checking auth status... /auth/me is being called");
+        const response = await axiosInstance.get("/auth/me");
+
+        console.log("Auth status response:", response.data?.data?.user); // Debug: Log the response data
+        const currentUser = response.data?.data?.user || null;
+
+        if (currentUser) {
+          setUser(currentUser);
+          localStorage.setItem("mada_user", JSON.stringify(currentUser));
+        } else {
+          localStorage.removeItem("mada_user");
+          setUser(null);
+        }
       } catch (error) {
-        console.error("Erreur de vérification de session", error);
+        console.error("Auth check error:", error.message);
+        localStorage.removeItem("mada_user");
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -34,8 +53,6 @@ export const AuthProvider = ({ children }) => {
 
   // Fonction appelée après une connexion réussie
   const login = (userData) => {
-    // Le backend a déjà injecté le cookie dans la réponse HTTP (Set-Cookie)
-    // On sauvegarde uniquement les infos de profil non sensibles (nom, rôle, port)
     localStorage.setItem("mada_user", JSON.stringify(userData.user));
     setUser(userData.user);
     navigate("/");
@@ -44,12 +61,10 @@ export const AuthProvider = ({ children }) => {
   // Fonction pour se déconnecter
   const logout = async () => {
     try {
-      // Recommandé : Appeler la route de déconnexion du backend pour qu'il détruise le cookie (Clear-Cookie)
-      // await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+      await axiosInstance.post("/auth/logout");
     } catch (err) {
       console.error("Erreur lors de la suppression du cookie session", err);
     } finally {
-      // Nettoyage local obligatoire
       localStorage.removeItem("mada_user");
       setUser(null);
       navigate("/login");

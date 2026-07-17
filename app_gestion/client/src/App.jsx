@@ -4,7 +4,7 @@ import { AuthContext } from "./contexts/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { appRoutes } from "./routeConfig";
-import Login from "./pages/Login";
+import Login from "./pages/login/Login";
 
 const ProtectedLayout = ({ user }) => {
   if (!user) return <Navigate to="/login" replace />;
