@@ -1,8 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import App from "./App";
+import { AuthProvider } from "./features/auth";
+import App from "./core/App";
 import "./index.css";
 
 // 1. Importation du registre PWA
