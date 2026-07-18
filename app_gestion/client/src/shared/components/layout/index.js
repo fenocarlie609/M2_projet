@@ -1,1 +1,1 @@
-export { default as AppLayout } from "./AppLayout";
+export { RoleGuard } from "./RoleGuard";

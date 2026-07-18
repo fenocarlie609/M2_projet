@@ -1,4 +1,4 @@
-import axiosInstance from "../../../../shared/services/axiosInstance";
+import axiosInstance from "../../../shared/services/axiosInstance";
 
 export const loginService = {
   login: async (email, password) => {

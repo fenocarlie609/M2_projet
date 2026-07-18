@@ -1,77 +1,39 @@
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { useContext } from "react";
-import { AuthContext } from "../features/auth";
+// src/core/App.jsx
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "../features/auth"; // Utilisation de ton hook personnalisé[cite: 11]
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { appRoutes } from "./routes/routeConfig";
-import { LoginPage } from "../features/auth";
-
-const ProtectedLayout = ({ user }) => {
-  if (!user) return <Navigate to="/login" replace />;
-  return <Outlet />;
-};
-
-const AdminLayout = ({ user }) => {
-  const hasAdminAccess = ["ADMIN", "SUPERADMIN"].includes(user?.role);
-  if (!hasAdminAccess) return <Navigate to="/dashboard" replace />;
-  return <Outlet />;
-};
-
-const SuperAdminLayout = ({ user }) => {
-  const isSuperAdmin = user?.role === "SUPERADMIN";
-  if (!isSuperAdmin) return <Navigate to="/dashboard" replace />;
-  return <Outlet />;
-};
+import { appRoutes } from "./routes/routeConfig"; //
+import { LoginPage } from "../features/auth"; //[cite: 10]
+import { RoleGuard } from "@/shared/components/layout"; // Import direct depuis l'alias défini dans vite.config.js[cite: 10]
 
 function App() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth(); // Ton hook gère déjà le chargement et le state global[cite: 11]
 
   return (
-    <div className="min-h-screen bg-nano-dark">
+    <div className="min-h-screen bg-slate-900">
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
 
       <Routes>
+        {/* Route Publique : Connexion */}
         <Route
           path="/login"
           element={!user ? <LoginPage /> : <Navigate to="/dashboard" replace />}
         />
 
-        <Route element={<ProtectedLayout user={user} />}>
-          {appRoutes
-            .filter((route) => route.access === "protected")
-            .map((route) => (
-              <Route
-                key={route.path}
-                path={route.path}
-                element={route.element}
-              />
-            ))}
-
-          <Route element={<AdminLayout user={user} />}>
-            {appRoutes
-              .filter((route) => route.access === "admin")
-              .map((route) => (
-                <Route
-                  key={route.path}
-                  path={route.path}
-                  element={route.element}
-                />
-              ))}
+        {/* ⚡ Orchestration dynamique de toutes les routes de l'application */}
+        {appRoutes.map((route) => (
+          <Route
+            key={route.path}
+            // On enveloppe directement chaque route avec notre garde configuré selon ses propres rôles autorisés[cite: 9]
+            element={<RoleGuard allowedRoles={route.roles} />}
+          >
+            {/* Si le rôle matche, la route réelle s'injecte via l'Outlet du RoleGuard */}
+            <Route path={route.path} element={route.element} />
           </Route>
+        ))}
 
-          <Route element={<SuperAdminLayout user={user} />}>
-            {appRoutes
-              .filter((route) => route.access === "superadmin")
-              .map((route) => (
-                <Route
-                  key={route.path}
-                  path={route.path}
-                  element={route.element}
-                />
-              ))}
-          </Route>
-        </Route>
-
+        {/* Redirection globale pour les URL inconnues */}
         <Route
           path="*"
           element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
