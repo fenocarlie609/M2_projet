@@ -13,6 +13,7 @@ import { DashboardPage } from "../../features/dashboard";
 import { UserPage } from "../../features/user";
 import { AdminPage } from "../../features/admin";
 import { SuperAdminPage } from "../../features/superadmin";
+import { TemplatePage } from "../../features/template";
 
 export const appRoutes = [
   {
@@ -35,7 +36,7 @@ export const appRoutes = [
     section: "Général",
     element: (
       <DashboardLayout>
-        <UserPage />
+        <TemplatePage />
       </DashboardLayout>
     ),
     access: "protected",
