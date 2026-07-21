@@ -4,47 +4,85 @@ const { comparePassword } = require("../../common/utils/password.utils");
 const AppError = require("../../common/utils/AppError");
 
 const createToken = (payload) => {
-  const expiresIn = process.env.JWT_EXPIRES_IN || "1h";
+  const expiresIn = process.env.JWT_EXPIRES_IN || "60m";
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
-const loginUser = async ({ email, password }) => {
-  const user = await prisma.user.findUnique({
-    where: { email },
+/**
+ * Authentifie un employé.
+ * Seuls les employés avec hasAppAccess = true ET isActive = true peuvent se connecter.
+ */
+const loginEmployee = async ({ identifier, password }) => {
+  const employee = await prisma.Employee.findFirst({
+    where: {
+      OR: [{ email: identifier }, { matricule: identifier }],
+    },
+    include: { permissions: true },
   });
 
-  console.log("User found:", user); // Debug: Log the user object
+  console.log(employee);
 
-  if (!user || user.deletedAt) {
-    throw new AppError("Email ou mot de passe incorrect.", 401);
+  // On renvoie le même message générique dans tous les cas d'échec pour ne pas
+  // laisser deviner si l'email existe, s'il a accès à l'app, etc.
+  if (!employee || employee.deletedAt) {
+    throw new AppError("Identifiant ou mot de passe incorrect.", 401);
   }
 
-  //   if (!user.isActive) {
-  //     throw new AppError(
-  //       "Votre compte n'est pas activé. Veuillez contacter un administrateur.",
-  //       403,
-  //     );
-  //   }
+  // Un employé sans accès à l'application (ex: agent de quai sans compte) ne peut pas se connecter
+  if (!employee.hasAppAccess || !employee.password) {
+    throw new AppError("Identifiant ou mot de passe incorrect.", 401);
+  }
 
-  const passwordIsValid = await comparePassword(password, user.password);
+  const passwordIsValid = await comparePassword(password, employee.password);
   if (!passwordIsValid) {
-    throw new AppError("Email ou mot de passe incorrect.", 401);
+    throw new AppError("Identifiant ou mot de passe incorrect.", 401);
+  }
+
+  if (!employee.isActive) {
+    throw new AppError(
+      "Votre compte n'est pas encore activé. Contactez un administrateur.",
+      403,
+    );
   }
 
   const token = createToken({
-    id: user.id,
-    email: user.email,
-    role: user.role,
+    id: employee.id,
+    email: employee.email,
   });
 
-  user.password = undefined;
+  employee.password = undefined;
 
-  return {
-    user,
-    token,
-  };
+  return { employee, token };
+};
+
+const getFreshProfile = async (employeeId) => {
+  const employee = await prisma.Employee.findUnique({
+    where: { id: employeeId },
+    include: {
+      permissions: true,
+    },
+  });
+
+  // L'erreur est levée ici si l'employé est introuvable ou supprimé
+  if (!employee || employee.deletedAt) {
+    throw new AppError("Cet employé n'existe plus ou a été supprimé.", 404);
+  }
+
+  // 1. Sécurité : On retire le mot de passe
+  employee.password = undefined;
+
+  // 2. Nettoyage des permissions : On map le tableau pour exclure id et employeeId
+  if (employee.permissions && Array.isArray(employee.permissions)) {
+    employee.permissions = employee.permissions.map(({ module, action }) => ({
+      module,
+      action,
+    }));
+  }
+
+  return employee;
 };
 
 module.exports = {
-  loginUser,
+  loginEmployee,
+  getFreshProfile,
 };

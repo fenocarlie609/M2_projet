@@ -24,15 +24,16 @@ enum EntityType {
 
 model Employee {
   id            String    @id @default(uuid())
-  
+
   // Informations Personnelles & Professionnelles
   name          String    // Nom complet
-  cin           String    @unique // Numéro CIN (obligatoire pour tout le personnel)
-  phone         String?   
+  cin           String?   @unique // Numéro CIN (optionnel : certains employés n'en ont pas encore)
+  matricule     String    @unique // Numéro de matricule interne (attribué par la RH), utilisable pour se connecter
+  phone         String?
   avatarUrl     String?   // Photo de l'employé
   department    String    // Ex: "Logistique Maritime", "Ressources Humaines", "Direction"
   position      String    // Le poste exact (Ex: "Agent de quai", "Chauffeur Interne", "Superadmin")
-  
+
   // --- SECTION COMPTE & ACCÈS À L'APPLICATION ---
   hasAppAccess  Boolean   @default(false) // Permet de marquer si l'employé a le droit d'utiliser l'app
   email         String?   @unique // Requis uniquement si hasAppAccess = true
@@ -54,7 +55,7 @@ model EmployeePermission {
   id          String   @id @default(uuid())
   employeeId  String
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  
+
   module      String   // Le module visé (Ex: "CHARGEMENT", "AUDIT", "EMPLOYEES")
   action      String   // L'action autorisée (Ex: "CREATE", "READ", "UPDATE", "DELETE")
 
@@ -66,15 +67,15 @@ model AuditLog {
   id          String    @id @default(uuid())
   employeeId  String?   // Remplacé userId par employeeId
   employee    Employee? @relation(fields: [employeeId], references: [id])
-  
+
   action      String    // Ex: "LOADING_PLAN_CREATE"
   method      String    // GET, POST, PUT, DELETE
-  route       String    
+  route       String
   ipAddress   String
-  payload     Json?    
-  oldValues   Json?    
-  newValues   Json?    
-  
+  payload     Json?
+  oldValues   Json?
+  newValues   Json?
+
   createdAt   DateTime  @default(now())
 
   @@map("audit_logs")
@@ -86,9 +87,9 @@ model AuditLog {
 
 model Client {
   id        String     @id @default(uuid())
-  name      String     
+  name      String
   type      EntityType @default(INDIVIDUAL)
-  phone     String?    
+  phone     String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -97,10 +98,10 @@ model Client {
 
 model Driver {
   id           String     @id @default(uuid())
-  name         String     
+  name         String
   type         EntityType @default(INDIVIDUAL)
-  licensePlate String     
-  phone        String?    
+  licensePlate String
+  phone        String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

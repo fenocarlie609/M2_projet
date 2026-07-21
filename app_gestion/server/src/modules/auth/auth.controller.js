@@ -1,5 +1,6 @@
 const catchAsync = require("../../common/utils/catchAsync");
 const authService = require("./auth.service");
+const { getIO } = require("../../config/socket");
 
 const parseJwtExpiration = (expiresIn) => {
   if (!expiresIn) return 15 * 60 * 1000;
@@ -23,12 +24,12 @@ const cookieOptions = {
   httpOnly: true,
   secure: false, // En développement, toujours false
   signed: true,
-  sameSite: "lax", // Changé de "none" à "lax" pour le dev local
+  sameSite: "lax",
   path: "/",
 };
 
 exports.login = catchAsync(async (req, res) => {
-  const { user, token } = await authService.loginUser(req.body);
+  const { employee, token } = await authService.loginEmployee(req.body);
 
   res.cookie("token", token, {
     ...cookieOptions,
@@ -38,14 +39,37 @@ exports.login = catchAsync(async (req, res) => {
   res.status(200).json({
     status: "success",
     token,
-    data: { user },
+    data: { employee },
   });
 });
 
 exports.me = catchAsync(async (req, res) => {
+  // 1. Appel au service (si une erreur survient, elle est catchée automatiquement)
+  const user = await authService.getFreshProfile(req.user.id);
+
+  // 2. Réponse propre uniquement pour le succès
   res.status(200).json({
     status: "success",
-    data: { user: req.user },
+    data: { user },
+  });
+});
+
+exports.test = catchAsync(async (req, res) => {
+  // 1. Récupérer l'instance globale de Socket.IO
+  const io = getIO();
+
+  // 2. Récupérer le profil ultra-propre (sans mot de passe, sans ID inutiles)
+  // On utilise l'ID de test présent dans ton terminal
+  const targetEmployeeId = "388e908f-e395-4c68-b23b-898c62a8dcb2";
+  const updatedProfile = await authService.getFreshProfile(targetEmployeeId);
+
+  // 3. Pousser les données sur le canal privé de cet employé
+  io.to(`employee_${targetEmployeeId}`).emit("profile-updated", updatedProfile);
+
+  // 4. Réponse HTTP classique pour Postman
+  res.status(200).json({
+    status: "success",
+    message: "Notification temps réel envoyée avec succès !",
   });
 });
 
