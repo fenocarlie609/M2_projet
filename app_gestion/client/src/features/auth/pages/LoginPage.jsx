@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { showToast } from "../../../shared/utils/toast";
-import { loginService } from "../service/login.service";
+import { useAuth, loginService } from "@/features/auth";
+import { showToast } from "@/shared/utils/toast";
 
 function LoginPage() {
   const { login } = useAuth();

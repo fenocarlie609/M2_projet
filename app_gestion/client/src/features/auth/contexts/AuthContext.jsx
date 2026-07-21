@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import axiosInstance from "../../../shared/services/axiosInstance";
+import axiosInstance from "@/shared/services/axiosInstance";
 
 export const AuthContext = createContext(null);
 
@@ -26,10 +26,8 @@ export const AuthProvider = ({ children }) => {
           return; // Pas d'utilisateur sauvegardé, pas besoin d'appeler /auth/me
         }
 
-        console.log("Checking auth status... /auth/me is being called");
         const response = await axiosInstance.get("/auth/me");
 
-        console.log("Auth status response:", response.data?.data?.user); // Debug: Log the response data
         const currentUser = response.data?.data?.user || null;
 
         if (currentUser) {

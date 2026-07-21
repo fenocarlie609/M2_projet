@@ -4,7 +4,7 @@ const { comparePassword } = require("../../common/utils/password.utils");
 const AppError = require("../../common/utils/AppError");
 
 const createToken = (payload) => {
-  const expiresIn = process.env.JWT_EXPIRES_IN || "15m";
+  const expiresIn = process.env.JWT_EXPIRES_IN || "1h";
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 

@@ -8,12 +8,12 @@ import {
   FiCheckSquare,
   FiSettings,
 } from "react-icons/fi";
-import { DashboardLayout } from "../../features/dashboard";
-import { DashboardPage } from "../../features/dashboard";
-import { UserPage } from "../../features/user";
-import { AdminPage } from "../../features/admin";
-import { SuperAdminPage } from "../../features/superadmin";
-import { TemplatePage } from "../../features/template";
+import * as dashboard from "@/features/dashboard";
+import { DashboardPage } from "@/features/dashboard";
+import { UserPage } from "@/features/user";
+import { AdminPage } from "@/features/admin";
+import { SuperAdminPage } from "@/features/superadmin";
+import { TemplatePage } from "@/features/template";
 
 export const appRoutes = [
   {
@@ -21,9 +21,9 @@ export const appRoutes = [
     label: "Dashboard",
     section: "Administration",
     element: (
-      <DashboardLayout>
+      <dashboard.DashboardLayout>
         <DashboardPage />
-      </DashboardLayout>
+      </dashboard.DashboardLayout>
     ),
     access: "admin",
     roles: ["ADMIN", "SUPERADMIN"],
@@ -35,9 +35,9 @@ export const appRoutes = [
     label: "Template",
     section: "Général",
     element: (
-      <DashboardLayout>
+      <dashboard.DashboardLayout>
         <TemplatePage />
-      </DashboardLayout>
+      </dashboard.DashboardLayout>
     ),
     access: "protected",
     roles: ["USER", "ADMIN", "SUPERADMIN"],
@@ -45,13 +45,27 @@ export const appRoutes = [
     showInSidebar: true,
   },
   {
+    path: "/users",
+    label: "Utilisateurs",
+    section: "Superadmin",
+    element: (
+      <dashboard.DashboardLayout>
+        <UserPage />
+      </dashboard.DashboardLayout>
+    ),
+    // Seul le SUPERADMIN peut manipuler et voir ce module
+    roles: ["SUPERADMIN"],
+    icon: FiUsers,
+    showInSidebar: true,
+  },
+  {
     path: "/superadmin",
     label: "Superadmin",
     section: "Superadmin",
     element: (
-      <DashboardLayout>
+      <dashboard.DashboardLayout>
         <SuperAdminPage />
-      </DashboardLayout>
+      </dashboard.DashboardLayout>
     ),
     access: "superadmin",
     roles: ["SUPERADMIN"],

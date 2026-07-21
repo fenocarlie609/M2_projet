@@ -12,40 +12,97 @@ datasource db {
   provider = "postgresql"
 }
 
-model AuditLog {
-  id          String   @id @default(uuid())
-  userId      String?  // Optionnel car un utilisateur non connecté peut tenter une action (ex: échec login)
-  action      String   // Ex: "USER_LOGIN", "PRODUCT_CREATE", "USER_UPDATE", "USER_DELETE"
-  method      String   // GET, POST, PUT, DELETE
-  route       String   // La route appelée (ex: /api/v1/users/123)
-  ipAddress   String
-  // Stockage des données sous format JSON (très puissant avec PostgreSQL)
-  payload     Json?    // Les données envoyées par l'utilisateur (req.body ou req.query)
-  oldValues   Json?    // En cas de modification : l'état de la ligne AVANT la modification
-  newValues   Json?    // En cas de modification : l'état de la ligne APRÈS la modification
-  
-  createdAt   DateTime @default(now())
-
-  @@map("audit_logs") // Pour avoir un nom de table en snake_case dans Postgres
+// Enums pour qualifier le type d'entité métier
+enum EntityType {
+  COMPANY      // Entreprise / Personne Morale
+  INDIVIDUAL   // Particulier / Personne Physique
 }
 
-// 2. EXEMPLE D'UNE TABLE AVEC SOFT DELETE (Ex: Utilisateur)
-model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  password  String
-  name      String?
-  phone     String?   // Ajout pour pouvoir envoyer des notifications SMS/WhatsApp
-  role      String    @default("USER") // USER, ADMIN, SUPERADMIN
-  
-  // STATUT DE VALIDATION
-  // false = En attente de validation par l'admin ou désactivé
-  // true = Validé et accès autorisé
-  isActive  Boolean   @default(false) 
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime? 
+// ==========================================
+// 1. ARCHITECTURE INTERNE (EMPLOYÉS & ACCÈS)
+// ==========================================
 
-  @@map("users")
+model Employee {
+  id            String    @id @default(uuid())
+  
+  // Informations Personnelles & Professionnelles
+  name          String    // Nom complet
+  cin           String    @unique // Numéro CIN (obligatoire pour tout le personnel)
+  phone         String?   
+  avatarUrl     String?   // Photo de l'employé
+  department    String    // Ex: "Logistique Maritime", "Ressources Humaines", "Direction"
+  position      String    // Le poste exact (Ex: "Agent de quai", "Chauffeur Interne", "Superadmin")
+  
+  // --- SECTION COMPTE & ACCÈS À L'APPLICATION ---
+  hasAppAccess  Boolean   @default(false) // Permet de marquer si l'employé a le droit d'utiliser l'app
+  email         String?   @unique // Requis uniquement si hasAppAccess = true
+  password      String?   // Requis uniquement si hasAppAccess = true
+  isActive      Boolean   @default(false) // Si le compte est activé/validé par l'admin
+
+  // Relations
+  permissions   EmployeePermission[] // Liste des permissions spécifiques de cet employé
+  auditLogs     AuditLog[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // Soft delete pour l'employé
+
+  @@map("employees")
+}
+
+model EmployeePermission {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  module      String   // Le module visé (Ex: "CHARGEMENT", "AUDIT", "EMPLOYEES")
+  action      String   // L'action autorisée (Ex: "CREATE", "READ", "UPDATE", "DELETE")
+
+  @@unique([employeeId, module, action]) // Évite les doublons de permissions pour un même employé
+  @@map("employee_permissions")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  employeeId  String?   // Remplacé userId par employeeId
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+  
+  action      String    // Ex: "LOADING_PLAN_CREATE"
+  method      String    // GET, POST, PUT, DELETE
+  route       String    
+  ipAddress   String
+  payload     Json?    
+  oldValues   Json?    
+  newValues   Json?    
+  
+  createdAt   DateTime  @default(now())
+
+  @@map("audit_logs")
+}
+
+// ==========================================
+// 2. DONNÉES MÉTIERS (EXTERNES)
+// ==========================================
+
+model Client {
+  id        String     @id @default(uuid())
+  name      String     
+  type      EntityType @default(INDIVIDUAL)
+  phone     String?    
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("clients")
+}
+
+model Driver {
+  id           String     @id @default(uuid())
+  name         String     
+  type         EntityType @default(INDIVIDUAL)
+  licensePlate String     
+  phone        String?    
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("drivers")
 }
