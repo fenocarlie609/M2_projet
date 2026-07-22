@@ -1,22 +1,32 @@
-// src/shared/components/layout/RoleGuard.jsx
-import React from "react";
+// src/core/routes/RoleGuard.jsx
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@/features/auth"; // Ajuste le nombre de '../' selon ton arborescence exacte[cite: 11]
+import { useAuth } from "@/features/auth/contexts/AuthContext";
+import { hasPermission } from "@/shared/utils/permissions";
 
-export const RoleGuard = ({ allowedRoles }) => {
-  const { user } = useAuth(); // Récupération de l'utilisateur connecté depuis ton contexte global[cite: 11]
+export const RoleGuard = ({ requiredPermission }) => {
+  const { user, loading } = useAuth(); // Récupère le statut et l'utilisateur[cite: 11, 12]
 
-  // 1. Si l'utilisateur n'est pas authentifié, redirection immédiate vers la page de login
+  if (loading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-navy-sider text-white">
+        Chargement des autorisations...
+      </div>
+    );
+  }
+
+  // Redirection vers le login si non authentifié[cite: 12]
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // 2. Si la route impose des rôles spécifiques et que l'utilisateur n'en possède aucun
-  if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    // Redirection de sécurité vers le tableau de bord principal
+  // 🔥 Vérification de la permission avec notre helper centralisé
+  const isAuthorized = hasPermission(user, requiredPermission);
+
+  // Si l'utilisateur n'a pas les droits, redirection ou affichage d'une page 403
+  if (!isAuthorized) {
     return <Navigate to="/dashboard" replace />;
+    // Tu peux aussi le rediriger vers une page "/403" dédiée si tu en as une
   }
 
-  // 3. Tout est en règle : l'Outlet permet le rendu du composant de la route enfant
   return <Outlet />;
 };

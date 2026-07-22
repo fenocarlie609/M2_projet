@@ -10,11 +10,21 @@ import {
 } from "react-icons/fi";
 import * as dashboard from "@/features/dashboard";
 import { DashboardPage } from "@/features/dashboard";
-import { UserPage } from "@/features/user";
+import { EmployeePage } from "@/features/employee";
+import { UsersPage } from "@/features/users";
 import { AdminPage } from "@/features/admin";
 import { SuperAdminPage } from "@/features/superadmin";
 import { TemplatePage } from "@/features/template";
 
+// NOTE : le backend n'a plus de "role" (ADMIN/USER/SUPERADMIN). Chaque route
+// déclare désormais la permission (module, action) requise, vérifiée contre
+// user.permissions (voir RoleGuard.jsx). Une route sans "requiredPermission"
+// est accessible à tout employé connecté (hasAppAccess + isActive suffisent).
+//
+// ⚠️ Les valeurs de "module" ci-dessous doivent correspondre exactement aux
+// clés de APP_MODULES côté backend (src/common/utils/constants.js). Je n'ai
+// que EMPLOYEES et USERS confirmés ; DASHBOARD/TEMPLATE/SUPERADMIN sont à
+// adapter selon votre fichier constants.js réel.
 export const appRoutes = [
   {
     path: "/dashboard",
@@ -25,8 +35,7 @@ export const appRoutes = [
         <DashboardPage />
       </dashboard.DashboardLayout>
     ),
-    access: "admin",
-    roles: ["ADMIN", "SUPERADMIN"],
+    requiredPermission: null, // accessible à tout employé connecté
     icon: FiGrid,
     showInSidebar: true,
   },
@@ -39,9 +48,22 @@ export const appRoutes = [
         <TemplatePage />
       </dashboard.DashboardLayout>
     ),
-    access: "protected",
-    roles: ["USER", "ADMIN", "SUPERADMIN"],
+    requiredPermission: null, // accessible à tout employé connecté
     icon: FiAnchor,
+    showInSidebar: true,
+  },
+  {
+    path: "/employees",
+    label: "Employés",
+    section: "Administration",
+    element: (
+      <dashboard.DashboardLayout>
+        <EmployeePage />
+      </dashboard.DashboardLayout>
+    ),
+    // Correspond au module "employees" côté backend (fiches RH)
+    requiredPermission: { module: "EMPLOYEES", action: "READ" },
+    icon: FiUsers,
     showInSidebar: true,
   },
   {
@@ -50,11 +72,11 @@ export const appRoutes = [
     section: "Superadmin",
     element: (
       <dashboard.DashboardLayout>
-        <UserPage />
+        <UsersPage />
       </dashboard.DashboardLayout>
     ),
-    // Seul le SUPERADMIN peut manipuler et voir ce module
-    roles: ["SUPERADMIN"],
+    // Correspond au module "users" côté backend (gestion de l'accès applicatif)
+    requiredPermission: { module: "USERS", action: "READ" },
     icon: FiUsers,
     showInSidebar: true,
   },
@@ -67,8 +89,8 @@ export const appRoutes = [
         <SuperAdminPage />
       </dashboard.DashboardLayout>
     ),
-    access: "superadmin",
-    roles: ["SUPERADMIN"],
+    // À adapter : quel module protège cette page côté backend ?
+    requiredPermission: { module: "SUPERADMIN", action: "READ" },
     icon: FiShield,
     showInSidebar: true,
   },

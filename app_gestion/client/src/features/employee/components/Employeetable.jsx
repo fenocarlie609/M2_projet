@@ -1,26 +1,21 @@
-// src/features/user/components/UserTable.jsx
+// src/features/employee/components/EmployeeTable.jsx
 import React from "react";
 import { Table, Button, Badge } from "@/shared/components/ui";
 import { FiTrash2, FiEdit3 } from "react-icons/fi";
 
-export function UserTable({ data, isLoading, onEdit, onDelete }) {
+export function EmployeeTable({ data, isLoading, onEdit, onDelete }) {
   const columns = [
     { header: "Nom", key: "name" },
-    { header: "Email", key: "email" },
+    { header: "Matricule", key: "matricule" },
+    { header: "CIN", key: "cin", render: (row) => row.cin || "—" },
+    { header: "Département", key: "department" },
+    { header: "Poste", key: "position" },
     {
-      header: "Role",
-      key: "role",
+      header: "Accès app",
+      key: "hasAppAccess",
       render: (row) => (
-        <Badge
-          variant={
-            row.role === "SUPERADMIN"
-              ? "navy"
-              : row.role === "ADMIN"
-                ? "warning"
-                : "success"
-          }
-        >
-          {row.role}
+        <Badge variant={row.hasAppAccess ? "success" : "warning"}>
+          {row.hasAppAccess ? "Oui" : "Non"}
         </Badge>
       ),
     },

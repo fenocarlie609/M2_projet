@@ -10,8 +10,9 @@ const { APP_MODULES, APP_ACTIONS } = require("../../common/utils/constants");
 
 const router = express.Router();
 
-// Tout le module employees nécessite d'être connecté
-// router.use(authMiddleware.protect);
+// 🔥 CORRECTION : On décommente cette ligne !
+// Maintenant, req.user est injecté systématiquement AVANT d'arriver sur authorize ou isSelfOrAuthorized
+router.use(authMiddleware.protect);
 
 router
   .route("/")
@@ -20,7 +21,7 @@ router
     employeeController.getAll,
   )
   .post(
-    /*authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.CREATE),*/
+    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.CREATE),
     validate(employeeValidation.create),
     employeeController.create,
   );

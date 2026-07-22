@@ -80,7 +80,20 @@ const protect = catchAsync(async (req, res, next) => {
  */
 const authorize = (module, action) => {
   return (req, res, next) => {
-    const hasPermission = (req.user.permissions || []).some(
+    // 🔥 SÉCURITÉ : Si protect n'a pas été appelé avant ou a échoué silencieusement
+    if (!req.user) {
+      return next(
+        new AppError(
+          "Authentification requise. Veuillez inclure le middleware 'protect' avant 'authorize'.",
+          0, // Idéalement 401
+        ),
+      );
+    }
+
+    // Désormais, req.user existe de manière garantie, aucun risque de crash 500 ici
+    const userPermissions = req.user.permissions || [];
+
+    const hasPermission = userPermissions.some(
       (p) =>
         (p.module === module || p.module === "*") &&
         (p.action === action || p.action === "*"),

@@ -113,6 +113,7 @@ const getAllActiveEmployees = async () => {
     select: {
       id: true,
       name: true,
+      matricule: true,
       cin: true,
       phone: true,
       department: true,
