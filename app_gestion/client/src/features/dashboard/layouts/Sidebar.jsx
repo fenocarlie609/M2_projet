@@ -136,7 +136,7 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                 {user?.name || "Utilisateur"}
               </p>
               <p className="text-[11px] text-slate-400 truncate">
-                {user?.position || "Employé Connecté"}
+                {user?.position?.label || "Employé Connecté"}
               </p>
             </div>
 

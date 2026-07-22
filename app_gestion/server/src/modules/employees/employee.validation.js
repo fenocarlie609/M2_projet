@@ -1,8 +1,8 @@
+// src/features/employee/employee.validation.js
 const { z } = require("zod");
 const { APP_MODULES, APP_ACTIONS } = require("../../common/utils/constants");
 
 const permissionSchema = z.object({
-  // Zod vérifie que la chaîne envoyée fait obligatoirement partie de ta liste officielle
   module: z.enum(Object.values(APP_MODULES)),
   action: z.enum(Object.values(APP_ACTIONS)),
 });
@@ -14,12 +14,12 @@ const createEmployeeSchema = z
     matricule: z.string().min(1),
     phone: z.string().optional().nullable(),
     avatarUrl: z.string().url().optional().nullable(),
-    department: z.string().min(1),
-    position: z.string().min(1),
+    // Changement ici : On valide des UUID reçus du Front
+    departmentId: z.string().uuid("ID de département invalide"),
+    positionId: z.string().uuid("ID de poste invalide"),
     hasAppAccess: z.boolean().default(false),
     email: z.string().email().optional(),
     password: z.string().min(8).optional(),
-    // Permissions initiales optionnelles à la création
     permissions: z.array(permissionSchema).default([]),
   })
   .superRefine((data, ctx) => {
@@ -56,8 +56,9 @@ const updateEmployeeSchema = z
     matricule: z.string().min(1).optional(),
     phone: z.string().optional().nullable(),
     avatarUrl: z.string().url().optional().nullable(),
-    department: z.string().min(1).optional(),
-    position: z.string().min(1).optional(),
+    // Optionnels pour la modification
+    departmentId: z.string().uuid("ID de département invalide").optional(),
+    positionId: z.string().uuid("ID de poste invalide").optional(),
     hasAppAccess: z.boolean().optional(),
     isActive: z.boolean().optional(),
     email: z.string().email().optional().nullable(),

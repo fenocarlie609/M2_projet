@@ -1,6 +1,6 @@
 // src/features/users/components/GrantAccessModal.jsx
 import React, { useState, useEffect } from "react";
-import { Modal, Button } from "@/shared/components/ui";
+import { Modal, Form, Input, Select, Button } from "@/shared/components/ui";
 
 export function GrantAccessModal({
   isOpen,
@@ -26,8 +26,7 @@ export function GrantAccessModal({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
       await onAccessGranted(formData.employeeId, {
@@ -42,71 +41,57 @@ export function GrantAccessModal({
     }
   };
 
+  const employeeOptions = [
+    { value: "", label: "Sélectionner un employé sans accès..." },
+    ...employees.map((emp) => ({
+      value: emp.id,
+      // position est désormais un objet { code, label }
+      label: `${emp.name} — ${emp.position?.label || "Poste inconnu"} (${emp.matricule})`,
+    })),
+  ];
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Donner l'accès à l'application"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Employé
-          </label>
-          <select
-            name="employeeId"
-            required
-            value={formData.employeeId}
-            onChange={handleInputChange}
-            className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors cursor-pointer"
-          >
-            <option value="" disabled>
-              Sélectionner un employé sans accès...
-            </option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.name} — {emp.position} ({emp.matricule})
-              </option>
-            ))}
-          </select>
-          {employees.length === 0 && (
-            <p className="mt-1.5 text-xs text-slate-500">
-              Tous les employés ont déjà un accès, ou aucun employé n'existe
-              encore.
-            </p>
-          )}
-        </div>
+      <Form onSubmit={handleSubmit}>
+        <Select
+          label="Employé"
+          name="employeeId"
+          required
+          value={formData.employeeId}
+          onChange={handleInputChange}
+          options={employeeOptions}
+        />
+        {employees.length === 0 && (
+          <p className="text-xs text-slate-500 -mt-2">
+            Tous les employés ont déjà un accès, ou aucun employé n'existe
+            encore.
+          </p>
+        )}
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Adresse Email
-          </label>
-          <input
-            type="email"
-            name="email"
-            required
-            value={formData.email}
-            onChange={handleInputChange}
-            placeholder="Ex: john.doe@example.com"
-            className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-          />
-        </div>
+        <Input
+          label="Adresse Email"
+          type="email"
+          name="email"
+          required
+          value={formData.email}
+          onChange={handleInputChange}
+          placeholder="Ex: john.doe@example.com"
+        />
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Mot de passe initial
-          </label>
-          <input
-            type="password"
-            name="password"
-            required
-            minLength={8}
-            value={formData.password}
-            onChange={handleInputChange}
-            placeholder="8 caractères minimum"
-            className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-          />
-        </div>
+        <Input
+          label="Mot de passe initial"
+          type="password"
+          name="password"
+          required
+          minLength={8}
+          value={formData.password}
+          onChange={handleInputChange}
+          placeholder="8 caractères minimum"
+        />
 
         <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -115,12 +100,13 @@ export function GrantAccessModal({
           <Button
             type="submit"
             variant="primary"
-            disabled={isSubmitting || !formData.employeeId}
+            isLoading={isSubmitting}
+            disabled={!formData.employeeId}
           >
-            {isSubmitting ? "Attribution..." : "Donner l'accès"}
+            Donner l'accès
           </Button>
         </div>
-      </form>
+      </Form>
     </Modal>
   );
 }

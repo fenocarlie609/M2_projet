@@ -15,8 +15,11 @@ router.get("/health", (req, res) => {
 // Exemples de futures intégrations de modules :
 const authRoutes = require("./auth/auth.routes");
 const { employeeRoutes } = require("./employees");
+const { companyStructureRoutes } = require("./company-structure");
+
 router.use("/auth", authRoutes);
 // router.use("/users", userRoutes);
 router.use("/employees", employeeRoutes);
+router.use("/company-structure", companyStructureRoutes);
 
 module.exports = router;

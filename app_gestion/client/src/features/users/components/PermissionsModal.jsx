@@ -1,13 +1,13 @@
 // src/features/users/components/PermissionsModal.jsx
 import React, { useState } from "react";
-import { Modal, Button, Badge } from "@/shared/components/ui";
+import { Modal, Input, Button, Badge } from "@/shared/components/ui";
 import { FiTrash2 } from "react-icons/fi";
 
 // NOTE : module/action doivent correspondre exactement aux valeurs de
 // APP_MODULES / APP_ACTIONS définies côté backend
 // (src/common/utils/constants.js). Je n'ai pas ce fichier, donc j'utilise de
 // simples champs texte ici. Envoyez-moi constants.js si vous voulez que je les
-// remplace par des <select> avec les vraies valeurs autorisées.
+// remplace par des <Select> avec les vraies valeurs autorisées.
 export function PermissionsModal({
   isOpen,
   onClose,
@@ -69,40 +69,32 @@ export function PermissionsModal({
           ))}
         </div>
 
+        {/* Layout inline : formulaire brut plutôt que <Form> (qui impose un
+            espacement vertical entre champs, pas adapté ici) */}
         <form
           onSubmit={handleAssign}
           className="flex items-end gap-2 pt-4 border-t border-slate-100"
         >
-          <div className="flex-1">
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Module
-            </label>
-            <input
-              type="text"
-              name="module"
-              required
-              value={formData.module}
-              onChange={handleInputChange}
-              placeholder="Ex: EMPLOYEES"
-              className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Action
-            </label>
-            <input
-              type="text"
-              name="action"
-              required
-              value={formData.action}
-              onChange={handleInputChange}
-              placeholder="Ex: READ"
-              className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-            />
-          </div>
-          <Button type="submit" variant="primary" disabled={isSubmitting}>
-            {isSubmitting ? "..." : "Ajouter"}
+          <Input
+            label="Module"
+            name="module"
+            required
+            value={formData.module}
+            onChange={handleInputChange}
+            placeholder="Ex: EMPLOYEES"
+            className="flex-1"
+          />
+          <Input
+            label="Action"
+            name="action"
+            required
+            value={formData.action}
+            onChange={handleInputChange}
+            placeholder="Ex: READ"
+            className="flex-1"
+          />
+          <Button type="submit" variant="primary" isLoading={isSubmitting}>
+            Ajouter
           </Button>
         </form>
       </div>

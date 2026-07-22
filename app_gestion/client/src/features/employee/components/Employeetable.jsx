@@ -8,8 +8,16 @@ export function EmployeeTable({ data, isLoading, onEdit, onDelete }) {
     { header: "Nom", key: "name" },
     { header: "Matricule", key: "matricule" },
     { header: "CIN", key: "cin", render: (row) => row.cin || "—" },
-    { header: "Département", key: "department" },
-    { header: "Poste", key: "position" },
+    {
+      header: "Département",
+      key: "department",
+      render: (row) => row.department?.label || "—",
+    },
+    {
+      header: "Poste",
+      key: "position",
+      render: (row) => row.position?.label || "—",
+    },
     {
       header: "Accès app",
       key: "hasAppAccess",
