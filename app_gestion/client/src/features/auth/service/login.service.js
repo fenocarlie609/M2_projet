@@ -1,9 +1,9 @@
 import axiosInstance from "../../../shared/services/axiosInstance";
 
 export const loginService = {
-  login: async (email, password) => {
+  login: async (identifier, password) => {
     const response = await axiosInstance.post("/auth/login", {
-      email,
+      identifier,
       password,
     });
     return response.data;

@@ -1,21 +1,27 @@
+// src/shared/components/layout/Sidebar.jsx
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../features/auth/contexts/AuthContext";
 import { sidebarRoutes } from "../../../core/routes/routeConfig";
-import { FiX, FiAnchor } from "react-icons/fi";
+// 1. Ajout de FiLogOut
+import { FiX, FiAnchor, FiLogOut } from "react-icons/fi";
+import { hasPermission } from "../../../shared/utils/permissions";
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { user } = useAuth();
+  // 2. Récupération de la fonction de déconnexion
+  const { user, logout } = useAuth();
 
+  // Filtrage des routes via la fonction centralisée hasPermission
   const menuItems = sidebarRoutes
-    .filter((route) => !route.roles || route.roles.includes(user?.role))
+    .filter((route) => hasPermission(user, route.requiredPermission))
     .map((route) => ({
       ...route,
       active: pathname === route.path,
     }));
 
+  // Groupement des routes autorisées par section
   const sections = menuItems.reduce((acc, route) => {
     const section = route.section || "Menu";
     if (!acc[section]) acc[section] = [];
@@ -23,9 +29,20 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
     return acc;
   }, {});
 
+  // Fonction pour gérer la déconnexion
+  const handleLogout = async () => {
+    try {
+      await logout(); // Exécute la fonction de ton contexte
+      // Redirection optionnelle si ton contexte ne s'en charge pas déjà :
+      // navigate("/login");
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion", error);
+    }
+  };
+
   return (
     <>
-      {/* Overlay Mobile : Assombrit l'arrière-plan quand la barre est ouverte sur petit écran */}
+      {/* Overlay Mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 lg:hidden"
@@ -33,17 +50,17 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
         />
       )}
 
-      {/* Conteneur principal de la Sidebar */}
+      {/* Conteneur de la Sidebar */}
       <aside
         className={`
-        fixed top-0 bottom-0 left-0 z-50 flex flex-col 
-        w-64 bg-navy-sider border-r border-navy-trigger
-        transform transition-transform duration-300 ease-in-out
-        ${isOpen ? "translate-x-0" : "-translate-x-full"} 
-        lg:translate-x-0
-      `}
+          fixed top-0 bottom-0 left-0 z-50 flex flex-col 
+          w-64 bg-navy-sider border-r border-navy-trigger
+          transform transition-transform duration-300 ease-in-out
+          ${isOpen ? "translate-x-0" : "-translate-x-full"} 
+          lg:translate-x-0
+        `}
       >
-        {/* Header de la Sidebar (Logo / Identité nationale) */}
+        {/* Header de la Sidebar */}
         <div className="h-20 flex items-center justify-between px-6 bg-navy-trigger/50 border-b border-navy-sub">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-brand-primary flex items-center justify-center text-white">
@@ -59,7 +76,6 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
             </div>
           </div>
 
-          {/* Bouton de fermeture visible uniquement sur Mobile */}
           <button
             onClick={() => setIsOpen(false)}
             className="text-slate-400 hover:text-white lg:hidden p-1 rounded-md hover:bg-navy-trigger transition-colors"
@@ -68,7 +84,7 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
           </button>
         </div>
 
-        {/* Liens de Navigation */}
+        {/* Liens de Navigation filtrés */}
         <nav className="flex-1 px-4 py-6 overflow-y-auto">
           {Object.entries(sections).map(([sectionTitle, items]) => (
             <div key={sectionTitle} className="mb-6">
@@ -107,20 +123,31 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
           ))}
         </nav>
 
-        {/* Footer de la Sidebar (Profil Utilisateur connecté) */}
+        {/* 3. Footer de la Sidebar dynamique MODIFIÉ */}
         <div className="p-4 border-t border-navy-sub bg-navy-sub/40">
           <div className="flex items-center gap-3 p-1.5 rounded-xl bg-navy-trigger/30">
-            <div className="w-9 h-9 rounded-lg bg-brand-primary/20 flex items-center justify-center text-brand-primary font-bold text-sm border border-brand-primary/30">
-              TM
+            <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-brand-primary/20 flex items-center justify-center text-brand-primary font-bold text-sm border border-brand-primary/30">
+              {user?.name ? user.name.substring(0, 2).toUpperCase() : "ME"}
             </div>
-            <div className="overflow-hidden">
+
+            {/* Ajout de flex-1 pour pousser le bouton à droite */}
+            <div className="overflow-hidden flex-1">
               <p className="text-xs font-semibold text-white truncate">
-                Port de Toamasina
+                {user?.name || "Utilisateur"}
               </p>
               <p className="text-[11px] text-slate-400 truncate">
-                Opérateur Principal
+                {user?.position || "Employé Connecté"}
               </p>
             </div>
+
+            {/* Nouveau bouton de déconnexion */}
+            <button
+              onClick={handleLogout}
+              title="Se déconnecter"
+              className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            >
+              <FiLogOut size={18} />
+            </button>
           </div>
         </div>
       </aside>

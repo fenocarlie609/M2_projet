@@ -25,10 +25,11 @@ function App() {
         {appRoutes.map((route) => (
           <Route
             key={route.path}
-            // On enveloppe directement chaque route avec notre garde configuré selon ses propres rôles autorisés[cite: 9]
-            element={<RoleGuard allowedRoles={route.roles} />}
+            // On passe l'objet de droit requis défini dans routeConfig
+            element={
+              <RoleGuard requiredPermission={route.requiredPermission} />
+            }
           >
-            {/* Si le rôle matche, la route réelle s'injecte via l'Outlet du RoleGuard */}
             <Route path={route.path} element={route.element} />
           </Route>
         ))}

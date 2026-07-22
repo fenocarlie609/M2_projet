@@ -1,6 +1,6 @@
 import React from "react";
-import { Table, Button, Badge } from "@/shared/components/ui";
-import { FiPlus, FiAnchor, FiTrash2 } from "react-icons/fi";
+import { Table, Button, Badge, PageHeader } from "@/shared/components/ui"; // <-- Importation propre ici
+import { FiPlus, FiTrash2 } from "react-icons/fi";
 
 const mockBoats = [
   {
@@ -17,7 +17,6 @@ const mockBoats = [
   },
 ];
 
-// Configuration dynamique des colonnes de ta Table
 const columns = [
   {
     header: "Immatriculation",
@@ -51,23 +50,18 @@ const columns = [
 ];
 
 function SuperAdminPage() {
-  // Simulation de données reçues de l'API axiosInstance
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
-            Flotte Fluvio-Maritime
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Gérez les navires actifs de Premium Express.
-          </p>
-        </div>
+      {/* 🌟 Utilisation de ton nouveau composant d'en-tête de page */}
+      <PageHeader
+        title="Flotte Fluvio-Maritime"
+        subtitle="Gérez les navires actifs de Premium Express."
+      >
+        {/* Tout ce que tu mets ici se place automatiquement à droite sur grand écran */}
         <Button variant="primary" icon={FiPlus}>
           Ajouter un Navire
         </Button>
-      </div>
+      </PageHeader>
 
       <Table columns={columns} data={mockBoats} isLoading={false} />
     </div>

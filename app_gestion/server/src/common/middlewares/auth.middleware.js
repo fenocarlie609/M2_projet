@@ -2,7 +2,7 @@
 const jwt = require("jsonwebtoken");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { prisma } = require("../../config/database"); // Câblé sur ton Prisma !
+const { prisma } = require("../../config/database");
 
 const protect = catchAsync(async (req, res, next) => {
   let token;
@@ -33,41 +33,73 @@ const protect = catchAsync(async (req, res, next) => {
   // 2. Vérification de la validité du token
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  // 3. Vérification de l'existence de l'utilisateur en BDD + Soft Delete check
-  const currentUser = await prisma.user.findUnique({
+  // 3. CORRECTION : prisma.employee au lieu de prisma.user (le modèle User n'existe plus)
+  //    On inclut les permissions pour ne pas avoir à requêter à nouveau dans authorize()
+  const currentEmployee = await prisma.Employee.findUnique({
     where: { id: decoded.id },
+    include: { permissions: true },
   });
 
-  if (!currentUser) {
+  if (!currentEmployee) {
     return next(
-      new AppError(
-        "L'utilisateur propriétaire de ce token n'existe plus.",
-        401,
-      ),
+      new AppError("L'employé propriétaire de ce token n'existe plus.", 401),
     );
   }
 
-  // Sécurité additionnelle : Si l'utilisateur est archivé (Soft Deleted), on refuse l'accès
-  if (currentUser.deletedAt) {
+  if (currentEmployee.deletedAt) {
     return next(new AppError("Ce compte a été supprimé ou désactivé.", 401));
   }
 
-  // 4. Injection des données complètes de l'utilisateur dans la requête
-  // On récupère req.ip pour que l'extension d'audit récupère l'IP réelle du client
+  // Un employé sans accès à l'app (ex: agent de quai sans compte) ne doit
+  // jamais pouvoir passer ce middleware, même avec un vieux token encore valide
+  if (!currentEmployee.hasAppAccess || !currentEmployee.isActive) {
+    return next(new AppError("Accès à l'application refusé.", 403));
+  }
+
+  // 4. CORRECTION : plus de "role" (Employee n'en a pas) -> on injecte les
+  // permissions granulaires (module, action) propres à cet employé
   req.user = {
-    id: currentUser.id,
-    role: currentUser.role,
-    email: currentUser.email,
+    id: currentEmployee.id,
+    email: currentEmployee.email,
+    department: currentEmployee.department,
+    position: currentEmployee.position,
+    permissions: currentEmployee.permissions, // [{ module, action }, ...]
     ip: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
   };
 
   next();
 });
 
-// Middleware pour restreindre l'accès à certains rôles (ex: admin)
-const restrictTo = (...roles) => {
+/**
+ * CORRECTION : remplace l'ancien restrictTo(...roles).
+ * Employee n'a plus de champ "role" : chaque employé a sa propre liste de
+ * permissions (module, action) dans EmployeePermission. Deux employés au
+ * même poste/département peuvent donc avoir des droits différents.
+ * Une permission wildcard { module: "*", action: "*" } donne tous les droits
+ * (équivalent de l'ancien SUPERADMIN).
+ */
+const authorize = (module, action) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    // 🔥 SÉCURITÉ : Si protect n'a pas été appelé avant ou a échoué silencieusement
+    if (!req.user) {
+      return next(
+        new AppError(
+          "Authentification requise. Veuillez inclure le middleware 'protect' avant 'authorize'.",
+          0, // Idéalement 401
+        ),
+      );
+    }
+
+    // Désormais, req.user existe de manière garantie, aucun risque de crash 500 ici
+    const userPermissions = req.user.permissions || [];
+
+    const hasPermission = userPermissions.some(
+      (p) =>
+        (p.module === module || p.module === "*") &&
+        (p.action === action || p.action === "*"),
+    );
+
+    if (!hasPermission) {
       return next(
         new AppError(
           "Vous n'avez pas la permission d'effectuer cette action.",
@@ -81,5 +113,5 @@ const restrictTo = (...roles) => {
 
 module.exports = {
   protect,
-  restrictTo,
+  authorize,
 };

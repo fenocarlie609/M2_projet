@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { showToast } from "../../../shared/utils/toast";
-import { loginService } from "../service/login.service";
+import { useAuth, loginService } from "@/features/auth";
+import { showToast } from "@/shared/utils/toast";
 
 function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -14,10 +13,7 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await loginService.login(email, password);
-
-      console.log("Login response:", response); // Debug: Log the response data
-
+      const response = await loginService.login(identifier, password);
       login(response.data);
       showToast.success("Connexion réussie !");
     } catch (error) {
@@ -39,11 +35,11 @@ function LoginPage() {
         <h1 className="text-2xl font-semibold mb-6">Connexion</h1>
 
         <label className="block text-sm text-slate-300 mb-2">
-          Email
+          Identifient
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             required
             className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-brand-primary"
           />
