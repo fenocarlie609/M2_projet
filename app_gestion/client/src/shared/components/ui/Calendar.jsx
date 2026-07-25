@@ -25,7 +25,7 @@ export const Calendar = ({ onDateSelect }) => {
   ];
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayIndex = new Date(year, month, 1).getDay();
-  const adjustedFirstDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // Ajustement Lundi
+  const adjustedFirstDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
 
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const blanks = Array.from({ length: adjustedFirstDay }, (_, i) => null);
@@ -37,7 +37,7 @@ export const Calendar = ({ onDateSelect }) => {
   };
 
   return (
-    <div className="w-64 bg-white p-4 border border-slate-200/60 rounded-xl shadow-premium">
+    <div className="w-full max-w-[280px] bg-white p-3.5 sm:p-4 border border-slate-200/60 rounded-xl shadow-premium">
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
           {monthNames[month]} {year}
@@ -45,13 +45,13 @@ export const Calendar = ({ onDateSelect }) => {
         <div className="flex gap-1">
           <button
             onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-            className="p-1.5 hover:bg-slate-50 text-slate-600 rounded-lg border border-slate-200"
+            className="p-1.5 hover:bg-slate-50 text-slate-600 rounded-lg border border-slate-200 cursor-pointer"
           >
             <FiChevronLeft size={14} />
           </button>
           <button
             onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-            className="p-1.5 hover:bg-slate-50 text-slate-600 rounded-lg border border-slate-200"
+            className="p-1.5 hover:bg-slate-50 text-slate-600 rounded-lg border border-slate-200 cursor-pointer"
           >
             <FiChevronRight size={14} />
           </button>
@@ -66,7 +66,7 @@ export const Calendar = ({ onDateSelect }) => {
         <span>Sa</span>
         <span>Di</span>
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1 justify-items-center">
         {[...blanks, ...daysArray].map((day, idx) => {
           const isSelected =
             day &&
@@ -79,7 +79,7 @@ export const Calendar = ({ onDateSelect }) => {
               key={idx}
               disabled={!day}
               onClick={() => handleDateClick(day)}
-              className={`h-7 w-7 text-xs font-medium rounded-lg transition-colors flex items-center justify-center cursor-pointer
+              className={`h-7 w-7 sm:h-8 sm:w-8 text-xs font-medium rounded-lg transition-colors flex items-center justify-center cursor-pointer
                 ${!day ? "bg-transparent pointer-events-none" : ""}
                 ${isSelected ? "bg-brand-primary text-white font-bold" : "text-slate-700 hover:bg-slate-100"}
               `}

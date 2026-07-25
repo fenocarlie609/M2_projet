@@ -14,7 +14,7 @@ export const Input = ({
       {label && (
         <label
           htmlFor={id}
-          className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-0.5"
+          className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-0.5"
         >
           {label}
         </label>
@@ -23,7 +23,7 @@ export const Input = ({
         type={type}
         id={id}
         className={`
-          w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-medium transition-all duration-200
+          w-full px-3.5 py-2 sm:px-4 sm:py-2.5 bg-slate-50 border rounded-xl text-xs sm:text-sm font-medium transition-all duration-200
           focus:outline-none focus:bg-white focus:ring-2
           ${
             error
@@ -34,7 +34,7 @@ export const Input = ({
         {...props}
       />
       {error && (
-        <span className="text-xs font-medium text-rose-500 px-0.5 animate-[fadeIn_0.2s_ease-out]">
+        <span className="text-[11px] sm:text-xs font-medium text-rose-500 px-0.5 animate-[fadeIn_0.2s_ease-out]">
           {error}
         </span>
       )}

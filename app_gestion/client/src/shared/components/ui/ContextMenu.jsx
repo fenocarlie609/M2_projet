@@ -13,12 +13,25 @@ export const ContextMenu = ({ targetRef, items = [] }) => {
     const handleContextMenu = (e) => {
       e.preventDefault();
       setVisible(true);
-      setPosition({ x: e.clientX, y: e.clientY });
+
+      // Calcul pour éviter le débordement d'écran
+      const menuWidth = 176; // min-w-44 = 11rem = 176px
+      const menuHeight = items.length * 36 + 12;
+
+      let posX = e.clientX;
+      let posY = e.clientY;
+
+      if (posX + menuWidth > window.innerWidth)
+        posX = window.innerWidth - menuWidth - 8;
+      if (posY + menuHeight > window.innerHeight)
+        posY = window.innerHeight - menuHeight - 8;
+
+      setPosition({ x: posX, y: posY });
     };
 
     target.addEventListener("contextmenu", handleContextMenu);
     return () => target.removeEventListener("contextmenu", handleContextMenu);
-  }, [targetRef]);
+  }, [targetRef, items.length]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -35,7 +48,7 @@ export const ContextMenu = ({ targetRef, items = [] }) => {
     <div
       ref={menuRef}
       style={{ top: position.y, left: position.x }}
-      className="fixed z-50 min-w-44 bg-white border border-slate-200/60 rounded-xl shadow-premium p-1.5 animate-[fadeIn_0.1s_ease-out]"
+      className="fixed z-50 min-w-44 max-w-[calc(100vw-16px)] bg-white border border-slate-200/60 rounded-xl shadow-premium p-1.5 animate-[fadeIn_0.1s_ease-out]"
     >
       {items.map((item, idx) => {
         const Icon = item.icon;
@@ -51,7 +64,7 @@ export const ContextMenu = ({ targetRef, items = [] }) => {
             `}
           >
             {Icon && <Icon size={14} className="shrink-0" />}
-            <span>{item.label}</span>
+            <span className="truncate">{item.label}</span>
           </button>
         );
       })}
