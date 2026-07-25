@@ -14,8 +14,16 @@ export function UsersTable({
   const columns = [
     { header: "Nom", key: "name" },
     { header: "Email", key: "email" },
-    { header: "Département", key: "department" },
-    { header: "Poste", key: "position" },
+    {
+      header: "Département",
+      key: "department",
+      render: (row) => row.department?.label || "—",
+    },
+    {
+      header: "Poste",
+      key: "position",
+      render: (row) => row.position?.label || "—",
+    },
     {
       header: "Statut",
       key: "isActive",

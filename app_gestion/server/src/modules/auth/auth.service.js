@@ -35,11 +35,10 @@ const loginEmployee = async ({ identifier, password }) => {
       hasAppAccess: true,
       isActive: true,
       deletedAt: true,
+
       permissions: { select: { module: true, action: true } },
     },
   });
-
-  console.log(employee);
 
   // On renvoie le même message générique dans tous les cas d'échec pour ne pas
   // laisser deviner si l'email existe, s'il a accès à l'app, etc.

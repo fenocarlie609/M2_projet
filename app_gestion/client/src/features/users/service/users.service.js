@@ -7,6 +7,19 @@ export const usersService = {
     return response.data;
   },
 
+  // Employés signalés par la RH (hasAppAccess = true) mais pas encore actifs :
+  // candidats pour "Donner un accès".
+  getPendingEmployees: async () => {
+    const response = await axiosInstance.get("/users/pending");
+    return response.data;
+  },
+
+  // Vue d'audit : toutes les permissions accordées, groupées par employé.
+  getAllPermissions: async () => {
+    const response = await axiosInstance.get("/users/permissions");
+    return response.data;
+  },
+
   getUserById: async (employeeId) => {
     const response = await axiosInstance.get(`/users/${employeeId}`);
     return response.data;
@@ -14,7 +27,7 @@ export const usersService = {
 
   grantAccess: async (employeeId, data) => {
     const response = await axiosInstance.post(
-      `/users/${employeeId}/grant-access`,
+      `/users/${employeeId}/access`,
       data,
     );
     return response.data;
@@ -25,17 +38,16 @@ export const usersService = {
   },
 
   setStatus: async (employeeId, isActive) => {
-    const response = await axiosInstance.patch(`/users/${employeeId}/status`, {
+    const response = await axiosInstance.patch(`/users/${employeeId}/access`, {
       isActive,
     });
     return response.data;
   },
 
   resetPassword: async (employeeId, password) => {
-    const response = await axiosInstance.patch(
-      `/users/${employeeId}/password`,
-      { password },
-    );
+    const response = await axiosInstance.patch(`/users/${employeeId}/access`, {
+      password,
+    });
     return response.data;
   },
 

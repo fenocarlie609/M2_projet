@@ -5,15 +5,18 @@ import { FiPlus } from "react-icons/fi";
 import {
   usersService,
   UsersTable,
+  UsersPermissionsTable,
   GrantAccessModal,
   PermissionsModal,
 } from "@/features/users";
-import { employeeService } from "@/features/employee";
 import { showToast } from "@/shared/utils/toast";
 
 function UsersPage() {
+  const [activeTab, setActiveTab] = useState("accounts"); // "accounts" | "permissions"
+
   const [users, setUsers] = useState([]);
-  const [employeesWithoutAccess, setEmployeesWithoutAccess] = useState([]);
+  const [pendingEmployees, setPendingEmployees] = useState([]);
+  const [permissionsOverview, setPermissionsOverview] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const [isGrantModalOpen, setIsGrantModalOpen] = useState(false);
@@ -34,20 +37,33 @@ function UsersPage() {
     }
   };
 
-  const fetchEmployeesWithoutAccess = async () => {
+  // Candidats pour "Donner un accès" : employés signalés par la RH
+  // (hasAppAccess = true) et pas encore actifs.
+  const fetchPendingEmployees = async () => {
     try {
-      const response = await employeeService.getEmployees();
-      setEmployeesWithoutAccess(
-        (response.data.employees || []).filter((e) => !e.hasAppAccess),
-      );
+      const response = await usersService.getPendingEmployees();
+      setPendingEmployees(response.data.employees || []);
     } catch (error) {
-      console.error("Erreur lors de la récupération des employés :", error);
+      console.error(
+        "Erreur lors de la récupération des employés en attente :",
+        error,
+      );
+    }
+  };
+
+  const fetchPermissionsOverview = async () => {
+    try {
+      const response = await usersService.getAllPermissions();
+      setPermissionsOverview(response.data.permissions || []);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des permissions :", error);
     }
   };
 
   useEffect(() => {
     fetchUsers();
-    fetchEmployeesWithoutAccess();
+    fetchPendingEmployees();
+    fetchPermissionsOverview();
   }, []);
 
   const handleGrantAccess = async (employeeId, data) => {
@@ -57,7 +73,8 @@ function UsersPage() {
     } else {
       fetchUsers();
     }
-    fetchEmployeesWithoutAccess();
+    fetchPendingEmployees();
+    fetchPermissionsOverview();
     setIsGrantModalOpen(false);
     showToast.success("Accès accordé avec succès.");
   };
@@ -96,11 +113,23 @@ function UsersPage() {
     setIsPermissionsModalOpen(true);
   };
 
-  const handleAssignPermission = async (employeeId, module, action) => {
-    await usersService.assignPermission(employeeId, module, action);
+  // Attribution groupée : `pairs` = [{ module, action }, ...] composés dans
+  // la modale. On les envoie tous, puis on rafraîchit une seule fois.
+  const handleAssignManyPermissions = async (employeeId, pairs) => {
+    await Promise.all(
+      pairs.map((p) =>
+        usersService.assignPermission(employeeId, p.module, p.action),
+      ),
+    );
     const response = await usersService.getUserById(employeeId);
     setSelectedUser(response.data.user);
     fetchUsers();
+    fetchPermissionsOverview();
+    showToast.success(
+      pairs.length > 1
+        ? `${pairs.length} permissions ajoutées.`
+        : "Permission ajoutée.",
+    );
   };
 
   const handleRevokePermission = async (employeeId, permissionId) => {
@@ -108,6 +137,7 @@ function UsersPage() {
     const response = await usersService.getUserById(employeeId);
     setSelectedUser(response.data.user);
     fetchUsers();
+    fetchPermissionsOverview();
   };
 
   const handleOpenRevokeAccess = (user) => {
@@ -120,7 +150,8 @@ function UsersPage() {
     try {
       await usersService.revokeAccess(selectedUser.id);
       setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
-      fetchEmployeesWithoutAccess();
+      fetchPendingEmployees();
+      fetchPermissionsOverview();
       setIsRevokeAlertOpen(false);
       showToast.success("Accès révoqué.");
     } catch (error) {
@@ -145,19 +176,52 @@ function UsersPage() {
         </Button>
       </PageHeader>
 
-      <UsersTable
-        data={users}
-        isLoading={isLoading}
-        onTogglePermissions={handleOpenPermissions}
-        onToggleStatus={handleToggleStatus}
-        onResetPassword={handleResetPassword}
-        onRevokeAccess={handleOpenRevokeAccess}
-      />
+      <div className="flex items-center gap-2 border-b border-slate-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab("accounts")}
+          className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === "accounts"
+              ? "border-indigo-600 text-indigo-600"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Comptes
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("permissions")}
+          className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === "permissions"
+              ? "border-indigo-600 text-indigo-600"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Permissions
+        </button>
+      </div>
+
+      {activeTab === "accounts" ? (
+        <UsersTable
+          data={users}
+          isLoading={isLoading}
+          onTogglePermissions={handleOpenPermissions}
+          onToggleStatus={handleToggleStatus}
+          onResetPassword={handleResetPassword}
+          onRevokeAccess={handleOpenRevokeAccess}
+        />
+      ) : (
+        <UsersPermissionsTable
+          data={permissionsOverview}
+          isLoading={isLoading}
+          onManage={handleOpenPermissions}
+        />
+      )}
 
       <GrantAccessModal
         isOpen={isGrantModalOpen}
         onClose={() => setIsGrantModalOpen(false)}
-        employees={employeesWithoutAccess}
+        employees={pendingEmployees}
         onAccessGranted={handleGrantAccess}
       />
 
@@ -168,7 +232,7 @@ function UsersPage() {
           setSelectedUser(null);
         }}
         user={selectedUser}
-        onAssign={handleAssignPermission}
+        onAssignMany={handleAssignManyPermissions}
         onRevoke={handleRevokePermission}
       />
 

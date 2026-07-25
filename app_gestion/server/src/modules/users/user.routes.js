@@ -1,43 +1,38 @@
-// src/modules/users/user.routes.js
 const express = require("express");
 const userController = require("./user.controller");
 const authMiddleware = require("../../common/middlewares/auth.middleware");
-const { isOwnerOrAdmin } = require("../../common/middlewares/owner.middleware");
+const restrictToDepartment = require("../../common/middlewares/restrictToDepartment.middleware");
 const validate = require("../../common/middlewares/validate.middleware");
-const schemas = require("../../common/utils/validation.schemas");
+const { userValidation } = require("./user.validation");
 
 const router = express.Router();
 
-// 1. Route publique : Création de compte / Inscription
-router.post(
-  "/register",
-  validate(schemas.user.register),
-  userController.register,
-);
-
-// 2. Barrière de Sécurité Globale : Toutes les routes en dessous nécessitent d'être connecté
+// Authentification obligatoire + réservé au département IT ("TECH")
 router.use(authMiddleware.protect);
+router.use(restrictToDepartment("TECH"));
 
-// 3. Route accessible uniquement par l'ADMIN pour lister les utilisateurs
+router.get("/", userController.getAll);
+// ⚠️ Ces routes littérales doivent rester déclarées AVANT "/:id" pour ne
+// pas être interprétées comme un id.
+router.get("/pending", userController.getPending);
+router.get("/permissions", userController.getAllPermissions);
+router.get("/:id", userController.getById);
+
 router
-  .route("/")
-  .get(
-    authMiddleware.restrictTo("ADMIN", "SUPERADMIN"),
-    userController.getUsers,
+  .route("/:id/access")
+  .post(validate(userValidation.grantAccess), userController.grantAccess)
+  .patch(validate(userValidation.updateAccess), userController.updateAccess)
+  .delete(userController.revokeAccess);
+
+router
+  .route("/:id/permissions")
+  .post(
+    validate(userValidation.assignPermission),
+    userController.assignPermission,
   );
 
-// 4. Routes pour modifier ou supprimer un utilisateur spécifique (Réservé à l'ADMIN)
 router
-  .route("/:id")
-  .put(
-    isOwnerOrAdmin, // Applique la hiérarchie (Superadmin > Admin > User)
-    validate(schemas.user.update),
-    userController.update,
-  )
-  .delete(
-    isOwnerOrAdmin, // Empêche aussi un ADMIN de supprimer un SUPERADMIN
-    validate(schemas.user.delete),
-    userController.delete,
-  );
+  .route("/:id/permissions/:permissionId")
+  .delete(userController.revokePermission);
 
 module.exports = router;

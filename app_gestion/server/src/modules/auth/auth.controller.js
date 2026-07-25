@@ -3,10 +3,10 @@ const authService = require("./auth.service");
 const { getIO } = require("../../config/socket");
 
 const parseJwtExpiration = (expiresIn) => {
-  if (!expiresIn) return 15 * 60 * 1000;
+  if (!expiresIn) return 60 * 60 * 1000;
 
   const match = expiresIn.match(/^(\d+)(s|m|h|d)$/);
-  if (!match) return Number(expiresIn) * 1000 || 15 * 60 * 1000;
+  if (!match) return Number(expiresIn) * 1000 || 60 * 60 * 1000;
 
   const value = Number(match[1]);
   const unit = match[2];

@@ -12,6 +12,7 @@ import * as dashboard from "@/features/dashboard";
 import { DashboardPage } from "@/features/dashboard";
 import { EmployeePage } from "@/features/employee";
 import { UsersPage } from "@/features/users";
+import { CompanyStructurePage } from "@/features/companyStructure";
 import { AdminPage } from "@/features/admin";
 import { SuperAdminPage } from "@/features/superadmin";
 import { TemplatePage } from "@/features/template";
@@ -78,6 +79,21 @@ export const appRoutes = [
     // Correspond au module "users" côté backend (gestion de l'accès applicatif)
     requiredPermission: { module: "USERS", action: "READ" },
     icon: FiUsers,
+    showInSidebar: true,
+  },
+  {
+    path: "/company-structure",
+    label: "Structure",
+    section: "Administration",
+    element: (
+      <dashboard.DashboardLayout>
+        <CompanyStructurePage />
+      </dashboard.DashboardLayout>
+    ),
+    // ⚠️ Module supposé "COMPANY_STRUCTURE" côté backend (EmployeePermission).
+    // À confirmer/adapter selon votre constants.js réel.
+    requiredPermission: { module: "COMPANY_STRUCTURE", action: "READ" },
+    icon: FiSettings,
     showInSidebar: true,
   },
   {

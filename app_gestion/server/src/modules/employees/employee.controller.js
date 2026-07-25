@@ -64,8 +64,6 @@ exports.delete = catchAsync(async (req, res) => {
 exports.getAll = catchAsync(async (req, res) => {
   const employees = await employeeService.getAllActiveEmployees();
 
-  console.log("inside employ get controller");
-
   res.status(200).json({
     status: "success",
     results: employees.length,

@@ -30,7 +30,9 @@ export function GrantAccessModal({
     try {
       setIsSubmitting(true);
       await onAccessGranted(formData.employeeId, {
-        email: formData.email,
+        // email optionnel : si vide, on n'envoie pas la clé plutôt qu'une
+        // chaîne vide (le backend attend soit une adresse valide, soit rien)
+        email: formData.email.trim() || undefined,
         password: formData.password,
       });
       setFormData({ employeeId: "", email: "", password: "" });
@@ -45,7 +47,7 @@ export function GrantAccessModal({
     { value: "", label: "Sélectionner un employé sans accès..." },
     ...employees.map((emp) => ({
       value: emp.id,
-      // position est désormais un objet { code, label }
+      // position est un objet { code, label }
       label: `${emp.name} — ${emp.position?.label || "Poste inconnu"} (${emp.matricule})`,
     })),
   ];
@@ -67,20 +69,21 @@ export function GrantAccessModal({
         />
         {employees.length === 0 && (
           <p className="text-xs text-slate-500 -mt-2">
-            Tous les employés ont déjà un accès, ou aucun employé n'existe
-            encore.
+            Aucun employé en attente d'accès pour le moment.
           </p>
         )}
 
         <Input
-          label="Adresse Email"
+          label="Adresse Email (optionnelle)"
           type="email"
           name="email"
-          required
           value={formData.email}
           onChange={handleInputChange}
-          placeholder="Ex: john.doe@example.com"
+          placeholder="Peut être ajoutée plus tard"
         />
+        <p className="text-xs text-slate-500 -mt-2">
+          Sans email, l'employé pourra se connecter avec son matricule.
+        </p>
 
         <Input
           label="Mot de passe initial"
@@ -101,7 +104,11 @@ export function GrantAccessModal({
             type="submit"
             variant="primary"
             isLoading={isSubmitting}
-            disabled={!formData.employeeId}
+            disabled={
+              !formData.employeeId ||
+              !formData.password ||
+              formData.password.length < 8
+            }
           >
             Donner l'accès
           </Button>

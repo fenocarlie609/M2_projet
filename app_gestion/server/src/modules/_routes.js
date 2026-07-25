@@ -16,9 +16,10 @@ router.get("/health", (req, res) => {
 const authRoutes = require("./auth/auth.routes");
 const { employeeRoutes } = require("./employees");
 const { companyStructureRoutes } = require("./company-structure");
+const { userRoutes } = require("./users");
 
 router.use("/auth", authRoutes);
-// router.use("/users", userRoutes);
+router.use("/users", userRoutes);
 router.use("/employees", employeeRoutes);
 router.use("/company-structure", companyStructureRoutes);
 
