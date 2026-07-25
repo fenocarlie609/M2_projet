@@ -22,10 +22,15 @@ const updateAccessSchema = z
     message: "Au moins un champ doit être fourni pour la mise à jour.",
   });
 
+const revokeManySchema = z.object({
+  permissionIds: z.array(z.string().min(1)).min(1),
+});
+
 const userValidation = {
   grantAccess: { body: grantAccessSchema },
   updateAccess: { body: updateAccessSchema },
   assignPermission: { body: permissionSchema },
+  revokeMany: { body: revokeManySchema },
 };
 
 module.exports = { userValidation };

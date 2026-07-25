@@ -2,11 +2,6 @@ const { prisma } = require("../../config/database");
 const AppError = require("../../common/utils/AppError");
 const { hashPassword } = require("../../common/utils/password.utils");
 
-/**
- * Employés signalés par la RH (hasAppAccess = true) mais pour lesquels
- * l'IT n'a pas encore créé/activé de compte (isActive = false).
- * File d'attente IT.
- */
 const getPendingAccessRequests = async () => {
   return prisma.employee.findMany({
     where: {
@@ -26,9 +21,6 @@ const getPendingAccessRequests = async () => {
   });
 };
 
-/**
- * Tous les "users" existants (employés ayant un compte applicatif actif).
- */
 const getAllUsers = async () => {
   return prisma.employee.findMany({
     where: { deletedAt: null, hasAppAccess: true },
@@ -47,10 +39,6 @@ const getAllUsers = async () => {
   });
 };
 
-/**
- * Récupère un "user" par son id (utilisé pour rafraîchir le profil après
- * attribution/révocation d'une ou plusieurs permissions côté front).
- */
 const getUserById = async (employeeId) => {
   const user = await prisma.employee.findUnique({
     where: { id: employeeId },
@@ -75,11 +63,6 @@ const getUserById = async (employeeId) => {
   return user;
 };
 
-/**
- * Vue d'ensemble de toutes les permissions accordées, groupées par employé
- * (un employé peut avoir plusieurs permissions). Utile pour un écran
- * d'audit IT global.
- */
 const getAllPermissions = async () => {
   return prisma.employee.findMany({
     where: {
@@ -101,12 +84,6 @@ const getAllPermissions = async () => {
   });
 };
 
-/**
- * Donne réellement accès à l'app à un employé déjà signalé par la RH :
- * crée le mot de passe (obligatoire, permet la connexion par matricule),
- * l'email est optionnel (peut être ajouté plus tard via updateAccess),
- * active le compte, et peut assigner des permissions initiales par module.
- */
 const grantAccess = async (
   employeeId,
   { email, password, permissions = [] },
@@ -156,9 +133,6 @@ const grantAccess = async (
   });
 };
 
-/**
- * Met à jour les identifiants / l'état d'un compte existant (toujours côté IT).
- */
 const updateAccess = async (employeeId, { email, password, isActive }) => {
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
@@ -200,9 +174,6 @@ const updateAccess = async (employeeId, { email, password, isActive }) => {
   });
 };
 
-/**
- * Révoque complètement l'accès à l'app.
- */
 const revokeAccess = async (employeeId) => {
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
@@ -222,9 +193,6 @@ const revokeAccess = async (employeeId) => {
   });
 };
 
-/**
- * Attribue une permission (module + action) à un employé ayant déjà un compte actif.
- */
 const assignPermission = async (employeeId, module, action) => {
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
@@ -259,6 +227,34 @@ const revokePermission = async (employeeId, permissionId) => {
   return prisma.employeePermission.delete({ where: { id: permissionId } });
 };
 
+/**
+ * Révoque plusieurs permissions d'un coup (sélection multiple côté front).
+ * `deleteMany` avec employeeId dans le where garantit qu'on ne supprime
+ * jamais les permissions d'un autre employé, même si un id erroné était
+ * injecté dans la liste.
+ */
+const revokePermissions = async (employeeId, permissionIds = []) => {
+  if (!permissionIds.length) {
+    throw new AppError("Aucune permission à supprimer.", 400);
+  }
+
+  const result = await prisma.employeePermission.deleteMany({
+    where: {
+      id: { in: permissionIds },
+      employeeId,
+    },
+  });
+
+  if (result.count === 0) {
+    throw new AppError(
+      "Aucune des permissions indiquées n'appartient à cet employé.",
+      404,
+    );
+  }
+
+  return result;
+};
+
 module.exports = {
   getPendingAccessRequests,
   getAllUsers,
@@ -269,4 +265,5 @@ module.exports = {
   revokeAccess,
   assignPermission,
   revokePermission,
+  revokePermissions,
 };

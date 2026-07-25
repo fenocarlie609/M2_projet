@@ -1,6 +1,6 @@
 // src/features/users/pages/UsersPage.jsx
 import React, { useEffect, useState } from "react";
-import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
+import { PageHeader, Button, AlertDialog, Tabs } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
 import {
   usersService,
@@ -11,8 +11,13 @@ import {
 } from "@/features/users";
 import { showToast } from "@/shared/utils/toast";
 
+const TABS = [
+  { id: "accounts", label: "Comptes" },
+  { id: "permissions", label: "Permissions" },
+];
+
 function UsersPage() {
-  const [activeTab, setActiveTab] = useState("accounts"); // "accounts" | "permissions"
+  const [activeTab, setActiveTab] = useState("accounts");
 
   const [users, setUsers] = useState([]);
   const [pendingEmployees, setPendingEmployees] = useState([]);
@@ -37,8 +42,6 @@ function UsersPage() {
     }
   };
 
-  // Candidats pour "Donner un accès" : employés signalés par la RH
-  // (hasAppAccess = true) et pas encore actifs.
   const fetchPendingEmployees = async () => {
     try {
       const response = await usersService.getPendingEmployees();
@@ -113,8 +116,6 @@ function UsersPage() {
     setIsPermissionsModalOpen(true);
   };
 
-  // Attribution groupée : `pairs` = [{ module, action }, ...] composés dans
-  // la modale. On les envoie tous, puis on rafraîchit une seule fois.
   const handleAssignManyPermissions = async (employeeId, pairs) => {
     await Promise.all(
       pairs.map((p) =>
@@ -138,6 +139,20 @@ function UsersPage() {
     setSelectedUser(response.data.user);
     fetchUsers();
     fetchPermissionsOverview();
+  };
+
+  // Révocation groupée : `permissionIds` = ids sélectionnés dans la modale.
+  const handleRevokeManyPermissions = async (employeeId, permissionIds) => {
+    await usersService.revokePermissions(employeeId, permissionIds);
+    const response = await usersService.getUserById(employeeId);
+    setSelectedUser(response.data.user);
+    fetchUsers();
+    fetchPermissionsOverview();
+    showToast.success(
+      permissionIds.length > 1
+        ? `${permissionIds.length} permissions supprimées.`
+        : "Permission supprimée.",
+    );
   };
 
   const handleOpenRevokeAccess = (user) => {
@@ -176,30 +191,7 @@ function UsersPage() {
         </Button>
       </PageHeader>
 
-      <div className="flex items-center gap-2 border-b border-slate-200">
-        <button
-          type="button"
-          onClick={() => setActiveTab("accounts")}
-          className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "accounts"
-              ? "border-indigo-600 text-indigo-600"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          Comptes
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("permissions")}
-          className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "permissions"
-              ? "border-indigo-600 text-indigo-600"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          Permissions
-        </button>
-      </div>
+      <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       {activeTab === "accounts" ? (
         <UsersTable
@@ -234,6 +226,7 @@ function UsersPage() {
         user={selectedUser}
         onAssignMany={handleAssignManyPermissions}
         onRevoke={handleRevokePermission}
+        onRevokeMany={handleRevokeManyPermissions}
       />
 
       <AlertDialog

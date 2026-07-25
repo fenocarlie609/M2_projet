@@ -91,6 +91,17 @@ model Employee {
   @@map("employees")
 }
 
+model AppModule {
+  id        String   @id @default(uuid())
+  code      String   @unique // Ex: "EMPLOYEES", "USERS", "DEPARTMENTS", "*" (tous modules)
+  label     String   // Ex: "Employés", "Utilisateurs & Accès"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("app_modules")
+}
+
 model EmployeePermission {
   id          String   @id @default(uuid())
   employeeId  String

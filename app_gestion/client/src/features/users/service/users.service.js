@@ -7,14 +7,11 @@ export const usersService = {
     return response.data;
   },
 
-  // Employés signalés par la RH (hasAppAccess = true) mais pas encore actifs :
-  // candidats pour "Donner un accès".
   getPendingEmployees: async () => {
     const response = await axiosInstance.get("/users/pending");
     return response.data;
   },
 
-  // Vue d'audit : toutes les permissions accordées, groupées par employé.
   getAllPermissions: async () => {
     const response = await axiosInstance.get("/users/permissions");
     return response.data;
@@ -63,5 +60,13 @@ export const usersService = {
     return await axiosInstance.delete(
       `/users/${employeeId}/permissions/${permissionId}`,
     );
+  },
+
+  // Révocation groupée : DELETE avec un body { permissionIds } (axios
+  // requiert de le passer dans `data` pour une requête DELETE).
+  revokePermissions: async (employeeId, permissionIds) => {
+    return await axiosInstance.delete(`/users/${employeeId}/permissions`, {
+      data: { permissionIds },
+    });
   },
 };
