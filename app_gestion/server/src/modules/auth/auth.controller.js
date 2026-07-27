@@ -3,18 +3,18 @@ const authService = require("./auth.service");
 const { getIO } = require("../../config/socket");
 
 const parseJwtExpiration = (expiresIn) => {
-  if (!expiresIn) return 60 * 60 * 1000;
+  if (!expiresIn) return 24 * 60 * 60 * 1000;
 
   const match = expiresIn.match(/^(\d+)(s|m|h|d)$/);
-  if (!match) return Number(expiresIn) * 1000 || 60 * 60 * 1000;
+  if (!match) return Number(expiresIn) * 1000 || 24 * 60 * 60 * 1000;
 
   const value = Number(match[1]);
   const unit = match[2];
   const multipliers = {
     s: 1000,
-    m: 60 * 1000,
-    h: 60 * 60 * 1000,
-    d: 24 * 60 * 60 * 1000,
+    m: 60 * 1000, // 1 minute = 60 000 m
+    h: 60 * 60 * 1000, // 1 heure = 3 600 000 ms
+    d: 24 * 60 * 60 * 1000, // 1 jour = 86 400 000 ms
   };
 
   return value * multipliers[unit];
@@ -35,6 +35,12 @@ exports.login = catchAsync(async (req, res) => {
     ...cookieOptions,
     maxAge: parseJwtExpiration(process.env.JWT_EXPIRES_IN),
   });
+
+  console.log(
+    parseJwtExpiration(process.env.JWT_EXPIRES_IN),
+    " et ",
+    process.env.JWT_EXPIRES_IN,
+  );
 
   res.status(200).json({
     status: "success",
