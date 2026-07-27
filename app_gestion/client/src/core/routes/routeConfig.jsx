@@ -8,6 +8,7 @@ import {
   FiCheckSquare,
   FiSettings,
 } from "react-icons/fi";
+import { FaUserTie, FaTruck } from "react-icons/fa";
 import * as dashboard from "@/features/dashboard";
 import { DashboardPage } from "@/features/dashboard";
 import { EmployeePage } from "@/features/employee";
@@ -16,6 +17,8 @@ import { CompanyStructurePage } from "@/features/companyStructure";
 import { AdminPage } from "@/features/admin";
 import { SuperAdminPage } from "@/features/superadmin";
 import { TemplatePage } from "@/features/template";
+import { ClientPage } from "@/features/client";
+import { DriverPage } from "@/features/driver";
 
 // NOTE : le backend n'a plus de "role" (ADMIN/USER/SUPERADMIN). Chaque route
 // déclare désormais la permission (module, action) requise, vérifiée contre
@@ -51,7 +54,7 @@ export const appRoutes = [
     ),
     requiredPermission: null, // accessible à tout employé connecté
     icon: FiAnchor,
-    showInSidebar: true,
+    showInSidebar: false,
   },
   {
     path: "/employees",
@@ -65,6 +68,34 @@ export const appRoutes = [
     // Correspond au module "employees" côté backend (fiches RH)
     requiredPermission: { module: "EMPLOYEES", action: "READ" },
     icon: FiUsers,
+    showInSidebar: true,
+  },
+  {
+    path: "/client",
+    label: "Client",
+    section: "Commercial",
+    element: (
+      <dashboard.DashboardLayout>
+        <ClientPage />
+      </dashboard.DashboardLayout>
+    ),
+    // Correspond au module "users" côté backend (gestion de l'accès applicatif)
+    requiredPermission: { module: "CLIENT", action: "READ" },
+    icon: FaUserTie,
+    showInSidebar: true,
+  },
+  {
+    path: "/driver",
+    label: "chauffeur",
+    section: "Commercial",
+    element: (
+      <dashboard.DashboardLayout>
+        <DriverPage />
+      </dashboard.DashboardLayout>
+    ),
+    // Correspond au module "users" côté backend (gestion de l'accès applicatif)
+    requiredPermission: { module: "DRIVER", action: "READ" },
+    icon: FaTruck,
     showInSidebar: true,
   },
   {

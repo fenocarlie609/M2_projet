@@ -32,7 +32,9 @@ model Department {
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?  // Soft delete pour le département
 
+  @@index([deletedAt])
   @@map("departments")
 }
 
@@ -48,11 +50,13 @@ model Position {
 
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?  // Soft delete pour le poste
 
   // Clé unique composite : permet à Employee de référencer (positionId + departmentId)
   // ensemble, et garantit ainsi qu'un employé ne peut pas être rattaché à une position
   // qui n'appartient pas au département déclaré.
   @@unique([id, departmentId])
+  @@index([deletedAt])
   @@map("positions")
 }
 

@@ -1,4 +1,4 @@
-// src/features/companyStructure/service/companyStructure.service.js
+// src/features/companyStructure/services/companyStructure.service.js
 import axiosInstance from "@/shared/services/axiosInstance";
 
 export const companyStructureService = {

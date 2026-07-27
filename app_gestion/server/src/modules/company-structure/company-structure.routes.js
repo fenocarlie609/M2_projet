@@ -14,24 +14,54 @@ const router = express.Router();
 router.use(authMiddleware.protect);
 
 // Route principale pour alimenter le formulaire de création d'employé
+// (renvoie tous les départements actifs + leurs postes actifs)
+router.route("/").get(companyStructureController.getStructure);
+
+// --- Départements ---
+// NB: ces chemins sont préfixés par "/departments" pour matcher exactement
+// les appels faits depuis companyStructure.service.js côté front.
 router
-  .route("/")
-  .get(companyStructureController.getStructure)
+  .route("/departments")
   .post(
     authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.CREATE),
     validate(companyStructureValidation.createDepartment),
     companyStructureController.createDepartment,
   );
 
-router.route("/:id").get(companyStructureController.getDepartment);
-
-// Ajouter un poste au sein d'un département existant
 router
-  .route("/:departmentId/positions")
+  .route("/departments/:id")
+  .get(companyStructureController.getDepartment)
+  .put(
+    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.UPDATE),
+    validate(companyStructureValidation.updateDepartment),
+    companyStructureController.updateDepartment,
+  )
+  .delete(
+    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.DELETE),
+    companyStructureController.deleteDepartment,
+  );
+
+// --- Postes ---
+// createPosition reçoit departmentId dans le body (comme envoyé par
+// CompanyStructurePage.jsx: onPositionCreated -> { ...data, departmentId })
+router
+  .route("/positions")
   .post(
     authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.CREATE),
     validate(companyStructureValidation.createPosition),
     companyStructureController.createPosition,
+  );
+
+router
+  .route("/positions/:id")
+  .put(
+    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.UPDATE),
+    validate(companyStructureValidation.updatePosition),
+    companyStructureController.updatePosition,
+  )
+  .delete(
+    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.DELETE),
+    companyStructureController.deletePosition,
   );
 
 module.exports = router;

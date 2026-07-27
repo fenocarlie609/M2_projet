@@ -7,6 +7,7 @@ import {
   EmployeeTable,
   EmployeeAddModal,
   EmployeeEditModal,
+  EmployeeCard,
 } from "@/features/employee";
 
 function EmployeePage() {
@@ -104,12 +105,26 @@ function EmployeePage() {
         </Button>
       </PageHeader>
 
-      <EmployeeTable
-        data={employees}
-        isLoading={isLoading}
-        onEdit={handleOpenEdit}
-        onDelete={handleOpenDelete}
-      />
+      <div className="hidden md:block">
+        <EmployeeTable
+          data={employees}
+          isLoading={isLoading}
+          onEdit={handleOpenEdit}
+          onDelete={handleOpenDelete}
+        />
+      </div>
+
+      <div className="block md:hidden space-y-3">
+        {employees.map((employee) => (
+          <EmployeeCard
+            key={employee.id}
+            employee={employee}
+            onEdit={handleOpenEdit}
+            onDelete={handleOpenDelete}
+            //onViewDetails={(emp) => handleOpenDetailsModal(emp)} // Exemple : Ouvre un Drawer ou un Dialog de détails
+          />
+        ))}
+      </div>
 
       <EmployeeAddModal
         isOpen={isAddModalOpen}
