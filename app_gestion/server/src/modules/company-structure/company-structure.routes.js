@@ -1,4 +1,4 @@
-// src/features/company-structure/company-structure.routes.js
+// src/modules/company-structure/company-structure.routes.js
 const express = require("express");
 const companyStructureController = require("./company-structure.controller");
 const authMiddleware = require("../../common/middlewares/auth.middleware");

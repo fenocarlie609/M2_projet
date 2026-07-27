@@ -11,7 +11,7 @@ const createEmployee = async (data) => {
 
   // CIN unique (si fourni)
   if (rest.cin) {
-    const existingCin = await prisma.Employee.findUnique({
+    const existingCin = await prisma.employee.findUnique({
       where: { cin: rest.cin },
     });
     if (existingCin) {
@@ -20,7 +20,7 @@ const createEmployee = async (data) => {
   }
 
   // Matricule unique
-  const existingMatricule = await prisma.Employee.findUnique({
+  const existingMatricule = await prisma.employee.findUnique({
     where: { matricule: rest.matricule },
   });
   if (existingMatricule) {
@@ -29,7 +29,7 @@ const createEmployee = async (data) => {
 
   // Email unique
   if (rest.hasAppAccess && rest.email) {
-    const existingEmail = await prisma.Employee.findUnique({
+    const existingEmail = await prisma.employee.findUnique({
       where: { email: rest.email },
     });
     if (existingEmail) {
@@ -37,7 +37,7 @@ const createEmployee = async (data) => {
     }
   }
 
-  return await prisma.Employee.create({
+  return await prisma.employee.create({
     data: {
       ...rest,
       password: rest.hasAppAccess ? await hashPassword(password) : null,
@@ -66,7 +66,7 @@ const updateEmployee = async (id, data) => {
   const payload = { ...data };
 
   if (payload.cin) {
-    const existingCin = await prisma.Employee.findUnique({
+    const existingCin = await prisma.employee.findUnique({
       where: { cin: payload.cin },
     });
     if (existingCin && existingCin.id !== id) {
@@ -75,7 +75,7 @@ const updateEmployee = async (id, data) => {
   }
 
   if (payload.matricule) {
-    const existingMatricule = await prisma.Employee.findUnique({
+    const existingMatricule = await prisma.employee.findUnique({
       where: { matricule: payload.matricule },
     });
     if (existingMatricule && existingMatricule.id !== id) {
@@ -92,7 +92,7 @@ const updateEmployee = async (id, data) => {
     payload.password = null;
   }
 
-  return await prisma.Employee.update({
+  return await prisma.employee.update({
     where: { id },
     data: payload,
     include: {
@@ -107,14 +107,14 @@ const updateEmployee = async (id, data) => {
  * Soft delete
  */
 const softDeleteEmployee = async (id) => {
-  return await prisma.Employee.update({
+  return await prisma.employee.update({
     where: { id },
     data: { deletedAt: new Date(), isActive: false },
   });
 };
 
 const getAllActiveEmployees = async () => {
-  return await prisma.Employee.findMany({
+  return await prisma.employee.findMany({
     where: { deletedAt: null },
     include: {
       department: true, // Inclus l'objet complet { id, code, label }
@@ -126,7 +126,7 @@ const getAllActiveEmployees = async () => {
 };
 
 const getEmployeeById = async (id) => {
-  return await prisma.Employee.findUnique({
+  return await prisma.employee.findUnique({
     where: { id },
     include: {
       permissions: true,
@@ -137,7 +137,7 @@ const getEmployeeById = async (id) => {
 };
 
 const assignPermission = async (employeeId, module, action) => {
-  const employee = await prisma.Employee.findUnique({
+  const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
   });
   if (!employee || employee.deletedAt) {

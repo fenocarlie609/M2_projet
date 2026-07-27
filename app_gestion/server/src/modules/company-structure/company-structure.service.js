@@ -1,4 +1,4 @@
-// src/features/company-structure/company-structure.service.js
+// src/modules/company-structure/company-structure.service.js
 const { prisma } = require("../../config/database");
 const AppError = require("../../common/utils/AppError");
 

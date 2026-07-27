@@ -25,4 +25,18 @@ export const employeeService = {
   deleteEmployee: async (id) => {
     return await axiosInstance.delete(`/employees/${id}`);
   },
+
+  /**
+   * Upload multipart d'une photo d'identité. Renvoie { status, data: { url } }
+   * où url est une URL hébergée à réutiliser comme avatarUrl.
+   */
+  uploadAvatar: async (file) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await axiosInstance.post("/uploads/avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
 };

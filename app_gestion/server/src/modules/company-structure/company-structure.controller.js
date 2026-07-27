@@ -1,4 +1,4 @@
-// src/features/company-structure/company-structure.controller.js
+// src/modules/company-structure/company-structure.controller.js
 const catchAsync = require("../../common/utils/catchAsync");
 const companyStructureService = require("./company-structure.service");
 

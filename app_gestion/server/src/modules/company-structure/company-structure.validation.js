@@ -1,4 +1,4 @@
-// src/features/company-structure/company-structure.validation.js
+// src/modules/company-structure/company-structure.validation.js
 const { z } = require("zod");
 
 const createDepartmentSchema = z.object({

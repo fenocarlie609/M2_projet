@@ -1,10 +1,27 @@
 // src/features/employee/components/EmployeeTable.jsx
 import React from "react";
 import { Table, Button, Badge } from "@/shared/components/ui";
-import { FiTrash2, FiEdit3 } from "react-icons/fi";
+import { FiTrash2, FiEdit3, FiUser } from "react-icons/fi";
 
 export function EmployeeTable({ data, isLoading, onEdit, onDelete }) {
   const columns = [
+    {
+      header: "Photo",
+      key: "avatarUrl",
+      render: (row) => (
+        <div className="w-9 h-9 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0">
+          {row.avatarUrl ? (
+            <img
+              src={row.avatarUrl}
+              alt={row.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <FiUser className="text-slate-300" size={16} />
+          )}
+        </div>
+      ),
+    },
     { header: "Nom", key: "name" },
     { header: "Matricule", key: "matricule" },
     { header: "CIN", key: "cin", render: (row) => row.cin || "—" },
