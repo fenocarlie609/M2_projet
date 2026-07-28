@@ -29,6 +29,12 @@ router
   .post(
     validate(userValidation.assignPermission),
     userController.assignPermission,
+  )
+  // Révocation groupée : body { permissionIds: [...] }
+  // ⚠️ Manquait dans le fichier uploadé.
+  .delete(
+    validate(userValidation.revokeMany),
+    userController.revokeManyPermissions,
   );
 
 router

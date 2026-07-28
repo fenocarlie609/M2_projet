@@ -5,3 +5,4 @@ export { DepartmentEditModal } from "./components/DepartmentEditModal";
 export { PositionAddModal } from "./components/PositionAddModal";
 export { PositionEditModal } from "./components/PositionEditModal";
 export { CompanyStructureCard } from "./components/CompanyStructureCard";
+export { getApiErrorMessage } from "./utils/getApiErrorMessage";

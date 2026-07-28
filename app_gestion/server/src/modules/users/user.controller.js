@@ -118,3 +118,21 @@ exports.revokePermission = catchAsync(async (req, res) => {
     data: null,
   });
 });
+
+// ⚠️ Manquait dans le fichier uploadé : le service `revokePermissions`
+// existait déjà mais n'était jamais appelé depuis un handler.
+exports.revokeManyPermissions = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { permissionIds } = req.body;
+
+  await userService.revokePermissions(id, permissionIds);
+
+  const io = getIO();
+  const freshProfile = await authService.getFreshProfile(id);
+  io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});

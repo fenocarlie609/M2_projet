@@ -1,6 +1,10 @@
 // src/features/companyStructure/components/PositionAddModal.jsx
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
+import { getApiErrorMessage } from "../utils/getApiErrorMessage";
+
+const emptyForm = { code: "", label: "" };
+const emptyErrors = { code: "", label: "", general: "" };
 
 export function PositionAddModal({
   isOpen,
@@ -9,11 +13,13 @@ export function PositionAddModal({
   onPositionCreated,
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ code: "", label: "" });
+  const [formData, setFormData] = useState(emptyForm);
+  const [errors, setErrors] = useState(emptyErrors);
 
   useEffect(() => {
     if (!isOpen) {
-      setFormData({ code: "", label: "" });
+      setFormData(emptyForm);
+      setErrors(emptyErrors);
     }
   }, [isOpen]);
 
@@ -21,18 +27,46 @@ export function PositionAddModal({
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "code" ? value.toUpperCase() : value,
+      [name]:
+        name === "code"
+          ? value.toUpperCase().replace(/[^A-Z0-9_]/g, "")
+          : value,
     }));
+    setErrors((prev) => ({ ...prev, [name]: "", general: "" }));
+  };
+
+  const validate = () => {
+    const nextErrors = { code: "", label: "", general: "" };
+
+    if (!formData.code || formData.code.length < 2) {
+      nextErrors.code = "Le code doit contenir au moins 2 caractères.";
+    }
+    if (!formData.label || formData.label.length < 2) {
+      nextErrors.label = "Le libellé doit contenir au moins 2 caractères.";
+    }
+
+    setErrors(nextErrors);
+    return !nextErrors.code && !nextErrors.label;
   };
 
   const handleSubmit = async () => {
     if (!department) return;
+    if (!validate()) return;
+
     try {
       setIsSubmitting(true);
       await onPositionCreated(department.id, formData);
-      setFormData({ code: "", label: "" });
+      setFormData(emptyForm);
+      setErrors(emptyErrors);
     } catch (error) {
       console.error("Erreur lors de la création du poste :", error);
+      const message = getApiErrorMessage(error);
+      const isCodeError = message.toLowerCase().includes("code");
+      setErrors({
+        code: isCodeError ? message : "",
+        label: "",
+        general: isCodeError ? "" : message,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -52,6 +86,7 @@ export function PositionAddModal({
           value={formData.code}
           onChange={handleInputChange}
           placeholder="Ex: SOFTWARE_ENG"
+          error={errors.code}
         />
         <Input
           label="Libellé"
@@ -60,7 +95,14 @@ export function PositionAddModal({
           value={formData.label}
           onChange={handleInputChange}
           placeholder="Ex: Ingénieur Logiciel"
+          error={errors.label}
         />
+
+        {errors.general && (
+          <p className="text-xs sm:text-sm font-medium text-rose-500 px-0.5">
+            {errors.general}
+          </p>
+        )}
 
         <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
           <Button type="button" variant="ghost" onClick={onClose}>

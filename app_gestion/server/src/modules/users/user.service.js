@@ -140,7 +140,7 @@ const updateAccess = async (employeeId, { email, password, isActive }) => {
   if (!employee || employee.deletedAt) {
     throw new AppError("Employé non trouvé.", 404);
   }
-  if (!employee.isActive) {
+  if (!employee.hasAppAccess) {
     throw new AppError(
       "Cet employé n'a pas encore de compte à mettre à jour.",
       400,
@@ -200,7 +200,7 @@ const assignPermission = async (employeeId, module, action) => {
   if (!employee || employee.deletedAt) {
     throw new AppError("Employé non trouvé.", 404);
   }
-  if (!employee.isActive) {
+  if (!employee.hasAppAccess) {
     throw new AppError("Cet employé n'a pas encore de compte applicatif.", 400);
   }
 

@@ -27,11 +27,18 @@ export const employeeService = {
   },
 
   /**
-   * Upload multipart d'une photo d'identité. Renvoie { status, data: { url } }
-   * où url est une URL hébergée à réutiliser comme avatarUrl.
+   * Upload multipart d'une photo d'identité.
+   * - matricule : sert à nommer le fichier côté serveur (évite les doublons :
+   *   un nouvel upload pour le même employé écrase l'ancien fichier).
+   * - previousUrl : URL de l'ancienne photo (si on en remplace une), pour que
+   *   le serveur la supprime si son nom diffère du nouveau fichier.
+   * IMPORTANT : "matricule" doit être ajouté au FormData AVANT "avatar" pour
+   * que multer puisse le lire au moment de nommer le fichier.
    */
-  uploadAvatar: async (file) => {
+  uploadAvatar: async (file, { matricule, previousUrl } = {}) => {
     const formData = new FormData();
+    if (matricule) formData.append("matricule", matricule);
+    if (previousUrl) formData.append("previousUrl", previousUrl);
     formData.append("avatar", file);
 
     const response = await axiosInstance.post("/uploads/avatar", formData, {

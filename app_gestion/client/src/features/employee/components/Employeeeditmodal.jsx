@@ -89,11 +89,15 @@ export function EmployeeEditModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const previousUrl = formData.avatarUrl;
     setAvatarPreview(URL.createObjectURL(file));
 
     try {
       setIsUploadingAvatar(true);
-      const response = await employeeService.uploadAvatar(file);
+      const response = await employeeService.uploadAvatar(file, {
+        matricule: formData.matricule,
+        previousUrl,
+      });
       setFormData((prev) => ({ ...prev, avatarUrl: response.data.url }));
     } catch (error) {
       console.error("Erreur lors de l'upload de la photo :", error);

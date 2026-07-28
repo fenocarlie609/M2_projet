@@ -79,7 +79,9 @@ export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
 
     try {
       setIsUploadingAvatar(true);
-      const response = await employeeService.uploadAvatar(file);
+      const response = await employeeService.uploadAvatar(file, {
+        matricule: formData.matricule,
+      });
       setFormData((prev) => ({ ...prev, avatarUrl: response.data.url }));
     } catch (error) {
       console.error("Erreur lors de l'upload de la photo :", error);
