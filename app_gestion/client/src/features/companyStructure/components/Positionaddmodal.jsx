@@ -1,7 +1,7 @@
 // src/features/companyStructure/components/PositionAddModal.jsx
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
-import { getApiErrorMessage } from "../utils/getApiErrorMessage";
+import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
 
 const emptyForm = { code: "", label: "" };
 const emptyErrors = { code: "", label: "", general: "" };
