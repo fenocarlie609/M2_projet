@@ -3,6 +3,7 @@ const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const path = require("path");
 // const mongoSanitize = require("express-mongo-sanitize");
 
 const { errorHandler } = require("./common/middlewares/error.middleware");
@@ -32,6 +33,12 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   }),
 );
+
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
+// CORRECTION : servir les fichiers statiques (photos uploadées) AVANT le
+// catch-all 404 et errorHandler, sinon express.static n'est jamais atteint.
+app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
 
 // Application du Rate Limiting global sur toutes les routes de l'API
 app.use("/api", appLimiter);

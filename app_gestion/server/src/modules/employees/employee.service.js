@@ -1,19 +1,17 @@
+// src/features/employee/employee.service.js
 const { prisma } = require("../../config/database");
 const { hashPassword } = require("../../common/utils/password.utils");
 const AppError = require("../../common/utils/AppError");
 
 /**
  * Crée un nouvel employé.
- * - Si hasAppAccess = false : email/password restent null (l'employé n'a pas de compte).
- * - Si hasAppAccess = true  : email/password sont requis, le mot de passe est hashé.
- * - Des permissions initiales (module + action) peuvent être fournies.
  */
 const createEmployee = async (data) => {
   const { permissions = [], password, ...rest } = data;
 
-  // CIN désormais optionnel : on ne vérifie l'unicité que s'il est fourni
+  // CIN unique (si fourni)
   if (rest.cin) {
-    const existingCin = await prisma.Employee.findUnique({
+    const existingCin = await prisma.employee.findUnique({
       where: { cin: rest.cin },
     });
     if (existingCin) {
@@ -21,16 +19,17 @@ const createEmployee = async (data) => {
     }
   }
 
-  // Matricule : requis, unique
-  const existingMatricule = await prisma.Employee.findUnique({
+  // Matricule unique
+  const existingMatricule = await prisma.employee.findUnique({
     where: { matricule: rest.matricule },
   });
   if (existingMatricule) {
     throw new AppError("Ce matricule est déjà utilisé.", 400);
   }
 
+  // Email unique
   if (rest.hasAppAccess && rest.email) {
-    const existingEmail = await prisma.Employee.findUnique({
+    const existingEmail = await prisma.employee.findUnique({
       where: { email: rest.email },
     });
     if (existingEmail) {
@@ -38,7 +37,7 @@ const createEmployee = async (data) => {
     }
   }
 
-  return await prisma.Employee.create({
+  return await prisma.employee.create({
     data: {
       ...rest,
       password: rest.hasAppAccess ? await hashPassword(password) : null,
@@ -52,19 +51,22 @@ const createEmployee = async (data) => {
           }
         : undefined,
     },
-    include: { permissions: true },
+    include: {
+      permissions: true,
+      department: true,
+      position: true,
+    },
   });
 };
 
 /**
- * Met à jour un employé. Si le mot de passe est fourni, il est re-hashé.
- * Si hasAppAccess passe à false, on nettoie email/password pour rester cohérent.
+ * Met à jour un employé.
  */
 const updateEmployee = async (id, data) => {
   const payload = { ...data };
 
   if (payload.cin) {
-    const existingCin = await prisma.Employee.findUnique({
+    const existingCin = await prisma.employee.findUnique({
       where: { cin: payload.cin },
     });
     if (existingCin && existingCin.id !== id) {
@@ -73,7 +75,7 @@ const updateEmployee = async (id, data) => {
   }
 
   if (payload.matricule) {
-    const existingMatricule = await prisma.Employee.findUnique({
+    const existingMatricule = await prisma.employee.findUnique({
       where: { matricule: payload.matricule },
     });
     if (existingMatricule && existingMatricule.id !== id) {
@@ -90,56 +92,52 @@ const updateEmployee = async (id, data) => {
     payload.password = null;
   }
 
-  return await prisma.Employee.update({
+  return await prisma.employee.update({
     where: { id },
     data: payload,
-    include: { permissions: true },
+    include: {
+      permissions: true,
+      department: true,
+      position: true,
+    },
   });
 };
 
 /**
- * Suppression logique (soft delete) : on désactive aussi l'accès à l'app.
+ * Soft delete
  */
 const softDeleteEmployee = async (id) => {
-  return await prisma.Employee.update({
+  return await prisma.employee.update({
     where: { id },
     data: { deletedAt: new Date(), isActive: false },
   });
 };
 
 const getAllActiveEmployees = async () => {
-  return await prisma.Employee.findMany({
+  return await prisma.employee.findMany({
     where: { deletedAt: null },
-    select: {
-      id: true,
-      name: true,
-      matricule: true,
-      cin: true,
-      phone: true,
-      department: true,
-      position: true,
-      hasAppAccess: true,
-      email: true,
-      isActive: true,
-      createdAt: true,
+    include: {
+      department: true, // Inclus l'objet complet { id, code, label }
+      position: true, // Inclus l'objet complet { id, code, label }
+      permissions: true,
     },
     orderBy: { createdAt: "desc" },
   });
 };
 
 const getEmployeeById = async (id) => {
-  return await prisma.Employee.findUnique({
+  return await prisma.employee.findUnique({
     where: { id },
-    include: { permissions: true },
+    include: {
+      permissions: true,
+      department: true,
+      position: true,
+    },
   });
 };
 
-/**
- * Attribue une permission (module, action) à un employé.
- * Deux employés au même poste/département peuvent donc avoir des droits différents.
- */
 const assignPermission = async (employeeId, module, action) => {
-  const employee = await prisma.Employee.findUnique({
+  const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
   });
   if (!employee || employee.deletedAt) {

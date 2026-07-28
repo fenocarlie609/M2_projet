@@ -19,10 +19,10 @@ export const Alert = ({ children, title, variant = "info" }) => {
 
   return (
     <div
-      className={`flex gap-3.5 p-4 rounded-xl border ${bg} text-sm font-medium animate-[fadeIn_0.2s_ease-out]`}
+      className={`flex gap-3 p-3.5 sm:p-4 rounded-xl border ${bg} text-xs sm:text-sm font-medium animate-[fadeIn_0.2s_ease-out] w-full`}
     >
       <Icon className="shrink-0 mt-0.5" size={18} />
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-0 break-words">
         {title && <span className="font-bold tracking-wide">{title}</span>}
         <div className="text-current opacity-90 font-sans">{children}</div>
       </div>

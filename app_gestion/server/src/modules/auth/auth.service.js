@@ -8,19 +8,37 @@ const createToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
+// Champs à garder pour department/position dans les réponses employé :
+// on masque id, departmentId, createdAt, updatedAt.
+const departmentSelect = { select: { code: true, label: true } };
+const positionSelect = { select: { code: true, label: true } };
+
 /**
  * Authentifie un employé.
  * Seuls les employés avec hasAppAccess = true ET isActive = true peuvent se connecter.
  */
 const loginEmployee = async ({ identifier, password }) => {
-  const employee = await prisma.Employee.findFirst({
+  // CORRECTION : prisma.employee (minuscule) au lieu de prisma.Employee
+  // + "select" au lieu de "include" : on ne renvoie que le strict nécessaire
+  // (identité + permissions pour le routing). Le profil complet (cin, phone,
+  // department, position...) est récupéré ensuite via /auth/me.
+  const employee = await prisma.employee.findFirst({
     where: {
       OR: [{ email: identifier }, { matricule: identifier }],
     },
-    include: { permissions: true },
-  });
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      matricule: true,
+      password: true, // nécessaire pour comparePassword ci-dessous, retiré avant le retour
+      hasAppAccess: true,
+      isActive: true,
+      deletedAt: true,
 
-  console.log(employee);
+      permissions: { select: { module: true, action: true } },
+    },
+  });
 
   // On renvoie le même message générique dans tous les cas d'échec pour ne pas
   // laisser deviner si l'email existe, s'il a accès à l'app, etc.
@@ -52,14 +70,25 @@ const loginEmployee = async ({ identifier, password }) => {
 
   employee.password = undefined;
 
+  // On ne renvoie que l'identifiant utilisé pour se connecter :
+  // email si l'employé s'est connecté avec son email, matricule sinon.
+  if (employee.email === identifier) {
+    employee.matricule = undefined;
+  } else {
+    employee.email = undefined;
+  }
+
   return { employee, token };
 };
 
 const getFreshProfile = async (employeeId) => {
-  const employee = await prisma.Employee.findUnique({
+  // CORRECTION : prisma.employee (minuscule) au lieu de prisma.Employee
+  const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
     include: {
       permissions: true,
+      department: departmentSelect,
+      position: positionSelect,
     },
   });
 

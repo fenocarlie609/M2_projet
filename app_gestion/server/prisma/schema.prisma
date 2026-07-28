@@ -22,6 +22,44 @@ enum EntityType {
 // 1. ARCHITECTURE INTERNE (EMPLOYÉS & ACCÈS)
 // ==========================================
 
+model Department {
+  id          String     @id @default(uuid())
+  code        String     @unique // Ex: "LOGISTICS", "ADMIN", "FINANCE", "TECH", "COMMERCIAL" (correspond à companyStructure.js)
+  label       String     // Ex: "Logistique & Opérations Maritimes"
+
+  positions   Position[]
+  employees   Employee[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?  // Soft delete pour le département
+
+  @@index([deletedAt])
+  @@map("departments")
+}
+
+model Position {
+  id            String     @id @default(uuid())
+  code          String     @unique // Ex: "QUAY_AGENT", "HR_MGR" (unique globalement, comme dans companyStructure.js)
+  label         String     // Ex: "Agent de quai"
+
+  departmentId  String
+  department    Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  employees     Employee[]
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?  // Soft delete pour le poste
+
+  // Clé unique composite : permet à Employee de référencer (positionId + departmentId)
+  // ensemble, et garantit ainsi qu'un employé ne peut pas être rattaché à une position
+  // qui n'appartient pas au département déclaré.
+  @@unique([id, departmentId])
+  @@index([deletedAt])
+  @@map("positions")
+}
+
 model Employee {
   id            String    @id @default(uuid())
 
@@ -31,8 +69,14 @@ model Employee {
   matricule     String    @unique // Numéro de matricule interne (attribué par la RH), utilisable pour se connecter
   phone         String?
   avatarUrl     String?   // Photo de l'employé
-  department    String    // Ex: "Logistique Maritime", "Ressources Humaines", "Direction"
-  position      String    // Le poste exact (Ex: "Agent de quai", "Chauffeur Interne", "Superadmin")
+
+  // Un employé a UNE seule position, elle-même rattachée à UN seul département.
+  // On stocke aussi departmentId directement (dénormalisé) pour permettre la
+  // contrainte de clé étrangère composite ci-dessous.
+  departmentId  String
+  positionId    String
+  department    Department @relation(fields: [departmentId], references: [id])
+  position      Position   @relation(fields: [positionId, departmentId], references: [id, departmentId])
 
   // --- SECTION COMPTE & ACCÈS À L'APPLICATION ---
   hasAppAccess  Boolean   @default(false) // Permet de marquer si l'employé a le droit d'utiliser l'app
@@ -49,6 +93,17 @@ model Employee {
   deletedAt     DateTime? // Soft delete pour l'employé
 
   @@map("employees")
+}
+
+model AppModule {
+  id        String   @id @default(uuid())
+  code      String   @unique // Ex: "EMPLOYEES", "USERS", "DEPARTMENTS", "*" (tous modules)
+  label     String   // Ex: "Employés", "Utilisateurs & Accès"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("app_modules")
 }
 
 model EmployeePermission {

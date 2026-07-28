@@ -1,24 +1,36 @@
 // src/features/users/pages/UsersPage.jsx
 import React, { useEffect, useState } from "react";
-import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
+import { PageHeader, Button, AlertDialog, Tabs } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
 import {
   usersService,
   UsersTable,
+  UsersPermissionsTable,
   GrantAccessModal,
   PermissionsModal,
+  // Supposons que tu crées ou importes ta modale ici :
+  ResetPasswordModal,
 } from "@/features/users";
-import { employeeService } from "@/features/employee";
-import { showToast } from "@/shared/utils/toast";
+import { showToast } from "@/shared/utils/";
+
+const TABS = [
+  { id: "accounts", label: "Comptes" },
+  { id: "permissions", label: "Permissions" },
+];
 
 function UsersPage() {
+  const [activeTab, setActiveTab] = useState("accounts");
+
   const [users, setUsers] = useState([]);
-  const [employeesWithoutAccess, setEmployeesWithoutAccess] = useState([]);
+  const [pendingEmployees, setPendingEmployees] = useState([]);
+  const [permissionsOverview, setPermissionsOverview] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const [isGrantModalOpen, setIsGrantModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isRevokeAlertOpen, setIsRevokeAlertOpen] = useState(false);
+  // 1. Nouvel état pour la modale de réinitialisation
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   const [selectedUser, setSelectedUser] = useState(null);
 
@@ -34,20 +46,31 @@ function UsersPage() {
     }
   };
 
-  const fetchEmployeesWithoutAccess = async () => {
+  const fetchPendingEmployees = async () => {
     try {
-      const response = await employeeService.getEmployees();
-      setEmployeesWithoutAccess(
-        (response.data.employees || []).filter((e) => !e.hasAppAccess),
-      );
+      const response = await usersService.getPendingEmployees();
+      setPendingEmployees(response.data.employees || []);
     } catch (error) {
-      console.error("Erreur lors de la récupération des employés :", error);
+      console.error(
+        "Erreur lors de la récupération des employés en attente :",
+        error,
+      );
+    }
+  };
+
+  const fetchPermissionsOverview = async () => {
+    try {
+      const response = await usersService.getAllPermissions();
+      setPermissionsOverview(response.data.permissions || []);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des permissions :", error);
     }
   };
 
   useEffect(() => {
     fetchUsers();
-    fetchEmployeesWithoutAccess();
+    fetchPendingEmployees();
+    fetchPermissionsOverview();
   }, []);
 
   const handleGrantAccess = async (employeeId, data) => {
@@ -57,7 +80,8 @@ function UsersPage() {
     } else {
       fetchUsers();
     }
-    fetchEmployeesWithoutAccess();
+    fetchPendingEmployees();
+    fetchPermissionsOverview();
     setIsGrantModalOpen(false);
     showToast.success("Accès accordé avec succès.");
   };
@@ -76,14 +100,20 @@ function UsersPage() {
     }
   };
 
-  const handleResetPassword = async (user) => {
-    const newPassword = window.prompt(
-      `Nouveau mot de passe pour ${user.name} (8 caractères minimum) :`,
-    );
-    if (!newPassword) return;
+  // 2. Modifié : Ouvre simplement la modale en ciblant l'utilisateur
+  const handleResetPassword = (user) => {
+    setSelectedUser(user);
+    setIsResetModalOpen(true);
+  };
+
+  // 3. Nouveau : Gère la soumission du nouveau mot de passe depuis la modale
+  const handleConfirmResetPassword = async (newPassword) => {
+    if (!selectedUser || !newPassword) return;
     try {
-      await usersService.resetPassword(user.id, newPassword);
+      await usersService.resetPassword(selectedUser.id, newPassword);
       showToast.success("Mot de passe réinitialisé.");
+      setIsResetModalOpen(false);
+      setSelectedUser(null);
     } catch (error) {
       const message =
         error.response?.data?.message || "Erreur lors de la réinitialisation.";
@@ -96,11 +126,21 @@ function UsersPage() {
     setIsPermissionsModalOpen(true);
   };
 
-  const handleAssignPermission = async (employeeId, module, action) => {
-    await usersService.assignPermission(employeeId, module, action);
+  const handleAssignManyPermissions = async (employeeId, pairs) => {
+    await Promise.all(
+      pairs.map((p) =>
+        usersService.assignPermission(employeeId, p.module, p.action),
+      ),
+    );
     const response = await usersService.getUserById(employeeId);
     setSelectedUser(response.data.user);
     fetchUsers();
+    fetchPermissionsOverview();
+    showToast.success(
+      pairs.length > 1
+        ? `${pairs.length} permissions ajoutées.`
+        : "Permission ajoutée.",
+    );
   };
 
   const handleRevokePermission = async (employeeId, permissionId) => {
@@ -108,6 +148,20 @@ function UsersPage() {
     const response = await usersService.getUserById(employeeId);
     setSelectedUser(response.data.user);
     fetchUsers();
+    fetchPermissionsOverview();
+  };
+
+  const handleRevokeManyPermissions = async (employeeId, permissionIds) => {
+    await usersService.revokePermissions(employeeId, permissionIds);
+    const response = await usersService.getUserById(employeeId);
+    setSelectedUser(response.data.user);
+    fetchUsers();
+    fetchPermissionsOverview();
+    showToast.success(
+      permissionIds.length > 1
+        ? `${permissionIds.length} permissions supprimées.`
+        : "Permission supprimée.",
+    );
   };
 
   const handleOpenRevokeAccess = (user) => {
@@ -120,7 +174,8 @@ function UsersPage() {
     try {
       await usersService.revokeAccess(selectedUser.id);
       setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
-      fetchEmployeesWithoutAccess();
+      fetchPendingEmployees();
+      fetchPermissionsOverview();
       setIsRevokeAlertOpen(false);
       showToast.success("Accès révoqué.");
     } catch (error) {
@@ -145,19 +200,29 @@ function UsersPage() {
         </Button>
       </PageHeader>
 
-      <UsersTable
-        data={users}
-        isLoading={isLoading}
-        onTogglePermissions={handleOpenPermissions}
-        onToggleStatus={handleToggleStatus}
-        onResetPassword={handleResetPassword}
-        onRevokeAccess={handleOpenRevokeAccess}
-      />
+      <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+
+      {activeTab === "accounts" ? (
+        <UsersTable
+          data={users}
+          isLoading={isLoading}
+          onTogglePermissions={handleOpenPermissions}
+          onToggleStatus={handleToggleStatus}
+          onResetPassword={handleResetPassword}
+          onRevokeAccess={handleOpenRevokeAccess}
+        />
+      ) : (
+        <UsersPermissionsTable
+          data={permissionsOverview}
+          isLoading={isLoading}
+          onManage={handleOpenPermissions}
+        />
+      )}
 
       <GrantAccessModal
         isOpen={isGrantModalOpen}
         onClose={() => setIsGrantModalOpen(false)}
-        employees={employeesWithoutAccess}
+        employees={pendingEmployees}
         onAccessGranted={handleGrantAccess}
       />
 
@@ -168,8 +233,9 @@ function UsersPage() {
           setSelectedUser(null);
         }}
         user={selectedUser}
-        onAssign={handleAssignPermission}
+        onAssignMany={handleAssignManyPermissions}
         onRevoke={handleRevokePermission}
+        onRevokeMany={handleRevokeManyPermissions}
       />
 
       <AlertDialog
@@ -183,6 +249,17 @@ function UsersPage() {
         description={`Êtes-vous sûr de vouloir retirer l'accès à l'application de ${selectedUser?.name || ""} ? Sa fiche employé sera conservée.`}
         confirmText="Oui, révoquer"
         isDanger
+      />
+
+      {/* 4. Ajout du composant Modale en bas de page */}
+      <ResetPasswordModal
+        isOpen={isResetModalOpen}
+        onClose={() => {
+          setIsResetModalOpen(false);
+          setSelectedUser(null);
+        }}
+        user={selectedUser}
+        onConfirm={handleConfirmResetPassword}
       />
     </div>
   );

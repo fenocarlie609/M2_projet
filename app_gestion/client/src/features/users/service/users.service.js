@@ -1,9 +1,19 @@
 // src/features/users/service/users.service.js
-import axiosInstance from "@/shared/services/axiosInstance";
+import { axiosInstance } from "@/shared/services/";
 
 export const usersService = {
   getUsers: async () => {
     const response = await axiosInstance.get("/users");
+    return response.data;
+  },
+
+  getPendingEmployees: async () => {
+    const response = await axiosInstance.get("/users/pending");
+    return response.data;
+  },
+
+  getAllPermissions: async () => {
+    const response = await axiosInstance.get("/users/permissions");
     return response.data;
   },
 
@@ -14,7 +24,7 @@ export const usersService = {
 
   grantAccess: async (employeeId, data) => {
     const response = await axiosInstance.post(
-      `/users/${employeeId}/grant-access`,
+      `/users/${employeeId}/access`,
       data,
     );
     return response.data;
@@ -25,17 +35,16 @@ export const usersService = {
   },
 
   setStatus: async (employeeId, isActive) => {
-    const response = await axiosInstance.patch(`/users/${employeeId}/status`, {
+    const response = await axiosInstance.patch(`/users/${employeeId}/access`, {
       isActive,
     });
     return response.data;
   },
 
   resetPassword: async (employeeId, password) => {
-    const response = await axiosInstance.patch(
-      `/users/${employeeId}/password`,
-      { password },
-    );
+    const response = await axiosInstance.patch(`/users/${employeeId}/access`, {
+      password,
+    });
     return response.data;
   },
 
@@ -51,5 +60,13 @@ export const usersService = {
     return await axiosInstance.delete(
       `/users/${employeeId}/permissions/${permissionId}`,
     );
+  },
+
+  // Révocation groupée : DELETE avec un body { permissionIds } (axios
+  // requiert de le passer dans `data` pour une requête DELETE).
+  revokePermissions: async (employeeId, permissionIds) => {
+    return await axiosInstance.delete(`/users/${employeeId}/permissions`, {
+      data: { permissionIds },
+    });
   },
 };

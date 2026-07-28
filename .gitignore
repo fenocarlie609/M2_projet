@@ -32,3 +32,5 @@
 *.njsproj
 *.sln
 *.sw?
+
+app_gestion/server/public/uploads/

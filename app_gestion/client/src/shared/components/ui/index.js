@@ -14,3 +14,4 @@ export { ContextMenu } from "./ContextMenu.jsx";
 export { DropdownMenu } from "./DropdownMenu.jsx";
 export { Form } from "./Form.jsx";
 export { PageHeader } from "./PageHeader.jsx";
+export { Tabs } from "./Tabs.jsx";
