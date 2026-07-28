@@ -1,5 +1,5 @@
 // src/features/users/service/users.service.js
-import axiosInstance from "@/shared/services/axiosInstance";
+import { axiosInstance } from "@/shared/services/";
 
 export const usersService = {
   getUsers: async () => {

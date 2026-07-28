@@ -1,5 +1,5 @@
 // src/features/driver/service/driver.service.js
-import axiosInstance from "@/shared/services/axiosInstance";
+import { axiosInstance } from "@/shared/services/";
 
 export const driverService = {
   getDrivers: async () => {

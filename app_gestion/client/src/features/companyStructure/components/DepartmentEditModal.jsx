@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
 import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { showToast } from "@/shared/utils/toast";
 
 const emptyErrors = { code: "", label: "", general: "" };
 
@@ -64,6 +65,7 @@ export function DepartmentEditModal({
       await onDepartmentUpdated(selectedDepartment.id, formData);
       setErrors(emptyErrors);
       onClose();
+      showToast.success("Département modifié avec succès !");
     } catch (error) {
       console.error("Erreur lors de la modification du département :", error);
       const message = getApiErrorMessage(error);

@@ -1,11 +1,11 @@
 // src/shared/components/layout/Sidebar.jsx
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../../features/auth/contexts/AuthContext";
-import { sidebarRoutes } from "../../../core/routes/routeConfig";
+import { useAuth } from "@/features/auth/";
+import { sidebarRoutes } from "@/core/routes/routeConfig";
 // 1. Ajout de FiLogOut
 import { FiX, FiAnchor, FiLogOut } from "react-icons/fi";
-import { hasPermission } from "../../../shared/utils/permissions";
+import { hasPermission } from "@/shared/utils/";
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const navigate = useNavigate();

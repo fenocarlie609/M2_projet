@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
 import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { showToast } from "@/shared/utils/toast";
 
 const emptyErrors = { general: "" };
 
@@ -42,6 +43,7 @@ export function ClientEditModal({
       const payload = { ...formData, phone: formData.phone || null };
       await onClientUpdated(selectedClient.id, payload);
       onClose();
+      showToast.success("Client modifié avec succès !");
     } catch (error) {
       console.error("Erreur modification client :", error);
       setErrors({ general: getApiErrorMessage(error) });

@@ -1,7 +1,7 @@
 // src/features/employee/components/EmployeeAddModal.jsx
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Select, Button } from "@/shared/components/ui";
-import axiosInstance from "@/shared/services/axiosInstance";
+import { axiosInstance } from "@/shared/services/";
 import { employeeService } from "@/features/employee/";
 import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
 

@@ -7,19 +7,17 @@ import {
   useCallback,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import axiosInstance from "@/shared/services/axiosInstance";
+import { axiosInstance } from "@/shared/services/";
+import { hasPermission } from "@/shared/utils/";
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
-
-  // Initialisation du state avec l'utilisateur du localStorage
   const [user, setUser] = useState(() => {
     const userSaved = localStorage.getItem("mada_user");
     return userSaved ? JSON.parse(userSaved) : null;
   });
-
   const [loading, setLoading] = useState(true);
 
   // Synchronisation au démarrage : vérifie la session côté serveur
@@ -55,16 +53,9 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, []);
 
-  // Fonction globale de vérification des permissions (avec gestion du joker '*')
   const checkPermission = useCallback(
     (module, action) => {
-      if (!user || !user.permissions) return false;
-
-      return user.permissions.some(
-        (p) =>
-          (p.module === "*" || p.module === module) &&
-          (p.action === "*" || p.action === action),
-      );
+      return hasPermission(user, { module, action });
     },
     [user],
   );

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
 import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { showToast } from "@/shared/utils/toast";
 
 const emptyErrors = { code: "", label: "", general: "" };
 
@@ -64,6 +65,7 @@ export function PositionEditModal({
       await onPositionUpdated(selectedPosition.id, formData);
       setErrors(emptyErrors);
       onClose();
+      showToast.success("Poste mis à jour avec succès !");
     } catch (error) {
       console.error("Erreur lors de la modification du poste :", error);
       const message = getApiErrorMessage(error);

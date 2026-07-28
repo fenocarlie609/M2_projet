@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
 import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { showToast } from "@/shared/utils/toast";
 
 const emptyForm = { code: "", label: "" };
 const emptyErrors = { code: "", label: "", general: "" };
@@ -52,6 +53,7 @@ export function DepartmentAddModal({ isOpen, onClose, onDepartmentCreated }) {
       await onDepartmentCreated(formData);
       setFormData(emptyForm);
       setErrors(emptyErrors);
+      showToast.success("Département créé avec succès !");
     } catch (error) {
       console.error("Erreur lors de la création du département :", error);
       const message = getApiErrorMessage(error);

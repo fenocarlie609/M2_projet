@@ -2,10 +2,12 @@
 import React, { useEffect, useState } from "react";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
-import { driverService } from "../service/driver.service";
-import { DriverTable } from "../components/DriverTable";
-import { DriverCard } from "../components/DriverCard";
-import { DriverModal } from "../components/DriverModal";
+import {
+  driverService,
+  DriverTable,
+  DriverCard,
+  DriverModal,
+} from "@/features/driver";
 
 function DriverPage() {
   const [drivers, setDrivers] = useState([]);

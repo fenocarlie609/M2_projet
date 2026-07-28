@@ -11,7 +11,7 @@ import {
   // Supposons que tu crées ou importes ta modale ici :
   ResetPasswordModal,
 } from "@/features/users";
-import { showToast } from "@/shared/utils/toast";
+import { showToast } from "@/shared/utils/";
 
 const TABS = [
   { id: "accounts", label: "Comptes" },

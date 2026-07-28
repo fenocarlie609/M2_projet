@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
 import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { showToast } from "@/shared/utils/toast";
 
 const emptyForm = { name: "", type: "INDIVIDUAL", phone: "" };
 const emptyErrors = { general: "" };
@@ -30,6 +31,7 @@ export function ClientAddModal({ isOpen, onClose, onClientCreated }) {
       const payload = { ...formData, phone: formData.phone || null };
       await onClientCreated(payload);
       onClose();
+      showToast.success("Client créé avec succès !");
     } catch (error) {
       console.error("Erreur lors de la création du client :", error);
       setErrors({ general: getApiErrorMessage(error) });

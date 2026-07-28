@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
 import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { showToast } from "@/shared/utils/toast";
 
 const emptyForm = { code: "", label: "" };
 const emptyErrors = { code: "", label: "", general: "" };
@@ -58,6 +59,7 @@ export function PositionAddModal({
       await onPositionCreated(department.id, formData);
       setFormData(emptyForm);
       setErrors(emptyErrors);
+      showToast.success("Poste ajouté avec succès !");
     } catch (error) {
       console.error("Erreur lors de la création du poste :", error);
       const message = getApiErrorMessage(error);
