@@ -7,8 +7,12 @@ import {
   FiTrendingUp,
   FiCheckSquare,
   FiSettings,
+  FiTruck,
 } from "react-icons/fi";
-import { FaUserTie, FaTruck } from "react-icons/fa";
+import { MdSpaceDashboard } from "react-icons/md";
+import { FaUserTie, FaTruck, FaUserLock } from "react-icons/fa";
+import { IoIosSettings } from "react-icons/io";
+import { FaUsers, FaShield } from "react-icons/fa6";
 import * as dashboard from "@/features/dashboard";
 import { DashboardPage } from "@/features/dashboard";
 import { EmployeePage } from "@/features/employee";
@@ -40,7 +44,7 @@ export const appRoutes = [
       </dashboard.DashboardLayout>
     ),
     requiredPermission: null, // accessible à tout employé connecté
-    icon: FiGrid,
+    icon: MdSpaceDashboard,
     showInSidebar: true,
   },
   {
@@ -67,7 +71,7 @@ export const appRoutes = [
     ),
     // Correspond au module "employees" côté backend (fiches RH)
     requiredPermission: { module: "EMPLOYEES", action: "READ" },
-    icon: FiUsers,
+    icon: FaUsers,
     showInSidebar: true,
   },
   {
@@ -109,7 +113,7 @@ export const appRoutes = [
     ),
     // Correspond au module "users" côté backend (gestion de l'accès applicatif)
     requiredPermission: { module: "USERS", action: "READ" },
-    icon: FiUsers,
+    icon: FaUserLock,
     showInSidebar: true,
   },
   {
@@ -124,7 +128,7 @@ export const appRoutes = [
     // ⚠️ Module supposé "COMPANY_STRUCTURE" côté backend (EmployeePermission).
     // À confirmer/adapter selon votre constants.js réel.
     requiredPermission: { module: "COMPANY_STRUCTURE", action: "READ" },
-    icon: FiSettings,
+    icon: IoIosSettings,
     showInSidebar: true,
   },
   {
@@ -138,7 +142,7 @@ export const appRoutes = [
     ),
     // À adapter : quel module protège cette page côté backend ?
     requiredPermission: { module: "SUPERADMIN", action: "READ" },
-    icon: FiShield,
+    icon: FaShield,
     showInSidebar: true,
   },
 ];
