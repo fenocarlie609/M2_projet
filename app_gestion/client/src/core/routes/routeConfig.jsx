@@ -18,8 +18,6 @@ import { DashboardPage } from "@/features/dashboard";
 import { EmployeePage } from "@/features/employee";
 import { UsersPage } from "@/features/users";
 import { CompanyStructurePage } from "@/features/companyStructure";
-import { AdminPage } from "@/features/admin";
-import { SuperAdminPage } from "@/features/superadmin";
 import { TemplatePage } from "@/features/template";
 import { ClientPage } from "@/features/client";
 import { DriverPage } from "@/features/driver";
@@ -129,20 +127,6 @@ export const appRoutes = [
     // À confirmer/adapter selon votre constants.js réel.
     requiredPermission: { module: "COMPANY_STRUCTURE", action: "READ" },
     icon: IoIosSettings,
-    showInSidebar: true,
-  },
-  {
-    path: "/superadmin",
-    label: "Superadmin",
-    section: "Superadmin",
-    element: (
-      <dashboard.DashboardLayout>
-        <SuperAdminPage />
-      </dashboard.DashboardLayout>
-    ),
-    // À adapter : quel module protège cette page côté backend ?
-    requiredPermission: { module: "SUPERADMIN", action: "READ" },
-    icon: FaShield,
     showInSidebar: true,
   },
 ];

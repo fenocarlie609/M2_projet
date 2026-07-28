@@ -1,6 +1,9 @@
 // src/features/client/components/ClientEditModal.jsx
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
+import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+
+const emptyErrors = { general: "" };
 
 export function ClientEditModal({
   isOpen,
@@ -14,6 +17,7 @@ export function ClientEditModal({
     type: "INDIVIDUAL",
     phone: "",
   });
+  const [errors, setErrors] = useState(emptyErrors);
 
   useEffect(() => {
     if (selectedClient) {
@@ -22,12 +26,14 @@ export function ClientEditModal({
         type: selectedClient.type || "INDIVIDUAL",
         phone: selectedClient.phone || "",
       });
+      setErrors(emptyErrors);
     }
   }, [selectedClient, isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors(emptyErrors);
   };
 
   const handleSubmit = async () => {
@@ -38,6 +44,7 @@ export function ClientEditModal({
       onClose();
     } catch (error) {
       console.error("Erreur modification client :", error);
+      setErrors({ general: getApiErrorMessage(error) });
     } finally {
       setIsSubmitting(false);
     }
@@ -94,6 +101,12 @@ export function ClientEditModal({
           value={formData.phone}
           onChange={handleInputChange}
         />
+
+        {errors.general && (
+          <p className="text-xs sm:text-sm font-medium text-rose-500 px-0.5">
+            {errors.general}
+          </p>
+        )}
 
         <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
           <Button type="button" variant="ghost" onClick={onClose}>

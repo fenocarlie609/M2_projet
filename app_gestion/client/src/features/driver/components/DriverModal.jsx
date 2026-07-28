@@ -1,12 +1,15 @@
 // src/features/driver/components/DriverModal.jsx
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
+import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
 
 const emptyForm = { name: "", type: "INDIVIDUAL", licensePlate: "", phone: "" };
+const emptyErrors = { licensePlate: "", general: "" };
 
 export function DriverModal({ isOpen, onClose, onSave, selectedDriver }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
+  const [errors, setErrors] = useState(emptyErrors);
   const isEditMode = !!selectedDriver;
 
   useEffect(() => {
@@ -21,12 +24,14 @@ export function DriverModal({ isOpen, onClose, onSave, selectedDriver }) {
             }
           : emptyForm,
       );
+      setErrors(emptyErrors);
     }
   }, [selectedDriver, isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors(emptyErrors);
   };
 
   const handleSubmit = async () => {
@@ -37,6 +42,12 @@ export function DriverModal({ isOpen, onClose, onSave, selectedDriver }) {
       onClose();
     } catch (error) {
       console.error("Erreur enregistrement chauffeur :", error);
+      const message = getApiErrorMessage(error);
+      const isPlateError = message.toLowerCase().includes("immatricul");
+      setErrors({
+        licensePlate: isPlateError ? message : "",
+        general: isPlateError ? "" : message,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -95,6 +106,7 @@ export function DriverModal({ isOpen, onClose, onSave, selectedDriver }) {
           onChange={handleInputChange}
           placeholder="Ex: 1234 TAB"
           className="uppercase"
+          error={errors.licensePlate}
         />
         <Input
           label="Téléphone (optionnel)"
@@ -103,6 +115,12 @@ export function DriverModal({ isOpen, onClose, onSave, selectedDriver }) {
           onChange={handleInputChange}
           placeholder="Ex: 032 00 000 00"
         />
+
+        {errors.general && (
+          <p className="text-xs sm:text-sm font-medium text-rose-500 px-0.5">
+            {errors.general}
+          </p>
+        )}
 
         <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
           <Button type="button" variant="ghost" onClick={onClose}>

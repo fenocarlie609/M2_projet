@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Select, Button } from "@/shared/components/ui";
 import axiosInstance from "@/shared/services/axiosInstance";
 import { employeeService } from "@/features/employee/";
+import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
 
 const emptyForm = {
   name: "",
@@ -15,9 +16,12 @@ const emptyForm = {
   avatarUrl: "",
 };
 
+const emptyErrors = { matricule: "", cin: "", general: "" };
+
 export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
+  const [errors, setErrors] = useState(emptyErrors);
 
   const [departments, setDepartments] = useState([]);
   const [isLoadingStructure, setIsLoadingStructure] = useState(false);
@@ -51,6 +55,7 @@ export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
     if (!isOpen) {
       setFormData(emptyForm);
       setAvatarPreview("");
+      setErrors(emptyErrors);
     }
   }, [isOpen]);
 
@@ -63,6 +68,7 @@ export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
       }
       return updated;
     });
+    setErrors(emptyErrors);
   };
 
   const handleAppAccessChange = (value) => {
@@ -85,6 +91,7 @@ export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
       setFormData((prev) => ({ ...prev, avatarUrl: response.data.url }));
     } catch (error) {
       console.error("Erreur lors de l'upload de la photo :", error);
+      setErrors((prev) => ({ ...prev, general: getApiErrorMessage(error) }));
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -101,8 +108,18 @@ export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
       await onEmployeeCreated(payload);
       setFormData(emptyForm);
       setAvatarPreview("");
+      setErrors(emptyErrors);
     } catch (error) {
       console.error("Erreur lors de la création de l'employé :", error);
+      const message = getApiErrorMessage(error);
+      const lower = message.toLowerCase();
+      if (lower.includes("matricule")) {
+        setErrors({ matricule: message, cin: "", general: "" });
+      } else if (lower.includes("cin")) {
+        setErrors({ matricule: "", cin: message, general: "" });
+      } else {
+        setErrors({ matricule: "", cin: "", general: message });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -189,6 +206,7 @@ export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
           value={formData.matricule}
           onChange={handleInputChange}
           placeholder="Ex: MAT-2026-014"
+          error={errors.matricule}
         />
 
         <Input
@@ -197,6 +215,7 @@ export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
           value={formData.cin}
           onChange={handleInputChange}
           placeholder="Ex: 101112013014"
+          error={errors.cin}
         />
 
         <Input
@@ -255,6 +274,12 @@ export function EmployeeAddModal({ isOpen, onClose, onEmployeeCreated }) {
             </label>
           </div>
         </div>
+
+        {errors.general && (
+          <p className="text-xs sm:text-sm font-medium text-rose-500 px-0.5">
+            {errors.general}
+          </p>
+        )}
 
         <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
           <Button type="button" variant="ghost" onClick={onClose}>

@@ -1,20 +1,27 @@
 // src/features/client/components/ClientAddModal.jsx
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
+import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
 
 const emptyForm = { name: "", type: "INDIVIDUAL", phone: "" };
+const emptyErrors = { general: "" };
 
 export function ClientAddModal({ isOpen, onClose, onClientCreated }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
+  const [errors, setErrors] = useState(emptyErrors);
 
   useEffect(() => {
-    if (!isOpen) setFormData(emptyForm);
+    if (!isOpen) {
+      setFormData(emptyForm);
+      setErrors(emptyErrors);
+    }
   }, [isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors(emptyErrors);
   };
 
   const handleSubmit = async () => {
@@ -25,6 +32,7 @@ export function ClientAddModal({ isOpen, onClose, onClientCreated }) {
       onClose();
     } catch (error) {
       console.error("Erreur lors de la création du client :", error);
+      setErrors({ general: getApiErrorMessage(error) });
     } finally {
       setIsSubmitting(false);
     }
@@ -80,6 +88,12 @@ export function ClientAddModal({ isOpen, onClose, onClientCreated }) {
           onChange={handleInputChange}
           placeholder="Ex: 034 00 000 00"
         />
+
+        {errors.general && (
+          <p className="text-xs sm:text-sm font-medium text-rose-500 px-0.5">
+            {errors.general}
+          </p>
+        )}
 
         <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
           <Button type="button" variant="ghost" onClick={onClose}>

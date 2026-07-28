@@ -8,6 +8,8 @@ import {
   UsersPermissionsTable,
   GrantAccessModal,
   PermissionsModal,
+  // Supposons que tu crées ou importes ta modale ici :
+  ResetPasswordModal,
 } from "@/features/users";
 import { showToast } from "@/shared/utils/toast";
 
@@ -27,6 +29,8 @@ function UsersPage() {
   const [isGrantModalOpen, setIsGrantModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isRevokeAlertOpen, setIsRevokeAlertOpen] = useState(false);
+  // 1. Nouvel état pour la modale de réinitialisation
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   const [selectedUser, setSelectedUser] = useState(null);
 
@@ -96,14 +100,20 @@ function UsersPage() {
     }
   };
 
-  const handleResetPassword = async (user) => {
-    const newPassword = window.prompt(
-      `Nouveau mot de passe pour ${user.name} (8 caractères minimum) :`,
-    );
-    if (!newPassword) return;
+  // 2. Modifié : Ouvre simplement la modale en ciblant l'utilisateur
+  const handleResetPassword = (user) => {
+    setSelectedUser(user);
+    setIsResetModalOpen(true);
+  };
+
+  // 3. Nouveau : Gère la soumission du nouveau mot de passe depuis la modale
+  const handleConfirmResetPassword = async (newPassword) => {
+    if (!selectedUser || !newPassword) return;
     try {
-      await usersService.resetPassword(user.id, newPassword);
+      await usersService.resetPassword(selectedUser.id, newPassword);
       showToast.success("Mot de passe réinitialisé.");
+      setIsResetModalOpen(false);
+      setSelectedUser(null);
     } catch (error) {
       const message =
         error.response?.data?.message || "Erreur lors de la réinitialisation.";
@@ -141,7 +151,6 @@ function UsersPage() {
     fetchPermissionsOverview();
   };
 
-  // Révocation groupée : `permissionIds` = ids sélectionnés dans la modale.
   const handleRevokeManyPermissions = async (employeeId, permissionIds) => {
     await usersService.revokePermissions(employeeId, permissionIds);
     const response = await usersService.getUserById(employeeId);
@@ -240,6 +249,17 @@ function UsersPage() {
         description={`Êtes-vous sûr de vouloir retirer l'accès à l'application de ${selectedUser?.name || ""} ? Sa fiche employé sera conservée.`}
         confirmText="Oui, révoquer"
         isDanger
+      />
+
+      {/* 4. Ajout du composant Modale en bas de page */}
+      <ResetPasswordModal
+        isOpen={isResetModalOpen}
+        onClose={() => {
+          setIsResetModalOpen(false);
+          setSelectedUser(null);
+        }}
+        user={selectedUser}
+        onConfirm={handleConfirmResetPassword}
       />
     </div>
   );
