@@ -27,15 +27,15 @@ export function UsersTable({
       key: "position",
       render: (row) => row.position?.label || "—",
     },
-    {
-      header: "Statut",
-      key: "isActive",
-      render: (row) => (
-        <Badge variant={row.isActive ? "success" : "warning"}>
-          {row.isActive ? "Actif" : "Désactivé"}
-        </Badge>
-      ),
-    },
+    // {
+    //   header: "Statut",
+    //   key: "isActive",
+    //   render: (row) => (
+    //     <Badge variant={row.isActive ? "success" : "warning"}>
+    //       {row.isActive ? "Actif" : "Désactivé"}
+    //     </Badge>
+    //   ),
+    // },
     {
       header: "Permissions",
       key: "permissions",
@@ -68,7 +68,11 @@ export function UsersTable({
                   variant="ghost"
                   size="sm"
                   icon={FiPower}
-                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                  className={
+                    row.isActive
+                      ? "text-green-600 hover:text-green-700 hover:bg-green-50"
+                      : "text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                  }
                   onClick={() => onToggleStatus(row)}
                 />
                 <Button

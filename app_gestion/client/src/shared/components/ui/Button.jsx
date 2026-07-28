@@ -1,6 +1,7 @@
 // src/shared/components/Button.jsx
 import React from "react";
 import { FiLoader } from "react-icons/fi";
+import { twMerge } from "tailwind-merge";
 
 export const Button = ({
   children,
@@ -37,7 +38,7 @@ export const Button = ({
   return (
     <button
       disabled={disabled || isLoading}
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={twMerge(baseStyles, variants[variant], sizes[size], className)}
       {...props}
     >
       {isLoading ? (
