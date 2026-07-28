@@ -1,5 +1,11 @@
 // src/features/auth/contexts/AuthContext.js
-import { createContext, useState, useEffect, useContext } from "react";
+import {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "@/shared/services/axiosInstance";
 
@@ -49,6 +55,20 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, []);
 
+  // Fonction globale de vérification des permissions (avec gestion du joker '*')
+  const checkPermission = useCallback(
+    (module, action) => {
+      if (!user || !user.permissions) return false;
+
+      return user.permissions.some(
+        (p) =>
+          (p.module === "*" || p.module === module) &&
+          (p.action === "*" || p.action === action),
+      );
+    },
+    [user],
+  );
+
   // Fonction appelée après une connexion réussie
   const login = (userData) => {
     // Le payload reçu ici est déjà { employee }, pas
@@ -88,7 +108,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{ user, setUser, login, logout, loading, checkPermission }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );

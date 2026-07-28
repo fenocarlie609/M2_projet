@@ -2,17 +2,25 @@
 import React from "react";
 import { Card, CardContent, Badge, DropdownMenu } from "@/shared/components/ui";
 import { FiTrash2, FiEdit3, FiPhone, FiTruck } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 
 export function DriverCard({ driver, onEdit, onDelete }) {
-  const actionMenuItems = [
-    { label: "Modifier", icon: FiEdit3, onClick: () => onEdit(driver) },
-    {
+  const { checkPermission } = useAuth();
+
+  const actionMenuItems = [];
+  if (checkPermission("DRIVERS", "UPDATE"))
+    actionMenuItems.push({
+      label: "Modifier",
+      icon: FiEdit3,
+      onClick: () => onEdit(driver),
+    });
+  if (checkPermission("DRIVERS", "DELETE"))
+    actionMenuItems.push({
       label: "Supprimer",
       icon: FiTrash2,
       variant: "danger",
       onClick: () => onDelete(driver),
-    },
-  ];
+    });
 
   return (
     <Card className="border border-slate-100 shadow-premium bg-white rounded-xl">
@@ -31,7 +39,9 @@ export function DriverCard({ driver, onEdit, onDelete }) {
               </span>
             </div>
           </div>
-          <DropdownMenu items={actionMenuItems} />
+          {actionMenuItems.length > 0 && (
+            <DropdownMenu items={actionMenuItems} />
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-50 text-xs">

@@ -2,16 +2,11 @@
 import React from "react";
 import { Table, Button, Badge } from "@/shared/components/ui";
 import { FiShield } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 
-/**
- * Vue d'audit globale des permissions : une ligne par utilisateur (un même
- * utilisateur peut posséder plusieurs permissions, affichées en badges dans
- * une même cellule plutôt qu'une ligne par permission).
- *
- * `data` = la réponse brute de GET /users/permissions, c'est-à-dire un
- * tableau d'employés : [{ id, name, matricule, department, permissions }].
- */
 export function UsersPermissionsTable({ data, isLoading, onManage }) {
+  const { checkPermission } = useAuth();
+
   const columns = [
     { header: "Nom", key: "name" },
     { header: "Matricule", key: "matricule" },
@@ -39,17 +34,22 @@ export function UsersPermissionsTable({ data, isLoading, onManage }) {
     {
       header: "Actions",
       key: "actions",
-      render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={FiShield}
-          className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
-          onClick={() => onManage(row)}
-        >
-          Gérer
-        </Button>
-      ),
+      render: (row) => {
+        if (!checkPermission("USERS", "UPDATE"))
+          return <span className="text-xs text-slate-400">—</span>;
+
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={FiShield}
+            className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
+            onClick={() => onManage(row)}
+          >
+            Gérer
+          </Button>
+        );
+      },
     },
   ];
 

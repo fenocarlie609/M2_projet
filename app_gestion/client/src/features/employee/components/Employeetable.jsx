@@ -2,8 +2,11 @@
 import React from "react";
 import { Table, Button, Badge } from "@/shared/components/ui";
 import { FiTrash2, FiEdit3, FiUser } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 
 export function EmployeeTable({ data, isLoading, onEdit, onDelete }) {
+  const { checkPermission } = useAuth();
+
   const columns = [
     {
       header: "Photo",
@@ -47,24 +50,37 @@ export function EmployeeTable({ data, isLoading, onEdit, onDelete }) {
     {
       header: "Actions",
       key: "actions",
-      render: (row) => (
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={FiEdit3}
-            className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
-            onClick={() => onEdit(row)}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={FiTrash2}
-            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-            onClick={() => onDelete(row)}
-          />
-        </div>
-      ),
+      render: (row) => {
+        const canUpdate = checkPermission("EMPLOYEES", "UPDATE");
+        const canDelete = checkPermission("EMPLOYEES", "DELETE");
+
+        if (!canUpdate && !canDelete)
+          return <span className="text-xs text-slate-400">—</span>;
+
+        return (
+          <div className="flex items-center gap-1.5">
+            {canUpdate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={FiEdit3}
+                className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
+                onClick={() => onEdit(row)}
+              />
+            )}
+
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={FiTrash2}
+                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                onClick={() => onDelete(row)}
+              />
+            )}
+          </div>
+        );
+      },
     },
   ];
 

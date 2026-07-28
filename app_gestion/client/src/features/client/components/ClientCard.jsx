@@ -8,17 +8,31 @@ import {
   FiBriefcase,
   FiUser,
 } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 
 export function ClientCard({ client, onEdit, onDelete }) {
-  const actionMenuItems = [
-    { label: "Modifier", icon: FiEdit3, onClick: () => onEdit(client) },
-    {
+  // Extraction de checkPermission depuis le hook useAuth
+  const { checkPermission } = useAuth();
+
+  // On construit la liste des actions autorisées en utilisant la fonction globale
+  const actionMenuItems = [];
+
+  if (checkPermission("CLIENTS", "UPDATE")) {
+    actionMenuItems.push({
+      label: "Modifier",
+      icon: FiEdit3,
+      onClick: () => onEdit(client),
+    });
+  }
+
+  if (checkPermission("CLIENTS", "DELETE")) {
+    actionMenuItems.push({
       label: "Supprimer",
       icon: FiTrash2,
       variant: "danger",
       onClick: () => onDelete(client),
-    },
-  ];
+    });
+  }
 
   const isCompany = client.type === "COMPANY";
 
@@ -27,7 +41,6 @@ export function ClientCard({ client, onEdit, onDelete }) {
       <CardContent className="p-4 space-y-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {/* Mini icône d'identification visuelle selon le type */}
             <div
               className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
                 isCompany
@@ -50,7 +63,10 @@ export function ClientCard({ client, onEdit, onDelete }) {
               </Badge>
             </div>
           </div>
-          <DropdownMenu items={actionMenuItems} />
+
+          {actionMenuItems.length > 0 && (
+            <DropdownMenu items={actionMenuItems} />
+          )}
         </div>
 
         {client.phone && (

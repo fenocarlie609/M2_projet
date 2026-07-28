@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardContent, Badge, DropdownMenu } from "@/shared/components/ui";
 import { FiPlus, FiEdit3, FiTrash2 } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 
 export function CompanyStructureCard({
   department,
@@ -10,23 +11,29 @@ export function CompanyStructureCard({
   onEditPosition,
   onDeletePosition,
 }) {
-  const departmentMenuItems = [
-    {
+  const { checkPermission } = useAuth();
+
+  const canCreate = checkPermission("ORGANIZATION", "CREATE");
+  const canUpdate = checkPermission("ORGANIZATION", "UPDATE");
+  const canDelete = checkPermission("ORGANIZATION", "DELETE");
+
+  const departmentMenuItems = [];
+  if (canUpdate)
+    departmentMenuItems.push({
       label: "Modifier",
       icon: FiEdit3,
       onClick: () => onEditDepartment(department),
-    },
-    {
+    });
+  if (canDelete)
+    departmentMenuItems.push({
       label: "Supprimer",
       icon: FiTrash2,
       variant: "danger",
       onClick: () => onDeleteDepartment(department),
-    },
-  ];
+    });
 
   return (
     <Card className="border border-slate-100 shadow-premium bg-white rounded-2xl transition-all duration-200 hover:shadow-md">
-      {/* Header épuré et mieux hiérarchisé */}
       <div className="flex items-start justify-between p-5 border-b border-slate-100 bg-slate-50/40 rounded-t-2xl">
         <div className="space-y-1">
           <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md">
@@ -36,11 +43,12 @@ export function CompanyStructureCard({
             {department.label}
           </h3>
         </div>
-        <DropdownMenu items={departmentMenuItems} />
+        {departmentMenuItems.length > 0 && (
+          <DropdownMenu items={departmentMenuItems} />
+        )}
       </div>
 
       <CardContent className="p-5 space-y-4">
-        {/* Liste des postes */}
         <div className="space-y-2.5">
           {(department.positions || []).length === 0 && (
             <p className="text-xs text-slate-400 py-4 text-center italic">
@@ -49,19 +57,20 @@ export function CompanyStructureCard({
           )}
 
           {(department.positions || []).map((pos) => {
-            const positionMenuItems = [
-              {
+            const positionMenuItems = [];
+            if (canUpdate)
+              positionMenuItems.push({
                 label: "Modifier",
                 icon: FiEdit3,
                 onClick: () => onEditPosition(pos),
-              },
-              {
+              });
+            if (canDelete)
+              positionMenuItems.push({
                 label: "Supprimer",
                 icon: FiTrash2,
                 variant: "danger",
                 onClick: () => onDeletePosition(pos),
-              },
-            ];
+              });
 
             return (
               <div
@@ -76,25 +85,28 @@ export function CompanyStructureCard({
                     {pos.code}
                   </span>
                 </div>
-                <div className="opacity-60 group-hover:opacity-100 transition-opacity">
-                  <DropdownMenu items={positionMenuItems} />
-                </div>
+                {positionMenuItems.length > 0 && (
+                  <div className="opacity-60 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu items={positionMenuItems} />
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Bouton d'action moderne en pointillés (Dashed Button Style) */}
-        <button
-          onClick={() => onAddPosition(department)}
-          className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-slate-200 hover:border-brand-primary/40 rounded-xl bg-slate-50/40 hover:bg-brand-primary/[0.02] text-xs font-semibold text-slate-500 hover:text-brand-primary transition-all dynamic-group"
-        >
-          <FiPlus
-            className="text-slate-400 group-hover:text-brand-primary transition-colors"
-            size={14}
-          />
-          Ajouter un poste
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => onAddPosition(department)}
+            className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-slate-200 hover:border-brand-primary/40 rounded-xl bg-slate-50/40 hover:bg-brand-primary/[0.02] text-xs font-semibold text-slate-500 hover:text-brand-primary transition-all dynamic-group"
+          >
+            <FiPlus
+              className="text-slate-400 group-hover:text-brand-primary transition-colors"
+              size={14}
+            />
+            Ajouter un poste
+          </button>
+        )}
       </CardContent>
     </Card>
   );
