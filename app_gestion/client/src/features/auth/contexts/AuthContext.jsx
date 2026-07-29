@@ -7,8 +7,8 @@ import {
   useCallback,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { axiosInstance } from "@/shared/services/";
-import { hasPermission } from "@/shared/utils/";
+import { axiosInstance, socket } from "@/shared/services/";
+import { hasPermission, showToast } from "@/shared/utils/";
 
 export const AuthContext = createContext(null);
 
@@ -97,6 +97,47 @@ export const AuthProvider = ({ children }) => {
       navigate("/login");
     }
   };
+
+  // Connexion Socket.IO : uniquement une fois l'utilisateur authentifié.
+  // On rejoint sa room privée ("employee_<id>", voir src/config/socket.js
+  // côté serveur) pour recevoir les mises à jour temps réel de son profil.
+  useEffect(() => {
+    if (!user?.id) {
+      if (socket.connected) socket.disconnect();
+      return;
+    }
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit("join-profile", user.id);
+
+    // Le backend pousse le profil complet à jour (ex: permissions modifiées,
+    // changement de département/poste) sur ce canal.
+    const handleProfileUpdated = (updatedProfile) => {
+      setUser(updatedProfile);
+      localStorage.setItem("mada_user", JSON.stringify(updatedProfile));
+    };
+
+    // Le backend pousse cet événement si le compte est désactivé/supprimé
+    // pendant que l'utilisateur est connecté : on le déconnecte immédiatement.
+    const handleAccountDisabled = (payload) => {
+      showToast.warn(
+        payload?.message ||
+          "Votre compte a été désactivé par un administrateur.",
+      );
+      logout();
+    };
+
+    socket.on("profile-updated", handleProfileUpdated);
+    socket.on("account-disabled", handleAccountDisabled);
+
+    return () => {
+      socket.off("profile-updated", handleProfileUpdated);
+      socket.off("account-disabled", handleAccountDisabled);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   return (
     <AuthContext.Provider

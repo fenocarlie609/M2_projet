@@ -19,8 +19,6 @@ const restrictToDepartment = (...allowedDepartmentCodes) => {
 
     let departmentCode = req.user.department?.code;
 
-    console.log(req.user);
-
     if (!departmentCode && req.user.departmentId) {
       const department = await prisma.department.findUnique({
         where: { id: req.user.departmentId },

@@ -36,12 +36,6 @@ exports.login = catchAsync(async (req, res) => {
     maxAge: parseJwtExpiration(process.env.JWT_EXPIRES_IN),
   });
 
-  console.log(
-    parseJwtExpiration(process.env.JWT_EXPIRES_IN),
-    " et ",
-    process.env.JWT_EXPIRES_IN,
-  );
-
   res.status(200).json({
     status: "success",
     token,

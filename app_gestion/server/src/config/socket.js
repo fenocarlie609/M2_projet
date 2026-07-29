@@ -6,11 +6,10 @@ let io;
 const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: [
-        // process.env.FRONTEND_URL || "http://localhost:3000",
-        // "https://www.postman.com",
-        "*",
-      ],
+      // CORRECTION : un CORS "*" combiné à credentials: true est invalide
+      // (rejeté par les navigateurs, comme pour l'API HTTP classique).
+      // On aligne sur la même origine que CLIENT_URL utilisée par Express/CORS.
+      origin: process.env.CLIENT_URL || "http://localhost:5173",
       methods: ["GET", "POST"],
       credentials: true,
     },
