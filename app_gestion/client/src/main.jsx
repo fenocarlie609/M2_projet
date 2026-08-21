@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./features/auth";
+import { NotificationProvider } from "@/features/notifications";
 import App from "./core/App";
 import "./index.css";
 
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <NotificationProvider>
+          <App />
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

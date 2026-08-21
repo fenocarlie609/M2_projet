@@ -21,6 +21,7 @@ const { uploadRoutes } = require("./uploads");
 const { moduleRoutes } = require("./modules");
 const { clientRoutes } = require("./clients");
 const { driverRoutes } = require("./driver");
+const { notificationRoutes } = require("./notifications");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -30,5 +31,6 @@ router.use("/modules", moduleRoutes);
 router.use("/uploads", uploadRoutes);
 router.use("/clients", clientRoutes);
 router.use("/drivers", driverRoutes);
+router.use("/notifications", notificationRoutes);
 
 module.exports = router;
