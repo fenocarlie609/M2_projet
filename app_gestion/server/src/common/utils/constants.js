@@ -1,14 +1,5 @@
 // src/common/utils/constants.js
 
-const APP_MODULES = {
-  EMPLOYEES: "EMPLOYEES",
-  CHARGEMENT: "CHARGEMENT",
-  AUDIT: "AUDIT",
-  CLIENTS: "CLIENTS",
-  DRIVERS: "DRIVERS",
-  ALL: "*",
-};
-
 const APP_ACTIONS = {
   CREATE: "CREATE",
   READ: "READ",
@@ -17,4 +8,4 @@ const APP_ACTIONS = {
   ALL: "*", // Ton joker / wildcard
 };
 
-module.exports = { APP_MODULES, APP_ACTIONS };
+module.exports = { APP_ACTIONS };

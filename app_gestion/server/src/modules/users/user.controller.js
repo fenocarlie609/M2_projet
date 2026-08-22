@@ -47,6 +47,19 @@ exports.grantAccess = catchAsync(async (req, res) => {
   const user = await userService.grantAccess(id, req.body);
   user.password = undefined;
 
+  // Cohérence avec les autres mutations (updateAccess, assignPermission...) :
+  // on pousse le profil à jour. Dans la majorité des cas l'employé n'a pas
+  // encore de session ouverte à ce stade (il vient tout juste d'avoir accès),
+  // donc ça ne fait rien de visible — mais ça ne doit jamais faire échouer
+  // la réponse si Socket.IO est indisponible.
+  try {
+    const io = getIO();
+    const freshProfile = await authService.getFreshProfile(id);
+    io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+  } catch (err) {
+    // Échec silencieux : le compte a bien été créé, le push temps réel est secondaire.
+  }
+
   res.status(201).json({
     status: "success",
     data: { user },
@@ -58,14 +71,18 @@ exports.updateAccess = catchAsync(async (req, res) => {
   const user = await userService.updateAccess(id, req.body);
   user.password = undefined;
 
-  const io = getIO();
-  if (req.body.isActive === false) {
-    io.to(`employee_${id}`).emit("account-disabled", {
-      message: "Votre compte a été désactivé par l'IT.",
-    });
-  } else {
-    const freshProfile = await authService.getFreshProfile(id);
-    io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+  try {
+    const io = getIO();
+    if (req.body.isActive === false) {
+      io.to(`employee_${id}`).emit("account-disabled", {
+        message: "Votre compte a été désactivé par l'IT.",
+      });
+    } else {
+      const freshProfile = await authService.getFreshProfile(id);
+      io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+    }
+  } catch (err) {
+    // Échec silencieux : la mise à jour a réussi, le push temps réel est secondaire.
   }
 
   res.status(200).json({
@@ -78,10 +95,14 @@ exports.revokeAccess = catchAsync(async (req, res) => {
   const { id } = req.params;
   await userService.revokeAccess(id);
 
-  const io = getIO();
-  io.to(`employee_${id}`).emit("account-disabled", {
-    message: "Votre accès à l'application a été révoqué.",
-  });
+  try {
+    const io = getIO();
+    io.to(`employee_${id}`).emit("account-disabled", {
+      message: "Votre accès à l'application a été révoqué.",
+    });
+  } catch (err) {
+    // Échec silencieux
+  }
 
   res.status(204).json({
     status: "success",
@@ -95,9 +116,13 @@ exports.assignPermission = catchAsync(async (req, res) => {
 
   const permission = await userService.assignPermission(id, module, action);
 
-  const io = getIO();
-  const freshProfile = await authService.getFreshProfile(id);
-  io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+  try {
+    const io = getIO();
+    const freshProfile = await authService.getFreshProfile(id);
+    io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+  } catch (err) {
+    // Échec silencieux
+  }
 
   res.status(201).json({
     status: "success",
@@ -109,9 +134,13 @@ exports.revokePermission = catchAsync(async (req, res) => {
   const { id, permissionId } = req.params;
   await userService.revokePermission(id, permissionId);
 
-  const io = getIO();
-  const freshProfile = await authService.getFreshProfile(id);
-  io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+  try {
+    const io = getIO();
+    const freshProfile = await authService.getFreshProfile(id);
+    io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+  } catch (err) {
+    // Échec silencieux
+  }
 
   res.status(204).json({
     status: "success",
@@ -119,17 +148,19 @@ exports.revokePermission = catchAsync(async (req, res) => {
   });
 });
 
-// ⚠️ Manquait dans le fichier uploadé : le service `revokePermissions`
-// existait déjà mais n'était jamais appelé depuis un handler.
 exports.revokeManyPermissions = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { permissionIds } = req.body;
 
   await userService.revokePermissions(id, permissionIds);
 
-  const io = getIO();
-  const freshProfile = await authService.getFreshProfile(id);
-  io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+  try {
+    const io = getIO();
+    const freshProfile = await authService.getFreshProfile(id);
+    io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+  } catch (err) {
+    // Échec silencieux
+  }
 
   res.status(204).json({
     status: "success",

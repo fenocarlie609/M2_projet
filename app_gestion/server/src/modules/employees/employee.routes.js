@@ -6,7 +6,7 @@ const {
 } = require("../../common/middlewares/owner.middleware");
 const validate = require("../../common/middlewares/validate.middleware");
 const { employeeValidation } = require("./employee.validation");
-const { APP_MODULES, APP_ACTIONS } = require("../../common/utils/constants");
+const { APP_ACTIONS } = require("../../common/utils/constants");
 
 const router = express.Router();
 
@@ -17,11 +17,11 @@ router.use(authMiddleware.protect);
 router
   .route("/")
   .get(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.READ),
+    authMiddleware.authorize("EMPLOYEES", APP_ACTIONS.READ),
     employeeController.getAll,
   )
   .post(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.CREATE),
+    authMiddleware.authorize("EMPLOYEES", APP_ACTIONS.CREATE),
     validate(employeeValidation.create),
     employeeController.create,
   );
@@ -29,16 +29,16 @@ router
 router
   .route("/:id")
   .get(
-    isSelfOrAuthorized(APP_MODULES.EMPLOYEES, APP_ACTIONS.READ),
+    isSelfOrAuthorized("EMPLOYEES", APP_ACTIONS.READ),
     employeeController.getById,
   )
   .put(
-    isSelfOrAuthorized(APP_MODULES.EMPLOYEES, APP_ACTIONS.UPDATE),
+    isSelfOrAuthorized("EMPLOYEES", APP_ACTIONS.UPDATE),
     validate(employeeValidation.update),
     employeeController.update,
   )
   .delete(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.DELETE),
+    authMiddleware.authorize("EMPLOYEES", APP_ACTIONS.DELETE),
     employeeController.delete,
   );
 
@@ -47,7 +47,7 @@ router
 router
   .route("/:id/permissions")
   .post(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.UPDATE),
+    authMiddleware.authorize("EMPLOYEES", APP_ACTIONS.UPDATE),
     validate(employeeValidation.assignPermission),
     employeeController.assignPermission,
   );
@@ -55,7 +55,7 @@ router
 router
   .route("/:id/permissions/:permissionId")
   .delete(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.UPDATE),
+    authMiddleware.authorize("EMPLOYEES", APP_ACTIONS.UPDATE),
     employeeController.revokePermission,
   );
 

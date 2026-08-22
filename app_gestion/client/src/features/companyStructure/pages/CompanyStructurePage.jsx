@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
+import { socket } from "@/shared/services/";
 import {
   companyStructureService,
   CompanyStructureCard,
@@ -43,6 +44,19 @@ function CompanyStructurePage() {
 
   useEffect(() => {
     fetchStructure();
+  }, []);
+
+  // Live-sync : un autre RH/IT connecté qui crée/modifie/supprime un
+  // département ou un poste déclenche ce même événement chez tout le monde
+  // (voir company-structure.service.js -> broadcastStructureChange).
+  useEffect(() => {
+    const handleStructureChanged = () => {
+      fetchStructure();
+    };
+
+    socket.on("company-structure:changed", handleStructureChanged);
+    return () =>
+      socket.off("company-structure:changed", handleStructureChanged);
   }, []);
 
   const handleCreateDepartment = async (data) => {

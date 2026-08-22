@@ -60,13 +60,6 @@ export function UsersTable({
                 <Button
                   variant="ghost"
                   size="sm"
-                  icon={FiShield}
-                  className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
-                  onClick={() => onTogglePermissions(row)}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
                   icon={FiPower}
                   className={
                     row.isActive

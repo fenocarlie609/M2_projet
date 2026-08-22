@@ -1,5 +1,5 @@
 import { FiAnchor } from "react-icons/fi";
-import { MdSpaceDashboard } from "react-icons/md";
+import { MdSpaceDashboard, MdViewModule } from "react-icons/md";
 import { FaUserTie, FaTruck, FaUserLock } from "react-icons/fa";
 import { IoIosSettings } from "react-icons/io";
 import { FaUsers } from "react-icons/fa6";
@@ -11,6 +11,7 @@ import { CompanyStructurePage } from "@/features/companyStructure";
 import { TemplatePage } from "@/features/template";
 import { ClientPage } from "@/features/client";
 import { DriverPage } from "@/features/driver";
+import { ModulePage } from "@/features/module";
 
 export const appRoutes = [
   {
@@ -89,6 +90,19 @@ export const appRoutes = [
     ),
     requiredPermission: { module: "USERS", action: "READ" },
     icon: FaUserLock,
+    showInSidebar: true,
+  },
+  {
+    path: "/module",
+    label: "Modules",
+    section: "Superadmin",
+    element: (
+      <dashboard.DashboardLayout>
+        <ModulePage />
+      </dashboard.DashboardLayout>
+    ),
+    requiredPermission: { module: "MODULE", action: "READ" },
+    icon: MdViewModule,
     showInSidebar: true,
   },
   {
