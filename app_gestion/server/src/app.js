@@ -13,22 +13,18 @@ const apiRoutes = require("./modules/_routes");
 const logger = require("./config/logger");
 
 const app = express();
+const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
-// 1. CONFIANCE AU PROXY (Essentiel en production derrière un reverse proxy comme Nginx ou un hébergeur)
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
-// 2. MIDDLEWARES DE SÉCURITÉ GLOBAUX
-
-// Configuration de Helmet pour sécuriser les headers HTTP
 app.use(helmet());
 
-// Configuration de CORS (Cross-Origin Resource Sharing)
 app.use(
   cors({
-    origin: process.env.CLIENT_URL, // Autorise uniquement ton application Frontend
-    credentials: true, // Autorise l'envoi et la réception des cookies httpOnly signés
+    origin: clientUrl,
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   }),

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useAuth } from "@/features/auth";
 import { socket } from "@/shared/services/";
-import { showToast } from "@/shared/utils/";
+import { normalizePermissions, showToast } from "@/shared/utils/";
 import { notificationsService } from "../service/notifications.service";
 
 const NotificationContext = createContext(null);
@@ -19,14 +19,14 @@ const NotificationContext = createContext(null);
 const isNotificationRelevant = (notification, user) => {
   if (!notification.targetModule) return true;
 
-  const permissions = user?.permissions || [];
+  const permissions = normalizePermissions(user?.permissions || []);
   return permissions.some(
-    (p) =>
-      (p.module === "*" && p.action === "*") ||
-      (p.module === notification.targetModule &&
+    (permission) =>
+      (permission.module === "*" && permission.action === "*") ||
+      (permission.module === notification.targetModule &&
         (notification.targetAction === null ||
-          p.action === notification.targetAction ||
-          p.action === "*")),
+          permission.action === notification.targetAction ||
+          permission.action === "*")),
   );
 };
 

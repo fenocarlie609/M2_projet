@@ -1,5 +1,9 @@
 // src/features/companyStructure/services/companyStructure.service.js
+import { createCrudService } from "@/shared/services/";
 import { axiosInstance } from "@/shared/services/";
+
+const departmentsCrud = createCrudService("/company-structure/departments");
+const positionsCrud = createCrudService("/company-structure/positions");
 
 export const companyStructureService = {
   getStructure: async () => {
@@ -7,43 +11,11 @@ export const companyStructureService = {
     return response.data;
   },
 
-  createDepartment: async (data) => {
-    const response = await axiosInstance.post(
-      "/company-structure/departments",
-      data,
-    );
-    return response.data;
-  },
+  createDepartment: (data) => departmentsCrud.create(data),
+  updateDepartment: (id, data) => departmentsCrud.update(id, data),
+  deleteDepartment: (id) => departmentsCrud.remove(id),
 
-  updateDepartment: async (id, data) => {
-    const response = await axiosInstance.put(
-      `/company-structure/departments/${id}`,
-      data,
-    );
-    return response.data;
-  },
-
-  deleteDepartment: async (id) => {
-    return await axiosInstance.delete(`/company-structure/departments/${id}`);
-  },
-
-  createPosition: async (data) => {
-    const response = await axiosInstance.post(
-      "/company-structure/positions",
-      data,
-    );
-    return response.data;
-  },
-
-  updatePosition: async (id, data) => {
-    const response = await axiosInstance.put(
-      `/company-structure/positions/${id}`,
-      data,
-    );
-    return response.data;
-  },
-
-  deletePosition: async (id) => {
-    return await axiosInstance.delete(`/company-structure/positions/${id}`);
-  },
+  createPosition: (data) => positionsCrud.create(data),
+  updatePosition: (id, data) => positionsCrud.update(id, data),
+  deletePosition: (id) => positionsCrud.remove(id),
 };

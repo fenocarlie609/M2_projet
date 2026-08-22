@@ -1,10 +1,10 @@
 // src/modules/_routes.js
 const express = require("express");
+const logger = require("../config/logger");
 const router = express.Router();
 
-// Route de test globale pour vérifier que l'API répond
 router.get("/health", (req, res) => {
-  console.log("Route /health appelée");
+  logger.info("Route /health appelée");
   res.status(200).json({
     status: "success",
     message: "L'API fonctionne parfaitement.",

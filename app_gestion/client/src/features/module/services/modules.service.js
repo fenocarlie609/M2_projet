@@ -1,28 +1,12 @@
 // src/features/module/services/modules.service.js
-import { axiosInstance } from "@/shared/services/";
+import { createCrudService } from "@/shared/services/";
+
+const modulesCrud = createCrudService("/modules");
 
 export const modulesService = {
-  getModules: async () => {
-    const response = await axiosInstance.get("/modules");
-    return response.data;
-  },
-
-  getModuleById: async (id) => {
-    const response = await axiosInstance.get(`/modules/${id}`);
-    return response.data;
-  },
-
-  createModule: async (data) => {
-    const response = await axiosInstance.post("/modules", data);
-    return response.data;
-  },
-
-  updateModule: async (id, data) => {
-    const response = await axiosInstance.put(`/modules/${id}`, data);
-    return response.data;
-  },
-
-  deleteModule: async (id) => {
-    return await axiosInstance.delete(`/modules/${id}`);
-  },
+  getModules: () => modulesCrud.getAll(),
+  getModuleById: (id) => modulesCrud.getById(id),
+  createModule: (data) => modulesCrud.create(data),
+  updateModule: (id, data) => modulesCrud.update(id, data),
+  deleteModule: (id) => modulesCrud.remove(id),
 };
