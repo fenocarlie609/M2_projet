@@ -25,7 +25,7 @@ router.post(
 
 router.put(
   "/:id",
-  restrictToDepartment("ADMIN"),
+  restrictToDepartment("TECH"),
   validate(moduleValidation.update),
   moduleController.update,
 );

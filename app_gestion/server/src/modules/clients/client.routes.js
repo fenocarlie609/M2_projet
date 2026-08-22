@@ -14,11 +14,11 @@ router.use(authMiddleware.protect);
 router
   .route("/")
   .get(
-    authMiddleware.authorize("CLIENTS", APP_ACTIONS.READ),
+    authMiddleware.authorize("CLIENT", APP_ACTIONS.READ),
     clientController.getAll,
   )
   .post(
-    authMiddleware.authorize("CLIENTS", APP_ACTIONS.CREATE),
+    authMiddleware.authorize("CLIENT", APP_ACTIONS.CREATE),
     validate(clientValidation.create),
     clientController.create,
   );
@@ -26,16 +26,16 @@ router
 router
   .route("/:id")
   .get(
-    authMiddleware.authorize("CLIENTS", APP_ACTIONS.READ),
+    authMiddleware.authorize("CLIENT", APP_ACTIONS.READ),
     clientController.getById,
   )
   .put(
-    authMiddleware.authorize("CLIENTS", APP_ACTIONS.UPDATE),
+    authMiddleware.authorize("CLIENT", APP_ACTIONS.UPDATE),
     validate(clientValidation.update),
     clientController.update,
   )
   .delete(
-    authMiddleware.authorize("CLIENTS", APP_ACTIONS.DELETE),
+    authMiddleware.authorize("CLIENT", APP_ACTIONS.DELETE),
     clientController.delete,
   );
 

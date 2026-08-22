@@ -1,5 +1,6 @@
 // src/features/employee/pages/EmployeePage.jsx
 import React, { useEffect, useState } from "react";
+import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
 import {
@@ -35,6 +36,30 @@ function EmployeePage() {
 
   useEffect(() => {
     fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    const onEmployeesChanged = (payload) => {
+      if (!payload || !payload.action) return fetchEmployees();
+
+      const { action } = payload;
+      if (action === "created" && payload.employee) {
+        setEmployees((prev) => [payload.employee, ...prev]);
+      } else if (action === "updated" && payload.employee) {
+        setEmployees((prev) =>
+          prev.map((e) =>
+            e.id === payload.employee.id ? payload.employee : e,
+          ),
+        );
+      } else if (action === "deleted" && payload.id) {
+        setEmployees((prev) => prev.filter((e) => e.id !== payload.id));
+      } else {
+        fetchEmployees();
+      }
+    };
+
+    socket.on("employees:changed", onEmployeesChanged);
+    return () => socket.off("employees:changed", onEmployeesChanged);
   }, []);
 
   const handleCreateEmployee = async (newEmployeeData) => {

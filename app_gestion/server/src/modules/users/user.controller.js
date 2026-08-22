@@ -56,6 +56,9 @@ exports.grantAccess = catchAsync(async (req, res) => {
     const io = getIO();
     const freshProfile = await authService.getFreshProfile(id);
     io.to(`employee_${id}`).emit("profile-updated", freshProfile);
+    try {
+      getIO().emit("users:changed", { action: "created", user });
+    } catch (err) {}
   } catch (err) {
     // Échec silencieux : le compte a bien été créé, le push temps réel est secondaire.
   }
@@ -85,6 +88,10 @@ exports.updateAccess = catchAsync(async (req, res) => {
     // Échec silencieux : la mise à jour a réussi, le push temps réel est secondaire.
   }
 
+  try {
+    getIO().emit("users:changed", { action: "updated", user });
+  } catch (err) {}
+
   res.status(200).json({
     status: "success",
     data: { user },
@@ -103,6 +110,10 @@ exports.revokeAccess = catchAsync(async (req, res) => {
   } catch (err) {
     // Échec silencieux
   }
+
+  try {
+    getIO().emit("users:changed", { action: "deleted", id });
+  } catch (err) {}
 
   res.status(204).json({
     status: "success",

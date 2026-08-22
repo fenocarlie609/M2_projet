@@ -2,20 +2,37 @@
 const catchAsync = require("../../common/utils/catchAsync");
 const AppError = require("../../common/utils/AppError");
 const driverService = require("./driver.service");
+const { getIO } = require("../../config/socket");
 
 exports.create = catchAsync(async (req, res) => {
   const driver = await driverService.createDriver(req.body);
+  try {
+    getIO().emit("drivers:changed", { action: "created", driver });
+  } catch (err) {}
+
   res.status(201).json({ status: "success", data: { driver } });
 });
 
 exports.update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const updatedDriver = await driverService.updateDriver(id, req.body);
+  try {
+    getIO().emit("drivers:changed", {
+      action: "updated",
+      driver: updatedDriver,
+    });
+  } catch (err) {}
+
   res.status(200).json({ status: "success", data: { driver: updatedDriver } });
 });
 
 exports.delete = catchAsync(async (req, res) => {
   await driverService.deleteDriver(req.params.id);
+
+  try {
+    getIO().emit("drivers:changed", { action: "deleted", id: req.params.id });
+  } catch (err) {}
+
   res.status(204).json({ status: "success", data: null });
 });
 

@@ -1,5 +1,6 @@
 // src/features/users/pages/UsersPage.jsx
 import React, { useEffect, useState } from "react";
+import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog, Tabs } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
 import {
@@ -71,6 +72,41 @@ function UsersPage() {
     fetchUsers();
     fetchPendingEmployees();
     fetchPermissionsOverview();
+  }, []);
+
+  useEffect(() => {
+    const onUsersChanged = (payload) => {
+      if (!payload || !payload.action) {
+        fetchUsers();
+        fetchPendingEmployees();
+        fetchPermissionsOverview();
+        return;
+      }
+
+      const { action } = payload;
+      if (action === "created" && payload.user) {
+        setUsers((prev) => [payload.user, ...prev]);
+        fetchPendingEmployees();
+        fetchPermissionsOverview();
+      } else if (action === "updated" && payload.user) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === payload.user.id ? payload.user : u)),
+        );
+        fetchPendingEmployees();
+        fetchPermissionsOverview();
+      } else if (action === "deleted" && payload.id) {
+        setUsers((prev) => prev.filter((u) => u.id !== payload.id));
+        fetchPendingEmployees();
+        fetchPermissionsOverview();
+      } else {
+        fetchUsers();
+        fetchPendingEmployees();
+        fetchPermissionsOverview();
+      }
+    };
+
+    socket.on("users:changed", onUsersChanged);
+    return () => socket.off("users:changed", onUsersChanged);
   }, []);
 
   const handleGrantAccess = async (employeeId, data) => {

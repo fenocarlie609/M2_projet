@@ -13,11 +13,11 @@ router.use(authMiddleware.protect);
 router
   .route("/")
   .get(
-    authMiddleware.authorize("DRIVERS", APP_ACTIONS.READ),
+    authMiddleware.authorize("DRIVER", APP_ACTIONS.READ),
     driverController.getAll,
   )
   .post(
-    authMiddleware.authorize("DRIVERS", APP_ACTIONS.CREATE),
+    authMiddleware.authorize("DRIVER", APP_ACTIONS.CREATE),
     validate(driverValidation.create),
     driverController.create,
   );
@@ -25,16 +25,16 @@ router
 router
   .route("/:id")
   .get(
-    authMiddleware.authorize("DRIVERS", APP_ACTIONS.READ),
+    authMiddleware.authorize("DRIVER", APP_ACTIONS.READ),
     driverController.getById,
   )
   .put(
-    authMiddleware.authorize("DRIVERS", APP_ACTIONS.UPDATE),
+    authMiddleware.authorize("DRIVER", APP_ACTIONS.UPDATE),
     validate(driverValidation.update),
     driverController.update,
   )
   .delete(
-    authMiddleware.authorize("DRIVERS", APP_ACTIONS.DELETE),
+    authMiddleware.authorize("DRIVER", APP_ACTIONS.DELETE),
     driverController.delete,
   );
 

@@ -1,5 +1,6 @@
 // src/features/client/pages/ClientPage.jsx
 import React, { useEffect, useState } from "react";
+import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
 import {
@@ -35,6 +36,31 @@ function ClientPage() {
 
   useEffect(() => {
     fetchClients();
+  }, []);
+
+  // Real-time updates
+  useEffect(() => {
+    const onClientsChanged = (payload) => {
+      if (!payload || !payload.action) return fetchClients();
+
+      const { action } = payload;
+      if (action === "created" && payload.client) {
+        setClients((prev) => [payload.client, ...prev]);
+      } else if (action === "updated" && payload.client) {
+        setClients((prev) =>
+          prev.map((c) => (c.id === payload.client.id ? payload.client : c)),
+        );
+      } else if (action === "deleted" && payload.id) {
+        setClients((prev) => prev.filter((c) => c.id !== payload.id));
+      } else {
+        fetchClients();
+      }
+    };
+
+    socket.on("clients:changed", onClientsChanged);
+    return () => {
+      socket.off("clients:changed", onClientsChanged);
+    };
   }, []);
 
   const handleCreateClient = async (newClientData) => {

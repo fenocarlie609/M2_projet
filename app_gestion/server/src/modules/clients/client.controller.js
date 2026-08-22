@@ -2,9 +2,16 @@
 const catchAsync = require("../../common/utils/catchAsync");
 const AppError = require("../../common/utils/AppError");
 const clientService = require("./client.service");
+const { getIO } = require("../../config/socket");
 
 exports.create = catchAsync(async (req, res) => {
   const client = await clientService.createClient(req.body);
+
+  try {
+    getIO().emit("clients:changed", { action: "created", client });
+  } catch (err) {
+    // Ne pas faire échouer la création si Socket indisponible
+  }
 
   res.status(201).json({
     status: "success",
@@ -16,6 +23,10 @@ exports.update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const updatedData = await clientService.updateClient(id, req.body);
 
+  try {
+    getIO().emit("clients:changed", { action: "updated", client: updatedData });
+  } catch (err) {}
+
   res.status(200).json({
     status: "success",
     data: { client: updatedData },
@@ -25,6 +36,12 @@ exports.update = catchAsync(async (req, res) => {
 exports.delete = catchAsync(async (req, res) => {
   const { id } = req.params;
   await clientService.deleteClient(id);
+
+  try {
+    getIO().emit("clients:changed", { action: "deleted", id });
+  } catch (err) {
+    // échec silencieux
+  }
 
   res.status(204).json({
     status: "success",

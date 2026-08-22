@@ -8,6 +8,12 @@ exports.create = catchAsync(async (req, res) => {
   const employee = await employeeService.createEmployee(req.body);
   employee.password = undefined;
 
+  try {
+    getIO().emit("employees:changed", { action: "created", employee });
+  } catch (err) {
+    // Ne pas faire échouer la création si Socket indisponible
+  }
+
   res.status(201).json({
     status: "success",
     data: { employee },
@@ -51,6 +57,15 @@ exports.update = catchAsync(async (req, res) => {
     // Échec silencieux : la mise à jour a réussi, le push temps réel est secondaire.
   }
 
+  try {
+    getIO().emit("employees:changed", {
+      action: "updated",
+      employee: updatedData,
+    });
+  } catch (err) {
+    // échec silencieux
+  }
+
   res.status(200).json({
     status: "success",
     data: { employee: updatedData },
@@ -71,6 +86,12 @@ exports.delete = catchAsync(async (req, res) => {
     });
   } catch (err) {
     // Échec silencieux
+  }
+
+  try {
+    getIO().emit("employees:changed", { action: "deleted", id });
+  } catch (err) {
+    // échec silencieux
   }
 
   res.status(204).json({
