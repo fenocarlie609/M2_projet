@@ -42,9 +42,50 @@ const errorHandler = (err, req, res, next) => {
     error.message = err.message;
     error.stack = err.stack;
 
-    // Ici on pourra ajouter plus tard les intercepteurs spécifiques à Prisma/Postgres
-    // Exemple : si Prisma renvoie un code de violation de contrainte unique (P2002),
-    // on transformera l'erreur brute en un "AppError('Cet email existe déjà', 400)"
+    // Intercepteurs pour erreurs Prisma courantes
+    if (err && err.code) {
+      // Violation d'unicité (ex: P2002)
+      if (err.code === "P2002") {
+        // err.meta.target peut être ['code'] ou ['table.column'] selon la version
+        const targets = err.meta && err.meta.target ? err.meta.target : [];
+
+        // Mapping DB column -> friendly field key (frontend s'attend à ces clefs)
+        const columnMap = {
+          code: "code",
+          email: "email",
+          matricule: "matricule",
+        };
+
+        // Construire un objet fields lisible pour le frontend
+        const fields = {};
+        (targets || []).forEach((t) => {
+          const short = String(t).split(".").pop();
+          const fieldKey = columnMap[short] || short;
+          fields[fieldKey] = `Ce ${fieldKey} est déjà utilisé.`;
+        });
+
+        error.statusCode = 400;
+        error.status = "fail";
+        error.isOperational = true;
+        error.message = Object.values(fields).join(" ");
+
+        return res
+          .status(400)
+          .json({ status: error.status, message: error.message, fields });
+      }
+
+      // Record not found for an operation (ex: P2025)
+      if (err.code === "P2025") {
+        error.statusCode = 404;
+        error.status = "fail";
+        error.isOperational = true;
+        error.message =
+          "Ressource introuvable (opération sur un enregistrement manquant).";
+        return res
+          .status(404)
+          .json({ status: error.status, message: error.message });
+      }
+    }
 
     if (err.name === "ZodError" || err.errors) {
       error.statusCode = 400;

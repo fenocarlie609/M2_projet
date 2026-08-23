@@ -1,7 +1,7 @@
 // src/features/companyStructure/components/DepartmentAddModal.jsx
 import React, { useState } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
-import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { applyApiErrors } from "@/shared/utils/apiErrors";
 import { showToast } from "@/shared/utils/toast";
 
 const emptyForm = { code: "", label: "" };
@@ -56,13 +56,7 @@ export function DepartmentAddModal({ isOpen, onClose, onDepartmentCreated }) {
       showToast.success("Département créé avec succès !");
     } catch (error) {
       console.error("Erreur lors de la création du département :", error);
-      const message = getApiErrorMessage(error);
-      const isCodeError = message.toLowerCase().includes("code");
-      setErrors({
-        code: isCodeError ? message : "",
-        label: "",
-        general: isCodeError ? "" : message,
-      });
+      applyApiErrors(setErrors, error, { code: "", label: "", general: "" });
     } finally {
       setIsSubmitting(false);
     }

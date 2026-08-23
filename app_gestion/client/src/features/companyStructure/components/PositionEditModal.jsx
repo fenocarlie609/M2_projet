@@ -1,7 +1,7 @@
 // src/features/companyStructure/components/PositionEditModal.jsx
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
-import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { applyApiErrors } from "@/shared/utils/apiErrors";
 import { showToast } from "@/shared/utils/toast";
 
 const emptyErrors = { code: "", label: "", general: "" };
@@ -67,16 +67,10 @@ export function PositionEditModal({
       onClose();
       showToast.success("Poste mis à jour avec succès !");
     } catch (error) {
-      console.error("Erreur lors de la modification du poste :", error);
-      const message = getApiErrorMessage(error);
-      const isCodeError = message.toLowerCase().includes("code");
-      setErrors({
-        code: isCodeError ? message : "",
-        label: "",
-        general: isCodeError ? "" : message,
-      });
+    console.error("Erreur lors de la modification du poste :", error);
+    applyApiErrors(setErrors, error, { code: "", label: "", general: "" });
     } finally {
-      setIsSubmitting(false);
+    setIsSubmitting(false);
     }
   };
 

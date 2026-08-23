@@ -1,6 +1,7 @@
 // src/modules/_routes.js
 const express = require("express");
 const logger = require("../config/logger");
+const { verifyCsrf } = require("../common/middlewares/csrf.middleware");
 const router = express.Router();
 
 router.get("/health", (req, res) => {
@@ -10,6 +11,20 @@ router.get("/health", (req, res) => {
     message: "L'API fonctionne parfaitement.",
     timestamp: new Date().toISOString(),
   });
+});
+
+router.use((req, res, next) => {
+  const mutatingMethods = ["POST", "PUT", "PATCH", "DELETE"];
+  const csrfExemptedPaths = ["/auth/login", "/auth/csrf-token"];
+
+  if (
+    !mutatingMethods.includes(req.method) ||
+    csrfExemptedPaths.includes(req.path)
+  ) {
+    return next();
+  }
+
+  return verifyCsrf(req, res, next);
 });
 
 // Exemples de futures intégrations de modules :

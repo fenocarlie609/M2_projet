@@ -108,6 +108,8 @@ export const AuthProvider = ({ children }) => {
       // Échec silencieux : la révocation du cookie serveur a peut-être échoué,
       // mais on nettoie quand même la session côté client.
     } finally {
+      document.cookie =
+        "xsrf-token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
       localStorage.removeItem("mada_user");
       setUser(null);
       navigate("/login");
