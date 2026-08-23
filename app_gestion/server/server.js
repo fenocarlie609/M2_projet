@@ -3,7 +3,9 @@ const path = require("path");
 const dotenv = require("dotenv");
 
 const environment = process.env.NODE_ENV || "development";
-dotenv.config({ path: path.resolve(process.cwd(), `.env.${environment}`) });
+environment === "production"
+  ? dotenv.config({ path: path.resolve(process.cwd(), ".env") })
+  : dotenv.config({ path: path.resolve(process.cwd(), ".env.development") });
 
 const logger = require("./src/config/logger");
 const { validateEnv } = require("./src/config/env");

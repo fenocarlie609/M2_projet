@@ -1,243 +1,221 @@
-# 🌊 App Gestion - Maritime Management System
+# 🌊 App Gestion — Maritime Management System
 
-Système complet de gestion maritime avec architecture modulaire scalable.
+Ce dépôt contient l'application `app_gestion`, un système de gestion maritime modulaire (frontend React + backend Node/Express + Prisma + PostgreSQL). Ce README remplace et centralise la documentation projet : démarrage, architecture, sécurité, auth, PWA, et résolution des problèmes courants.
 
-## 📦 Structure du Projet
+Table des matières
+
+- Aperçu
+- Structure du dépôt
+- Prérequis
+- Installation & démarrage (dev)
+- Variables d'environnement
+- Authentification (Access & Refresh tokens, rotation, blacklist)
+- Sécurité (cookies, CSRF, rate-limiting, helmet)
+- PWA
+- Base de données & Prisma
+- Erreurs & Debug (exemples courants et solutions)
+- Déploiement
+- Tests
+- Contribuer
+- Licence
+
+---
+
+## Aperçu
+
+`app_gestion` est une application SPA (React + Vite) pour l'administration maritime avec backend REST (Express) et persistance via PostgreSQL + Prisma.
+
+## Structure du dépôt
 
 ```
 app_gestion/
 ├── client/                    # Frontend React + Vite
-│   ├── src/
-│   │   ├── core/             # Shell app & routing
-│   │   ├── features/         # Modules (auth, dashboard, etc)
-│   │   ├── shared/           # Services & utilitaires
-│   │   └── main.jsx
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── README.md             # 📖 Docs frontend complet
-│
+│   ├── src/                   # Code source React (features/, shared/, core/)
+│   ├── public/                # Assets & manifest PWA
+│   └── package.json
 ├── server/                    # Backend Node.js + Express
 │   ├── src/
-│   │   ├── config/           # Configuration globale
-│   │   ├── common/           # Middlewares & utilitaires
-│   │   ├── modules/          # Modules API (auth, users, etc)
+│   │   ├── config/            # DB, env, logger, socket
+│   │   ├── common/            # middlewares, utils, error handling
+│   │   ├── modules/           # fonctionnalités (auth, users, company-structure, ...)
 │   │   └── app.js
-│   ├── prisma/
-│   │   ├── schema.prisma     # Modèles de données
-│   │   └── migrations/
-│   ├── package.json
-│   ├── server.js
-│   └── README.md             # 📖 Docs backend complet
-│
+│   ├── prisma/                # schema.prisma, migrations
+│   └── package.json
 ├── vitrine/                   # Site marketing (optionnel)
-├── README.md                 # Ce fichier
-└── .gitignore
+└── README.md                  # Ce fichier
 ```
 
-## 🚀 Démarrage Rapide
+## Prérequis
 
-### Frontend
-
-```bash
-cd client
-npm install
-npm run dev        # http://localhost:5173
-```
-
-### Backend
-
-```bash
-cd server
-npm install
-npx prisma migrate dev   # Initialiser DB
-npm run dev              # http://localhost:5000
-```
-
-**L'API frontend appelle automatiquement `http://localhost:5000` via Vite proxy.**
-
-## 🏗️ Architecture Modulaire
-
-### Frontend: Feature-Based Structure
-
-Chaque fonctionnalité est un module isolé:
-
-- **Auth** → Login, contexts, services
-- **Dashboard** → Layouts, pages
-- **Admin** → Pages admin spécifiques
-- **Shared** → Services API, utilitaires, composants génériques
-
-✅ **Avantage**: Ajouter/modifier une feature sans impacter les autres
-
-### Backend: MVC par Module
-
-Chaque module (Auth, Users, Boats, etc.):
-
-- **Controller** → Gestion HTTP
-- **Service** → Logique métier
-- **Routes** → Endpoints + middlewares
-- **Validation** → Schémas
-
-✅ **Avantage**: Code maintenable et testable
-
-## 🔐 Stack Authentification
-
-### Flux Login
-
-```
-1. Client POST /api/v1/auth/login {email, password}
-2. Server valide credentials, génère JWT (15min)
-3. Server répond avec token + user data
-4. Client sauvegarde token en localStorage
-5. Frontend redirige vers /dashboard
-6. Chaque requête envoie token via Authorization header
-```
-
-### Rôles & Autorisation
-
-- **admin**: Accès gestion + dashboard
-- **superadmin**: Accès complet
-- **user**: Accès basique
-
-Routes protégées automatiquement selon rôle.
-
-## 📚 Documentation Détaillée
-
-### Pour le Frontend 👉 [client/README.md](./client/README.md)
-
-- Structure complète
-- Ajouter un module étape par étape
-- Services API
-- Styling & composants
-
-### Pour le Backend 👉 [server/README.md](./server/README.md)
-
-- Architecture MVC
-- Ajouter un endpoint
-- Prisma ORM
-- Authentification & sécurité
-
-## 🛠️ Stack Technique
-
-### Frontend
-
-- React 18
-- Vite (dev server + build)
-- React Router v6 (SPA)
-- Tailwind CSS 4
-- Axios + custom interceptors
-- React Icons + React Toastify
-- Zustand (state management)
-
-### Backend
-
-- Node.js + Express
-- Prisma ORM
+- Node.js >= 18
+- npm
 - PostgreSQL
-- JWT (jsonwebtoken)
-- Bcrypt (password hashing)
-- Express Rate Limit
-- CORS
+- (Optionnel) yarn
 
-## 📋 Workflow Ajouter une Nouvelle Fonctionnalité
+## Installation & démarrage (dev)
 
-### 1️⃣ Backend d'abord
+1. Cloner le repo
 
 ```bash
-cd server
-
-# 1. Ajouter modèle Prisma (schema.prisma)
-# 2. Créer migration
-npx prisma migrate dev --name add_features
-
-# 3. Créer controller, service, routes, validation
-# 4. Ajouter dans _routes.js
-# 5. Tester avec curl/Postman
+git clone <repo-url>
+cd app_gestion
 ```
 
-### 2️⃣ Puis Frontend
-
-```bash
-cd client
-
-# 1. Créer structure features/[nom]/
-# 2. Créer service API
-# 3. Créer page/composants
-# 4. Ajouter route dans routeConfig.jsx
-# 5. Tester en browser
-```
-
-## 🔗 Points Clés d'Intégration
-
-### API Communication
-
-- **Frontend**: `axiosInstance` avec `baseURL: /api/v1`
-- **Backend**: Endpoints à `/api/v1/*`
-- **Cookies**: JWT stocké en httpOnly signed cookie
-- **CORS**: Configuré pour localhost (dev)
-
-### Database
-
-- **Type**: PostgreSQL
-- **ORM**: Prisma
-- **Migrations**: Versionnées dans `prisma/migrations/`
-- **Inspection**: `npx prisma studio`
-
-### Authentication
-
-- **Token**: JWT avec expiration 15 minutes
-- **Storage**: localStorage (frontend) + httpOnly cookie
-- **Refresh**: Automatique via intercepteur si 401
-
-## 🚦 Commandes Utiles
-
-### Development
+2. Installer les dépendances
 
 ```bash
 # Frontend
-cd client && npm run dev
+cd client
+npm install
 
 # Backend
-cd server && npm run dev
-
-# Both terminals
-npm run dev (in each folder separately)
+cd ../server
+npm install
 ```
 
-### Database
+3. Configurer les variables d'environnement (voir section suivante)
+
+4. Initialiser la base et les migrations
 
 ```bash
 cd server
+npx prisma migrate dev --name init
+# Optionnel : importer des seed / données de démo
+```
 
-# Voir migrations
+5. Lancer les serveurs en développement
+
+```bash
+# Terminal 1: backend
+cd server
+npm run dev
+
+# Terminal 2: frontend
+cd client
+npm run dev
+```
+
+Le frontend (Vite) écoute typiquement sur http://localhost:5173 et proxie /api vers le backend sur http://localhost:5000 (config Vite).
+
+## Variables d'environnement importantes
+
+Crée `.env.development` et `.env.production` selon l'environnement. Variables essentielles :
+
+- NODE_ENV=development|production
+- PORT=5000
+- CLIENT_URL=http://localhost:5173
+- DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME
+- COOKIE_SECRET=une_chaine_secrete_pour_signer_les_cookies
+- JWT_SECRET=secret-pour-access-tokens
+- JWT_REFRESH_SECRET=secret-pour-refresh-tokens
+- JWT_EXPIRES_IN=15m # ex: 15m
+- JWT_REFRESH_EXPIRES_IN=7d # ex: 7d
+
+Important : pour la production, utilisez des secrets forts et stockez-les via un gestionnaire de secrets (Vault, Azure Key Vault, AWS Secrets Manager, etc.).
+
+## Authentification : design et fonctionnement
+
+L'application utilise un schéma JWT + refresh-token robuste :
+
+- Access token : court (ex: 15m), signé avec JWT_SECRET, contenu minimal (id, email, type:"access").
+- Refresh token : plus long (ex: 7d), signé avec JWT_REFRESH_SECRET. Chaque refresh token stocké en base sous forme hashée (sha256) dans la table `RefreshToken` avec : familyId, jti, expiresAt, revokedAt, replacedByTokenId.
+- Rotation : lors d'un refresh valide, l'ancien refresh token est révoqué et remplacé par un nouveau (rotated). La base conserve l'historique pour blacklisting / forensic.
+- Stockage & transport :
+  - Cookies HttpOnly, Secure (en prod) et Signed (cookie-parser) pour token & refreshToken.
+  - Cookie `xsrf-token` non HttpOnly pour que le frontend puisse lire et envoyer le header X-CSRF-Token.
+- Middleware protect : accepte le token depuis `signedCookies.token` ou depuis `Authorization: Bearer <token>` (utile pour Postman).
+- Logout : révoque tous les refresh tokens de l'utilisateur (revokedAt) et clearCookie.
+
+## Sécurité & hardening
+
+- Cookies : httpOnly: true, signed: true, secure: true (en production), sameSite: 'lax' (ajuster si besoin de cross-site strict)
+- CSRF : middleware qui compare `xsrf-token` cookie et header `X-CSRF-Token` pour les méthodes mutantes (POST/PUT/PATCH/DELETE).
+- Rate limiting : express-rate-limit appliqué sur les routes sensibles (login) et un limiteur global sur toutes les routes API.
+- Sanitation : express-mongo-sanitize (présent), input size limit (express.json({ limit: '10kb' })).
+- Helmet : en-têtes de sécurité HTTP.
+- Logging : Winston pour auditer requêtes et erreurs.
+
+## Gestion des erreurs et UX
+
+- Le backend normalise les erreurs Prisma (ex: P2002 / contrainte unique) en un format lisible et structuré :
+  ```json
+  {
+    "status": "fail",
+    "message": "Ce code est déjà utilisé.",
+    "fields": { "code": "Ce code est déjà utilisé." }
+  }
+  ```
+- Le frontend utilise `getApiErrorMessage()` et `applyApiErrors()` pour extraire `fields` et affecter les messages aux inputs concernés (affichage inline) ou afficher un toast.
+- Les modales d'alerte ont été mises en priorité (z-index) pour être au-dessus de l'UI.
+
+## PWA
+
+- Plugin : vite-plugin-pwa
+- Manifest : `client/public/manifest.webmanifest` inclus
+- Le service worker est enregistré via `virtual:pwa-register` (main.jsx).
+- Assets : icons 192/512 fournis dans `client/public`.
+
+## Base de données & Prisma
+
+- `prisma/schema.prisma` contient les modèles et relations.
+- RefreshToken : structure pensée pour rotation + blacklist : `tokenHash`, `jti`, `familyId`, `expiresAt`, `revokedAt`, `replacedByTokenId`.
+- Soft deletes : de nombreux modèles possèdent `deletedAt` pour soft-delete et index sur ce champ.
+
+Commandes utiles Prisma
+
+```bash
+# Générer le client Prisma
+npx prisma generate
+
+# Créer migration et appliquer (dev)
+npx prisma migrate dev --name <name>
+
+# Vérifier statut
 npx prisma migrate status
 
-# Reset DB (DEV ONLY!)
-npx prisma migrate reset
-
-# UI données
+# Ouvrir Studio
 npx prisma studio
 ```
 
-### Production Build
+## Erreurs courantes & résolutions
 
-```bash
-# Frontend
-cd client && npm run build
+- Vite EPERM rename node*modules\.vite\deps_temp*\* → deps :
+  - Cause : un fichier/dossier est verrouillé par un autre processus (antivirus, explorateur, autre instance de vite). Solution : arrêter les processus, supprimer `node_modules/.vite`, relancer `npm run dev`. Si verrouillage persiste, redémarrer la machine ou exclure le dossier du scanner antivirus.
+- Erreur Prisma P2002 (contrainte unique) :
+  - Le serveur renvoie maintenant un `fields` object. Le frontend doit afficher l'erreur inline. Si tu vois un message incomplet dans la modal, vérifier la transformation d'erreur côté serveur et l'utilisation de `applyApiErrors()` côté client.
+- Erreur P2025 (record not found) :
+  - Retourne 404 et message lisible.
 
-# Backend
-cd server && npm run build (if using TypeScript)
-```
+## Déploiement (guide rapide)
 
-## 📊 Modules Existants
+- Construire le frontend : `cd client && npm run build`.
+- Paramétrer l'environnement de production (variables sensibles dans un secret manager).
+- Lancer le backend avec `NODE_ENV=production` : `npx dotenv -e .env.production -- node server.js` ou via PM2 / systemd / container.
+- Configurer un reverse-proxy (NGINX) pour servir `client/dist` et proxy `/api` au backend ou héberger frontend statique séparément.
 
-- ✅ **Auth** - Login, logout, session
-- ✅ **Dashboard** - Page principale + layouts
-- ✅ **Admin** - Pages admin
-- ✅ **SuperAdmin** - Pages superadmin
-- ✅ **User** - Pages utilisateur
+## Tests
 
-## 🆕 Template Ajouter un Module
+- La base du projet contient des utilitaires pour tests manuels. Ajouter des tests unitaires et d'intégration est recommandé (Jest / Supertest) pour la logique d'auth et la rotation des refresh tokens.
+
+## Contribuer
+
+- Fork → branche feature → PR → revue.
+- Respecter la structure `modules/` (controller/service/routes) et les conventions de codage.
+
+## Contacts & support
+
+- Auteur / mainteneur : (ajoute ton nom et contact ici)
+- Pour des incidents en production : consulter les logs (Winston) et les enregistrements d'audit.
+
+## Licence
+
+- Indiquer la licence du projet (ex: MIT) — ajoute un fichier LICENSE si nécessaire.
+
+---
+
+## Notes finales
+
+Ce README couvre l'essentiel pour mettre en route, sécuriser et maintenir l'application. Si tu veux que j'ajoute des sections supplémentaires (ex: diagrammes d'architecture, runbooks de déploiement, playbook d'incidents, exemples de payloads API), dis-moi lesquelles et j'ajoute ça.
 
 Voir documentation:
 
