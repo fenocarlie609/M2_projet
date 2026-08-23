@@ -7,37 +7,61 @@ import {
   useCallback,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { axiosInstance } from "@/shared/services/";
-import { hasPermission } from "@/shared/utils/";
+import { axiosInstance, socket } from "@/shared/services/";
+import {
+  hasPermission,
+  normalizePermissions,
+  showToast,
+} from "@/shared/utils/";
 
 export const AuthContext = createContext(null);
 
+const readStoredUser = () => {
+  const storedUser = localStorage.getItem("mada_user");
+  if (!storedUser) return null;
+
+  try {
+    const parsedUser = JSON.parse(storedUser);
+    return {
+      ...parsedUser,
+      permissions: normalizePermissions(parsedUser.permissions),
+    };
+  } catch {
+    localStorage.removeItem("mada_user");
+    return null;
+  }
+};
+
+const persistUser = (userData) => {
+  const normalizedUser = {
+    ...userData,
+    permissions: normalizePermissions(userData?.permissions),
+  };
+
+  localStorage.setItem("mada_user", JSON.stringify(normalizedUser));
+  return normalizedUser;
+};
+
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => {
-    const userSaved = localStorage.getItem("mada_user");
-    return userSaved ? JSON.parse(userSaved) : null;
-  });
+  const [user, setUser] = useState(() => readStoredUser());
   const [loading, setLoading] = useState(true);
 
-  // Synchronisation au démarrage : vérifie la session côté serveur
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const userSaved = localStorage.getItem("mada_user");
-        if (!userSaved) {
+        const storedUser = readStoredUser();
+        if (!storedUser) {
           setLoading(false);
-          return; // Pas d'utilisateur sauvegardé, pas besoin d'appeler /auth/me
+          return;
         }
 
         const response = await axiosInstance.get("/auth/me");
-
-        // Récupère le profil frais nettoyé par le backend
         const currentUser = response.data?.data?.user || null;
 
         if (currentUser) {
-          setUser(currentUser);
-          localStorage.setItem("mada_user", JSON.stringify(currentUser));
+          const normalizedUser = persistUser(currentUser);
+          setUser(normalizedUser);
         } else {
           localStorage.removeItem("mada_user");
           setUser(null);
@@ -62,24 +86,16 @@ export const AuthProvider = ({ children }) => {
 
   // Fonction appelée après une connexion réussie
   const login = (userData) => {
-    // Le payload reçu ici est déjà { employee }, pas
-    // { status, token, data: { employee } } — l'extraction a déjà été faite
-    // en amont, dans login.service.js / LoginPage.jsx.
     const employee = userData?.employee || null;
 
     if (employee) {
-      // Alignement de la structure des permissions du login sur celle de /auth/me
-      if (employee.permissions && Array.isArray(employee.permissions)) {
-        employee.permissions = employee.permissions.map(
-          ({ module, action }) => ({
-            module,
-            action,
-          }),
-        );
-      }
+      const normalizedEmployee = {
+        ...employee,
+        permissions: normalizePermissions(employee.permissions),
+      };
 
-      localStorage.setItem("mada_user", JSON.stringify(employee));
-      setUser(employee);
+      persistUser(normalizedEmployee);
+      setUser(normalizedEmployee);
       navigate("/dashboard");
     }
   };
@@ -92,11 +108,59 @@ export const AuthProvider = ({ children }) => {
       // Échec silencieux : la révocation du cookie serveur a peut-être échoué,
       // mais on nettoie quand même la session côté client.
     } finally {
+      document.cookie =
+        "xsrf-token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
       localStorage.removeItem("mada_user");
       setUser(null);
       navigate("/login");
     }
   };
+
+  // Connexion Socket.IO : uniquement une fois l'utilisateur authentifié.
+  // On rejoint sa room privée ("employee_<id>", voir src/config/socket.js
+  // côté serveur) pour recevoir les mises à jour temps réel de son profil.
+  useEffect(() => {
+    if (!user?.id) {
+      if (socket.connected) socket.disconnect();
+      return;
+    }
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit("join-profile", user.id);
+
+    // Le backend pousse le profil complet à jour (ex: permissions modifiées,
+    // changement de département/poste) sur ce canal.
+    const handleProfileUpdated = (updatedProfile) => {
+      const normalizedProfile = {
+        ...updatedProfile,
+        permissions: normalizePermissions(updatedProfile?.permissions),
+      };
+
+      setUser(normalizedProfile);
+      localStorage.setItem("mada_user", JSON.stringify(normalizedProfile));
+    };
+
+    // Le backend pousse cet événement si le compte est désactivé/supprimé
+    // pendant que l'utilisateur est connecté : on le déconnecte immédiatement.
+    const handleAccountDisabled = (payload) => {
+      showToast.warn(
+        payload?.message ||
+          "Votre compte a été désactivé par un administrateur.",
+      );
+      logout();
+    };
+
+    socket.on("profile-updated", handleProfileUpdated);
+    socket.on("account-disabled", handleAccountDisabled);
+
+    return () => {
+      socket.off("profile-updated", handleProfileUpdated);
+      socket.off("account-disabled", handleAccountDisabled);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   return (
     <AuthContext.Provider

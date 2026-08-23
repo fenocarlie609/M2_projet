@@ -1,9 +1,9 @@
 // src/features/employee/employee.validation.js
 const { z } = require("zod");
-const { APP_MODULES, APP_ACTIONS } = require("../../common/utils/constants");
+const { APP_ACTIONS } = require("../../common/utils/constants");
 
 const permissionSchema = z.object({
-  module: z.enum(Object.values(APP_MODULES)),
+  module: z.string().min(1, "Le module est obligatoire"),
   action: z.enum(Object.values(APP_ACTIONS)),
 });
 

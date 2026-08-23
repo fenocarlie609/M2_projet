@@ -1,5 +1,6 @@
 import React from "react";
 import { FiMenu, FiBell, FiGlobe, FiSearch } from "react-icons/fi";
+import { NotificationBell } from "@/features/notifications/";
 
 export const Header = ({ onMenuToggle }) => {
   return (
@@ -27,20 +28,15 @@ export const Header = ({ onMenuToggle }) => {
       {/* Partie Droite : Statut Réseau & Notifications */}
       <div className="flex items-center gap-4">
         {/* Indicateur Madagascar Coast Guard Hub (Visuel uniquement sur tablette/desktop) */}
-        <div className="hidden md:flex items-center gap-2 text-[11px] font-semibold text-slate-500 tracking-wider bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60">
+        {/* <div className="hidden md:flex items-center gap-2 text-[11px] font-semibold text-slate-500 tracking-wider bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60">
           <FiGlobe className="text-brand-primary animate-pulse text-sm" />
           <span>Liaison APMF: En Ligne</span>
-        </div>
+        </div> */}
 
         {/* Séparateur */}
-        <div className="hidden md:block h-5 w-px bg-slate-200" />
+        {/* <div className="hidden md:block h-5 w-px bg-slate-200" /> */}
 
-        {/* Cloche de Notifications */}
-        <button className="relative p-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-50 transition-colors">
-          <FiBell size={18} />
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-rose-500 rounded-full" />
-        </button>
-
+        <NotificationBell />
         {/* Badge d'identification HQ */}
         <span className="text-[10px] font-bold text-brand-primary tracking-widest bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-md">
           MADA-HQ

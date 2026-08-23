@@ -1,15 +1,30 @@
 // src/modules/_routes.js
 const express = require("express");
+const logger = require("../config/logger");
+const { verifyCsrf } = require("../common/middlewares/csrf.middleware");
 const router = express.Router();
 
-// Route de test globale pour vérifier que l'API répond
 router.get("/health", (req, res) => {
-  console.log("Route /health appelée");
+  logger.info("Route /health appelée");
   res.status(200).json({
     status: "success",
     message: "L'API fonctionne parfaitement.",
     timestamp: new Date().toISOString(),
   });
+});
+
+router.use((req, res, next) => {
+  const mutatingMethods = ["POST", "PUT", "PATCH", "DELETE"];
+  const csrfExemptedPaths = ["/auth/login", "/auth/csrf-token"];
+
+  if (
+    !mutatingMethods.includes(req.method) ||
+    csrfExemptedPaths.includes(req.path)
+  ) {
+    return next();
+  }
+
+  return verifyCsrf(req, res, next);
 });
 
 // Exemples de futures intégrations de modules :
@@ -21,6 +36,7 @@ const { uploadRoutes } = require("./uploads");
 const { moduleRoutes } = require("./modules");
 const { clientRoutes } = require("./clients");
 const { driverRoutes } = require("./driver");
+const { notificationRoutes } = require("./notifications");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -30,5 +46,6 @@ router.use("/modules", moduleRoutes);
 router.use("/uploads", uploadRoutes);
 router.use("/clients", clientRoutes);
 router.use("/drivers", driverRoutes);
+router.use("/notifications", notificationRoutes);
 
 module.exports = router;

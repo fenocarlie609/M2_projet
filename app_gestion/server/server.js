@@ -2,14 +2,15 @@
 const path = require("path");
 const dotenv = require("dotenv");
 
-// 1. CHARGEMENT DE L'ENVIRONNEMENT EN PREMIER (Crucial !)
 const environment = process.env.NODE_ENV || "development";
 dotenv.config({ path: path.resolve(process.cwd(), `.env.${environment}`) });
 
-// 2. IMPORT DES CONFIGURATIONS
 const logger = require("./src/config/logger");
+const { validateEnv } = require("./src/config/env");
 const { connectDB } = require("./src/config/database");
 const { initSocket } = require("./src/config/socket");
+
+validateEnv();
 
 // 3. CAPTURE DES EXCEPTIONS GLOBALES
 process.on("uncaughtException", (err) => {

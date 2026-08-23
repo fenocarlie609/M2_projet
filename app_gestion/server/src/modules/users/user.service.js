@@ -1,6 +1,9 @@
 const { prisma } = require("../../config/database");
 const AppError = require("../../common/utils/AppError");
 const { hashPassword } = require("../../common/utils/password.utils");
+const {
+  deleteAccessRequestNotifications,
+} = require("../notifications/notification.service");
 
 const getPendingAccessRequests = async () => {
   return prisma.employee.findMany({
@@ -66,7 +69,8 @@ const getUserById = async (employeeId) => {
 const getAllPermissions = async () => {
   return prisma.employee.findMany({
     where: {
-      permissions: { some: {} },
+      hasAppAccess: true,
+      isActive: true,
     },
     select: {
       id: true,
@@ -114,7 +118,7 @@ const grantAccess = async (
     }
   }
 
-  return prisma.employee.update({
+  const updatedEmployee = await prisma.employee.update({
     where: { id: employeeId },
     data: {
       email: email ?? undefined,
@@ -131,6 +135,14 @@ const grantAccess = async (
     },
     include: { permissions: true, department: true, position: true },
   });
+
+  // CORRECTION : la demande d'accès est traitée, la notification
+  // "a besoin d'un accès" n'a plus lieu d'être -> on la supprime + on
+  // diffuse notification:removed pour qu'elle disparaisse en temps réel
+  // chez tous les IT connectés (voir notification.service.js).
+  await deleteAccessRequestNotifications(employeeId);
+
+  return updatedEmployee;
 };
 
 const updateAccess = async (employeeId, { email, password, isActive }) => {
@@ -182,7 +194,7 @@ const revokeAccess = async (employeeId) => {
     throw new AppError("Employé non trouvé.", 404);
   }
 
-  return prisma.employee.update({
+  const updatedEmployee = await prisma.employee.update({
     where: { id: employeeId },
     data: {
       email: null,
@@ -191,12 +203,28 @@ const revokeAccess = async (employeeId) => {
       hasAppAccess: false,
     },
   });
+
+  // CORRECTION : nettoyage défensif — couvre le cas rare où une notification
+  // ACCESS_REQUEST traînerait encore pour cet employé au moment de la
+  // révocation (ex: accès révoqué avant même d'avoir été accordé).
+  await deleteAccessRequestNotifications(employeeId);
+
+  return updatedEmployee;
 };
 
 const assignPermission = async (employeeId, module, action) => {
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
   });
+  if (module !== "*") {
+    const existingModule = await prisma.appModule.findUnique({
+      where: { code: module },
+    });
+
+    if (!existingModule) {
+      throw new Error(`Le module "${module}" n'existe pas en base de données.`);
+    }
+  }
   if (!employee || employee.deletedAt) {
     throw new AppError("Employé non trouvé.", 404);
   }
@@ -227,12 +255,6 @@ const revokePermission = async (employeeId, permissionId) => {
   return prisma.employeePermission.delete({ where: { id: permissionId } });
 };
 
-/**
- * Révoque plusieurs permissions d'un coup (sélection multiple côté front).
- * `deleteMany` avec employeeId dans le where garantit qu'on ne supprime
- * jamais les permissions d'un autre employé, même si un id erroné était
- * injecté dans la liste.
- */
 const revokePermissions = async (employeeId, permissionIds = []) => {
   if (!permissionIds.length) {
     throw new AppError("Aucune permission à supprimer.", 400);

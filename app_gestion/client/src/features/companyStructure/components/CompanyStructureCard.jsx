@@ -13,9 +13,9 @@ export function CompanyStructureCard({
 }) {
   const { checkPermission } = useAuth();
 
-  const canCreate = checkPermission("ORGANIZATION", "CREATE");
-  const canUpdate = checkPermission("ORGANIZATION", "UPDATE");
-  const canDelete = checkPermission("ORGANIZATION", "DELETE");
+  const canCreate = checkPermission("COMPANY_STRUCTURE", "CREATE");
+  const canUpdate = checkPermission("COMPANY_STRUCTURE", "UPDATE");
+  const canDelete = checkPermission("COMPANY_STRUCTURE", "DELETE");
 
   const departmentMenuItems = [];
   if (canUpdate)

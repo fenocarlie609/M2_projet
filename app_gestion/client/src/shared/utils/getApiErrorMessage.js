@@ -18,6 +18,15 @@ export function getApiErrorMessage(
   const data = error?.response?.data;
   if (!data) return fallback;
 
+  // Si le backend renvoie un objet 'fields': { code: 'message' }
+  if (data.fields && typeof data.fields === "object") {
+    // Retourne le premier message de champ disponible
+    const firstKey = Object.keys(data.fields)[0];
+    if (firstKey && typeof data.fields[firstKey] === "string") {
+      return data.fields[firstKey];
+    }
+  }
+
   // Détail de validation Zod : soit à la racine (prod), soit sous error (dev)
   const validationErrors = data.errors || data.error?.errors;
   if (Array.isArray(validationErrors) && validationErrors[0]?.message) {
@@ -30,4 +39,12 @@ export function getApiErrorMessage(
   }
 
   return fallback;
+}
+
+// Retourne l'objet fields envoyé par l'API (utile pour assigner erreurs par champ)
+export function getApiErrorFields(error) {
+  const data = error?.response?.data;
+  if (!data) return null;
+  if (data.fields && typeof data.fields === "object") return data.fields;
+  return null;
 }

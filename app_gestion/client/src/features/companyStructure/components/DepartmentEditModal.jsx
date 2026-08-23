@@ -1,7 +1,7 @@
 // src/features/companyStructure/components/DepartmentEditModal.jsx
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button } from "@/shared/components/ui";
-import { getApiErrorMessage } from "@/shared/utils/getApiErrorMessage";
+import { applyApiErrors } from "@/shared/utils/apiErrors";
 import { showToast } from "@/shared/utils/toast";
 
 const emptyErrors = { code: "", label: "", general: "" };
@@ -67,16 +67,10 @@ export function DepartmentEditModal({
       onClose();
       showToast.success("Département modifié avec succès !");
     } catch (error) {
-      console.error("Erreur lors de la modification du département :", error);
-      const message = getApiErrorMessage(error);
-      const isCodeError = message.toLowerCase().includes("code");
-      setErrors({
-        code: isCodeError ? message : "",
-        label: "",
-        general: isCodeError ? "" : message,
-      });
+    console.error("Erreur lors de la modification du département :", error);
+    applyApiErrors(setErrors, error, { code: "", label: "", general: "" });
     } finally {
-      setIsSubmitting(false);
+    setIsSubmitting(false);
     }
   };
 

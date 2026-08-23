@@ -1,5 +1,6 @@
 // src/features/driver/pages/DriverPage.jsx
 import React, { useEffect, useState } from "react";
+import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
 import {
@@ -31,6 +32,28 @@ function DriverPage() {
 
   useEffect(() => {
     fetchDrivers();
+  }, []);
+
+  useEffect(() => {
+    const onDriversChanged = (payload) => {
+      if (!payload || !payload.action) return fetchDrivers();
+
+      const { action } = payload;
+      if (action === "created" && payload.driver) {
+        setDrivers((prev) => [payload.driver, ...prev]);
+      } else if (action === "updated" && payload.driver) {
+        setDrivers((prev) =>
+          prev.map((d) => (d.id === payload.driver.id ? payload.driver : d)),
+        );
+      } else if (action === "deleted" && payload.id) {
+        setDrivers((prev) => prev.filter((d) => d.id !== payload.id));
+      } else {
+        fetchDrivers();
+      }
+    };
+
+    socket.on("drivers:changed", onDriversChanged);
+    return () => socket.off("drivers:changed", onDriversChanged);
   }, []);
 
   const handleOpenAdd = () => {

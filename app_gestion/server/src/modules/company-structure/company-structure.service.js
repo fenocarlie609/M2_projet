@@ -1,6 +1,26 @@
 // src/modules/company-structure/company-structure.service.js
 const { prisma } = require("../../config/database");
 const AppError = require("../../common/utils/AppError");
+const { getIO } = require("../../config/socket");
+const logger = require("../../config/logger");
+
+/**
+ * Diffuse un signal "la structure a changé" à tous les clients connectés.
+ * Pas de payload détaillé : le front refait simplement GET /company-structure
+ * (jeu de données petit et peu fréquent à modifier, un refetch complet est
+ * largement suffisant plutôt que de répliquer une logique de merge côté client).
+ * Protégé par try/catch : un souci de diffusion ne doit jamais faire échouer
+ * l'opération CRUD qui a, elle, réussi en base.
+ */
+const broadcastStructureChange = () => {
+  try {
+    getIO().emit("company-structure:changed");
+  } catch (err) {
+    logger.warn(
+      "Socket.IO indisponible, changement de structure non diffusé en direct.",
+    );
+  }
+};
 
 /**
  * Récupère tous les départements actifs avec leurs postes actifs associés
@@ -47,9 +67,13 @@ const createDepartment = async (data) => {
     throw new AppError("Un département avec ce code existe déjà.", 400);
   }
 
-  return await prisma.department.create({
+  const department = await prisma.department.create({
     data: { code: data.code, label: data.label },
   });
+
+  broadcastStructureChange();
+
+  return department;
 };
 
 /**
@@ -72,10 +96,14 @@ const updateDepartment = async (id, data) => {
     }
   }
 
-  return await prisma.department.update({
+  const updated = await prisma.department.update({
     where: { id },
     data: { code: data.code, label: data.label },
   });
+
+  broadcastStructureChange();
+
+  return updated;
 };
 
 /**
@@ -101,6 +129,8 @@ const deleteDepartment = async (id) => {
       data: { deletedAt: now },
     }),
   ]);
+
+  broadcastStructureChange();
 };
 
 /**
@@ -121,13 +151,17 @@ const createPosition = async (departmentId, data) => {
     throw new AppError("Un poste avec ce code global existe déjà.", 400);
   }
 
-  return await prisma.position.create({
+  const position = await prisma.position.create({
     data: {
       code: data.code,
       label: data.label,
       departmentId: departmentId,
     },
   });
+
+  broadcastStructureChange();
+
+  return position;
 };
 
 /**
@@ -150,10 +184,14 @@ const updatePosition = async (id, data) => {
     }
   }
 
-  return await prisma.position.update({
+  const updated = await prisma.position.update({
     where: { id },
     data: { code: data.code, label: data.label },
   });
+
+  broadcastStructureChange();
+
+  return updated;
 };
 
 /**
@@ -171,6 +209,8 @@ const deletePosition = async (id) => {
     where: { id },
     data: { deletedAt: new Date() },
   });
+
+  broadcastStructureChange();
 };
 
 module.exports = {

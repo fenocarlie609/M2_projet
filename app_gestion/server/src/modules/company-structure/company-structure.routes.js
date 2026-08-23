@@ -6,7 +6,7 @@ const validate = require("../../common/middlewares/validate.middleware");
 const {
   companyStructureValidation,
 } = require("./company-structure.validation");
-const { APP_MODULES, APP_ACTIONS } = require("../../common/utils/constants");
+const { APP_ACTIONS } = require("../../common/utils/constants");
 
 const router = express.Router();
 
@@ -23,7 +23,7 @@ router.route("/").get(companyStructureController.getStructure);
 router
   .route("/departments")
   .post(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.CREATE),
+    authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.CREATE),
     validate(companyStructureValidation.createDepartment),
     companyStructureController.createDepartment,
   );
@@ -32,12 +32,12 @@ router
   .route("/departments/:id")
   .get(companyStructureController.getDepartment)
   .put(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.UPDATE),
+    authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.UPDATE),
     validate(companyStructureValidation.updateDepartment),
     companyStructureController.updateDepartment,
   )
   .delete(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.DELETE),
+    authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.DELETE),
     companyStructureController.deleteDepartment,
   );
 
@@ -47,7 +47,7 @@ router
 router
   .route("/positions")
   .post(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.CREATE),
+    authMiddleware.authorize("EMPLOYEES", APP_ACTIONS.CREATE),
     validate(companyStructureValidation.createPosition),
     companyStructureController.createPosition,
   );
@@ -55,12 +55,12 @@ router
 router
   .route("/positions/:id")
   .put(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.UPDATE),
+    authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.UPDATE),
     validate(companyStructureValidation.updatePosition),
     companyStructureController.updatePosition,
   )
   .delete(
-    authMiddleware.authorize(APP_MODULES.EMPLOYEES, APP_ACTIONS.DELETE),
+    authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.DELETE),
     companyStructureController.deletePosition,
   );
 

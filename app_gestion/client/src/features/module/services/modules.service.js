@@ -1,11 +1,12 @@
-// src/features/modules/service/modules.service.js
-// (ou place-le où bon te semble, ex: src/shared/services/modules.service.js —
-// ce n'est pas vraiment un "feature" à part entière)
-import axiosInstance from "@/shared/services/axiosInstance";
+// src/features/module/services/modules.service.js
+import { createCrudService } from "@/shared/services/";
+
+const modulesCrud = createCrudService("/modules");
 
 export const modulesService = {
-  getModules: async () => {
-    const response = await axiosInstance.get("/modules");
-    return response.data;
-  },
+  getModules: () => modulesCrud.getAll(),
+  getModuleById: (id) => modulesCrud.getById(id),
+  createModule: (data) => modulesCrud.create(data),
+  updateModule: (id, data) => modulesCrud.update(id, data),
+  deleteModule: (id) => modulesCrud.remove(id),
 };

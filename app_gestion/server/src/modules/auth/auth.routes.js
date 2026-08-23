@@ -13,6 +13,8 @@ const router = express.Router();
 // Les employés ne s'auto-inscrivent plus : ils sont créés par un admin
 // via POST /api/v1/employees (voir module employees).
 
+router.get("/csrf-token", authController.getCsrfToken);
+
 router.post(
   "/login",
   authLimiter,
@@ -20,8 +22,9 @@ router.post(
   authController.login,
 );
 
+router.post("/refresh", authController.refresh);
 router.get("/me", authMiddleware.protect, authController.me);
 router.get("/test", authMiddleware.protect, authController.test);
-router.post("/logout", authController.logout);
+router.post("/logout", authMiddleware.protect, authController.logout);
 
 module.exports = router;

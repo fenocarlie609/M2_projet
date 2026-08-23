@@ -1,7 +1,11 @@
-// src/features/employee/employee.service.js
+// src/modules/employees/employee.service.js
 const { prisma } = require("../../config/database");
 const { hashPassword } = require("../../common/utils/password.utils");
 const AppError = require("../../common/utils/AppError");
+const {
+  createNotification,
+  deleteAccessRequestNotifications,
+} = require("../notifications/notification.service");
 
 /**
  * Crée un nouvel employé.
@@ -9,7 +13,6 @@ const AppError = require("../../common/utils/AppError");
 const createEmployee = async (data) => {
   const { permissions = [], password, ...rest } = data;
 
-  // CIN unique (si fourni)
   if (rest.cin) {
     const existingCin = await prisma.employee.findUnique({
       where: { cin: rest.cin },
@@ -19,7 +22,6 @@ const createEmployee = async (data) => {
     }
   }
 
-  // Matricule unique
   const existingMatricule = await prisma.employee.findUnique({
     where: { matricule: rest.matricule },
   });
@@ -27,7 +29,6 @@ const createEmployee = async (data) => {
     throw new AppError("Ce matricule est déjà utilisé.", 400);
   }
 
-  // Email unique
   if (rest.hasAppAccess && rest.email) {
     const existingEmail = await prisma.employee.findUnique({
       where: { email: rest.email },
@@ -37,7 +38,7 @@ const createEmployee = async (data) => {
     }
   }
 
-  return await prisma.employee.create({
+  const employee = await prisma.employee.create({
     data: {
       ...rest,
       password: rest.hasAppAccess ? await hashPassword(password) : null,
@@ -56,6 +57,30 @@ const createEmployee = async (data) => {
       department: true,
       position: true,
     },
+  });
+
+  // Un employé créé directement avec hasAppAccess=true (rare, en général on
+  // crée d'abord la fiche RH puis on demande l'accès) déclenche aussi la
+  // notification, pour rester cohérent avec updateEmployee ci-dessous.
+  if (employee.hasAppAccess) {
+    await notifyItForAccessRequest(employee);
+  }
+
+  return employee;
+};
+
+/**
+ * Notifie les employés ayant la permission USERS:CREATE (les IT/superadmin,
+ * seuls capables d'accorder un accès applicatif via le module "users")
+ * qu'un employé attend une activation.
+ */
+const notifyItForAccessRequest = async (employee) => {
+  await createNotification({
+    type: "ACCESS_REQUEST",
+    message: `${employee.name} (${employee.matricule}) a besoin d'un accès à l'application.`,
+    payload: { employeeId: employee.id },
+    targetModule: "USERS",
+    targetAction: "CREATE",
   });
 };
 
@@ -92,7 +117,14 @@ const updateEmployee = async (id, data) => {
     payload.password = null;
   }
 
-  return await prisma.employee.update({
+  // On récupère l'état AVANT modification pour détecter la transition
+  // false -> true sur hasAppAccess (seul cas qui doit notifier l'IT).
+  const previousEmployee = await prisma.employee.findUnique({
+    where: { id },
+    select: { hasAppAccess: true },
+  });
+
+  const updatedEmployee = await prisma.employee.update({
     where: { id },
     data: payload,
     include: {
@@ -101,15 +133,37 @@ const updateEmployee = async (id, data) => {
       position: true,
     },
   });
+
+  const justEnabledAccess =
+    previousEmployee &&
+    !previousEmployee.hasAppAccess &&
+    updatedEmployee.hasAppAccess;
+
+  const justDisabledAccess =
+    previousEmployee &&
+    previousEmployee.hasAppAccess &&
+    !updatedEmployee.hasAppAccess;
+
+  if (justEnabledAccess) {
+    await notifyItForAccessRequest(updatedEmployee);
+  }
+
+  // RH a désactivé hasAppAccess avant que l'IT n'ait traité la demande :
+  // la notification n'a plus lieu d'être.
+  if (justDisabledAccess) {
+    await deleteAccessRequestNotifications(id);
+  }
+
+  return updatedEmployee;
 };
 
 /**
- * Soft delete
+ * Suppression logique (soft delete) : on désactive aussi l'accès à l'app.
  */
 const softDeleteEmployee = async (id) => {
   return await prisma.employee.update({
     where: { id },
-    data: { deletedAt: new Date(), isActive: false },
+    data: { deletedAt: new Date(), isActive: false, hasAppAccess: false },
   });
 };
 
@@ -117,8 +171,8 @@ const getAllActiveEmployees = async () => {
   return await prisma.employee.findMany({
     where: { deletedAt: null },
     include: {
-      department: true, // Inclus l'objet complet { id, code, label }
-      position: true, // Inclus l'objet complet { id, code, label }
+      department: true,
+      position: true,
       permissions: true,
     },
     orderBy: { createdAt: "desc" },
