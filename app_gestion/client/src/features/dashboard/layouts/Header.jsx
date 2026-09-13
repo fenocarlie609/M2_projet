@@ -38,9 +38,9 @@ export const Header = ({ onMenuToggle }) => {
 
         <NotificationBell />
         {/* Badge d'identification HQ */}
-        <span className="text-[10px] font-bold text-brand-primary tracking-widest bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-md">
+        {/* <span className="text-[10px] font-bold text-brand-primary tracking-widest bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-md">
           MADA-HQ
-        </span>
+        </span> */}
       </div>
     </header>
   );

@@ -14,6 +14,7 @@ import {
 
 function ModulePage() {
   const { user } = useAuth();
+  console.log("ModulePage - user:", user);
   const canManage = user?.department?.code === "TECH";
 
   const [modules, setModules] = useState([]);

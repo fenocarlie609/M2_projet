@@ -1,277 +1,443 @@
-# 🌊 App Gestion — Maritime Management System
+# ERP maritime et gestion de fret
 
-Ce dépôt contient l'application `app_gestion`, un système de gestion maritime modulaire (frontend React + backend Node/Express + Prisma + PostgreSQL). Ce README remplace et centralise la documentation projet : démarrage, architecture, sécurité, auth, PWA, et résolution des problèmes courants.
+## Projet
 
-Table des matières
+**Conception et mise en place d'une architecture modulaire evolutive pour un ERP de suivi logistique et de gestion de fret maritime.**
 
-- Aperçu
-- Structure du dépôt
-- Prérequis
-- Installation & démarrage (dev)
-- Variables d'environnement
-- Authentification (Access & Refresh tokens, rotation, blacklist)
-- Sécurité (cookies, CSRF, rate-limiting, helmet)
-- PWA
-- Base de données & Prisma
-- Erreurs & Debug (exemples courants et solutions)
-- Déploiement
-- Tests
-- Contribuer
-- Licence
+Ce depot contient une application web composee de :
 
----
+- `client/` : application d'administration React + Vite ;
+- `server/` : API REST Node.js + Express + Prisma ;
+- `vitrine/` : site vitrine separe du back-office.
 
-## Aperçu
+L'objectif fonctionnel est de faire evoluer l'application vers la gestion complete d'un voyage maritime, de ses clients et chauffeurs, de ses marchandises et de la generation d'un plan de chargement.
 
-`app_gestion` est une application SPA (React + Vite) pour l'administration maritime avec backend REST (Express) et persistance via PostgreSQL + Prisma.
+> **Etat de reference : 13 septembre 2026**
+>
+> Les cases cochees correspondent a des elements identifies dans le code. Les cases non cochees sont des travaux a realiser et ne doivent pas etre consideres comme disponibles.
 
-## Structure du dépôt
+## Sommaire
 
-```
+- [Etat global](#etat-global)
+- [Fonctionnalites realisees](#fonctionnalites-realisees)
+- [Limites actuelles](#limites-actuelles)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Commandes utiles](#commandes-utiles)
+- [Plan de chargement cible](#plan-de-chargement-cible)
+- [Feuille de route](#feuille-de-route)
+- [Checkpoints](#checkpoints)
+- [Tests et qualite](#tests-et-qualite)
+
+## Etat global
+
+| Domaine                  | Etat         | Commentaire                                               |
+| ------------------------ | ------------ | --------------------------------------------------------- |
+| Architecture modulaire   | Termine      | Organisation frontend par features et backend par modules |
+| Authentification         | Termine      | JWT, cookies, refresh tokens et rotation                  |
+| Securite API             | Partiel      | Protection principale en place, sanitation a finaliser    |
+| Administration           | Partiel      | Employes, utilisateurs, permissions et structure interne  |
+| Clients et chauffeurs    | Partiel      | CRUD presents, mais pas encore relies a une cargaison     |
+| Suivi maritime           | Non commence | Navires, ports et voyages absents du modele metier        |
+| Gestion des marchandises | Non commence | Aucun modele persiste de cargaison ou de ligne de fret    |
+| Plan de chargement       | Non commence | La page Template est une maquette UI non connectee        |
+| Export PDF / impression  | Non commence | A concevoir apres stabilisation du manifeste              |
+| Tests automatises        | Non commence | Aucun script de test applicatif configure                 |
+
+## Fonctionnalites realisees
+
+### Architecture et socle technique
+
+- [x] Frontend React avec Vite.
+- [x] Backend Node.js avec Express.
+- [x] Base PostgreSQL avec Prisma.
+- [x] Organisation frontend par fonctionnalites dans `client/src/features/`.
+- [x] Organisation backend par modules dans `server/src/modules/`.
+- [x] Routes API centralisees sous `/api/v1`.
+- [x] Gestion centralisee des erreurs.
+- [x] Configuration par variables d'environnement.
+- [x] Journalisation Winston.
+
+### Authentification et autorisations
+
+- [x] Connexion et deconnexion.
+- [x] Access token JWT.
+- [x] Refresh token stocke sous forme de hash.
+- [x] Rotation et revocation des refresh tokens.
+- [x] Support du cookie securise et du header Bearer pour les appels API.
+- [x] Permissions par module et action : `CREATE`, `READ`, `UPDATE`, `DELETE`, `*`.
+- [x] Protection frontend avec `RoleGuard`.
+- [x] Gestion des demandes d'acces et des comptes utilisateurs.
+
+### Administration et donnees existantes
+
+- [x] Gestion des employes.
+- [x] Gestion des departements.
+- [x] Gestion des postes.
+- [x] Gestion des clients.
+- [x] Gestion des chauffeurs.
+- [x] Gestion des modules applicatifs.
+- [x] Gestion des notifications.
+- [x] Upload des avatars.
+- [x] Soft delete pour plusieurs entites internes.
+- [x] Journal d'audit des requetes mutantes.
+
+### Interface utilisateur
+
+- [x] Layout de dashboard avec header et sidebar.
+- [x] Routes frontend protegees par permissions.
+- [x] Composants reutilisables : boutons, formulaires, inputs, selects, tableaux, cartes, modales, alertes, calendrier et stepper.
+- [x] Gestion des erreurs API et affichage des erreurs de champs.
+- [x] Notifications temps reel preparees avec Socket.IO.
+- [x] Manifest PWA et integration du service worker cote client.
+
+## Limites actuelles
+
+La page `client/src/features/template/pages/TemplatePage.jsx` est actuellement un laboratoire visuel. Elle contient des exemples de formulaire, de calendrier et de manifeste, mais :
+
+- [ ] le formulaire n'enregistre pas de donnees dans PostgreSQL ;
+- [ ] aucun appel API de cargaison n'est effectue ;
+- [ ] aucun modele `Vessel`, `Voyage`, `LoadingPlan` ou `CargoLine` n'existe ;
+- [ ] aucun calcul de poids total n'est implemente ;
+- [ ] aucun export PDF ou impression du plan n'est disponible ;
+- [ ] aucune validation metier ne bloque la surcharge d'un navire ;
+- [ ] aucun workflow brouillon, soumis, valide ou cloture n'est implemente.
+
+Le terme `CHARGEMENT` apparait dans des commentaires de permissions et d'audit, mais cela ne constitue pas encore un module fonctionnel.
+
+Le module `boats` presente dans certains exemples de documentation est egalement un exemple d'architecture : il n'est pas present dans `server/src/modules/`.
+
+## Architecture
+
+```text
 app_gestion/
-├── client/                    # Frontend React + Vite
-│   ├── src/                   # Code source React (features/, shared/, core/)
-│   ├── public/                # Assets & manifest PWA
-│   └── package.json
-├── server/                    # Backend Node.js + Express
-│   ├── src/
-│   │   ├── config/            # DB, env, logger, socket
-│   │   ├── common/            # middlewares, utils, error handling
-│   │   ├── modules/           # fonctionnalités (auth, users, company-structure, ...)
-│   │   └── app.js
-│   ├── prisma/                # schema.prisma, migrations
-│   └── package.json
-├── vitrine/                   # Site marketing (optionnel)
-└── README.md                  # Ce fichier
+├── client/                 # Back-office React + Vite
+│   └── src/
+│       ├── core/           # Application et configuration des routes
+│       ├── features/       # Modules fonctionnels frontend
+│       └── shared/         # UI, services, hooks et utilitaires communs
+├── server/                 # API Node.js + Express
+│   ├── prisma/             # Schema et migrations PostgreSQL
+│   └── src/
+│       ├── common/         # Middlewares et utilitaires communs
+│       ├── config/         # Base de donnees, securite, logs, socket
+│       └── modules/        # Auth, utilisateurs, clients, chauffeurs, etc.
+└── vitrine/                # Site vitrine independant
 ```
 
-## Prérequis
+### Modules backend actuellement enregistres
 
-- Node.js >= 18
-- npm
-- PostgreSQL
-- (Optionnel) yarn
+- `auth`
+- `users`
+- `employees`
+- `company-structure`
+- `modules`
+- `uploads`
+- `clients`
+- `drivers`
+- `notifications`
 
-## Installation & démarrage (dev)
+### Modeles Prisma actuellement disponibles
 
-1. Cloner le repo
+- `Department`
+- `Position`
+- `Employee`
+- `AppModule`
+- `EmployeePermission`
+- `AuditLog`
+- `Client`
+- `Driver`
+- `Notification`
+- `NotificationRead`
+- `RefreshToken`
+
+## Installation
+
+### Prerequis
+
+- Node.js 18 ou plus recent ;
+- npm ;
+- PostgreSQL ;
+- une base de donnees accessible par `DATABASE_URL`.
+
+### Installation des dependances
 
 ```bash
-git clone <repo-url>
-cd app_gestion
-```
-
-2. Installer les dépendances
-
-```bash
-# Frontend
 cd client
 npm install
 
-# Backend
 cd ../server
 npm install
 ```
 
-3. Configurer les variables d'environnement (voir section suivante)
-
-4. Initialiser la base et les migrations
+### Initialisation de la base
 
 ```bash
 cd server
-npx prisma migrate dev --name init
-# Optionnel : importer des seed / données de démo
+npx prisma generate
+npx prisma migrate dev
 ```
 
-5. Lancer les serveurs en développement
+Les migrations existantes doivent etre conservees. Ne pas utiliser `prisma migrate reset` sur une base contenant des donnees importantes.
+
+### Demarrage en developpement
+
+Terminal 1 :
 
 ```bash
-# Terminal 1: backend
 cd server
 npm run dev
+```
 
-# Terminal 2: frontend
+Terminal 2 :
+
+```bash
 cd client
 npm run dev
 ```
 
-Le frontend (Vite) écoute typiquement sur http://localhost:5173 et proxie /api vers le backend sur http://localhost:5000 (config Vite).
+Le frontend est normalement disponible sur `http://localhost:5173` et l'API sur le port configure dans le serveur, generalement `5000`.
 
-## Variables d'environnement importantes
+## Configuration
 
-Crée `.env.development` et `.env.production` selon l'environnement. Variables essentielles :
+Le serveur utilise notamment les variables suivantes dans `.env.development` ou `.env.production` :
 
-- NODE_ENV=development|production
-- PORT=5000
-- CLIENT_URL=http://localhost:5173
-- DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME
-- COOKIE_SECRET=une_chaine_secrete_pour_signer_les_cookies
-- JWT_SECRET=secret-pour-access-tokens
-- JWT_REFRESH_SECRET=secret-pour-refresh-tokens
-- JWT_EXPIRES_IN=15m # ex: 15m
-- JWT_REFRESH_EXPIRES_IN=7d # ex: 7d
+```env
+NODE_ENV=development
+PORT=5000
+CLIENT_URL=http://localhost:5173
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME
+COOKIE_SECRET=remplacer-par-un-secret-fort
+JWT_SECRET=remplacer-par-un-secret-fort
+JWT_REFRESH_SECRET=remplacer-par-un-secret-fort
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+```
 
-Important : pour la production, utilisez des secrets forts et stockez-les via un gestionnaire de secrets (Vault, Azure Key Vault, AWS Secrets Manager, etc.).
+Ne jamais versionner de vrais secrets. Utiliser `.env.example` comme modele et un gestionnaire de secrets en production.
 
-## Authentification : design et fonctionnement
+## Commandes utiles
 
-L'application utilise un schéma JWT + refresh-token robuste :
-
-- Access token : court (ex: 15m), signé avec JWT_SECRET, contenu minimal (id, email, type:"access").
-- Refresh token : plus long (ex: 7d), signé avec JWT_REFRESH_SECRET. Chaque refresh token stocké en base sous forme hashée (sha256) dans la table `RefreshToken` avec : familyId, jti, expiresAt, revokedAt, replacedByTokenId.
-- Rotation : lors d'un refresh valide, l'ancien refresh token est révoqué et remplacé par un nouveau (rotated). La base conserve l'historique pour blacklisting / forensic.
-- Stockage & transport :
-  - Cookies HttpOnly, Secure (en prod) et Signed (cookie-parser) pour token & refreshToken.
-  - Cookie `xsrf-token` non HttpOnly pour que le frontend puisse lire et envoyer le header X-CSRF-Token.
-- Middleware protect : accepte le token depuis `signedCookies.token` ou depuis `Authorization: Bearer <token>` (utile pour Postman).
-- Logout : révoque tous les refresh tokens de l'utilisateur (revokedAt) et clearCookie.
-
-## Sécurité & hardening
-
-- Cookies : httpOnly: true, signed: true, secure: true (en production), sameSite: 'lax' (ajuster si besoin de cross-site strict)
-- CSRF : middleware qui compare `xsrf-token` cookie et header `X-CSRF-Token` pour les méthodes mutantes (POST/PUT/PATCH/DELETE).
-- Rate limiting : express-rate-limit appliqué sur les routes sensibles (login) et un limiteur global sur toutes les routes API.
-- Sanitation : express-mongo-sanitize (présent), input size limit (express.json({ limit: '10kb' })).
-- Helmet : en-têtes de sécurité HTTP.
-- Logging : Winston pour auditer requêtes et erreurs.
-
-## Gestion des erreurs et UX
-
-- Le backend normalise les erreurs Prisma (ex: P2002 / contrainte unique) en un format lisible et structuré :
-  ```json
-  {
-    "status": "fail",
-    "message": "Ce code est déjà utilisé.",
-    "fields": { "code": "Ce code est déjà utilisé." }
-  }
-  ```
-- Le frontend utilise `getApiErrorMessage()` et `applyApiErrors()` pour extraire `fields` et affecter les messages aux inputs concernés (affichage inline) ou afficher un toast.
-- Les modales d'alerte ont été mises en priorité (z-index) pour être au-dessus de l'UI.
-
-## PWA
-
-- Plugin : vite-plugin-pwa
-- Manifest : `client/public/manifest.webmanifest` inclus
-- Le service worker est enregistré via `virtual:pwa-register` (main.jsx).
-- Assets : icons 192/512 fournis dans `client/public`.
-
-## Base de données & Prisma
-
-- `prisma/schema.prisma` contient les modèles et relations.
-- RefreshToken : structure pensée pour rotation + blacklist : `tokenHash`, `jti`, `familyId`, `expiresAt`, `revokedAt`, `replacedByTokenId`.
-- Soft deletes : de nombreux modèles possèdent `deletedAt` pour soft-delete et index sur ce champ.
-
-Commandes utiles Prisma
+### Client
 
 ```bash
-# Générer le client Prisma
+cd client
+npm run dev
+npm run build
+npm run preview
+```
+
+### Serveur
+
+```bash
+cd server
+npm run dev
+npm start
+```
+
+### Prisma
+
+```bash
+cd server
 npx prisma generate
-
-# Créer migration et appliquer (dev)
-npx prisma migrate dev --name <name>
-
-# Vérifier statut
 npx prisma migrate status
-
-# Ouvrir Studio
+npx prisma migrate dev --name nom_de_la_migration
 npx prisma studio
 ```
 
-## Erreurs courantes & résolutions
+## Plan de chargement cible
 
-- Vite EPERM rename node*modules\.vite\deps_temp*\* → deps :
-  - Cause : un fichier/dossier est verrouillé par un autre processus (antivirus, explorateur, autre instance de vite). Solution : arrêter les processus, supprimer `node_modules/.vite`, relancer `npm run dev`. Si verrouillage persiste, redémarrer la machine ou exclure le dossier du scanner antivirus.
-- Erreur Prisma P2002 (contrainte unique) :
-  - Le serveur renvoie maintenant un `fields` object. Le frontend doit afficher l'erreur inline. Si tu vois un message incomplet dans la modal, vérifier la transformation d'erreur côté serveur et l'utilisation de `applyApiErrors()` côté client.
-- Erreur P2025 (record not found) :
-  - Retourne 404 et message lisible.
+Le document cible doit permettre de produire un plan similaire au fichier de reference :
 
-## Déploiement (guide rapide)
+- navire et transporteur maritime ;
+- date d'arrivee ;
+- rang ou numero de voyage ;
+- port d'arrivee ;
+- client ;
+- camion et chauffeur ;
+- nombre de colis ;
+- description de la marchandise ;
+- poids ;
+- anomalie ;
+- personne chargee ;
+- position ou zone de chargement ;
+- poids total.
 
-- Construire le frontend : `cd client && npm run build`.
-- Paramétrer l'environnement de production (variables sensibles dans un secret manager).
-- Lancer le backend avec `NODE_ENV=production` : `npx dotenv -e .env.production -- node server.js` ou via PM2 / systemd / container.
-- Configurer un reverse-proxy (NGINX) pour servir `client/dist` et proxy `/api` au backend ou héberger frontend statique séparément.
+### Modele metier cible
 
-## Tests
+```text
+Vessel
+└── Voyage
+    └── LoadingPlan
+        └── CargoLine
+            ├── Client
+            ├── Driver
+            └── Vehicle
+```
 
-- La base du projet contient des utilitaires pour tests manuels. Ajouter des tests unitaires et d'intégration est recommandé (Jest / Supertest) pour la logique d'auth et la rotation des refresh tokens.
+### Donnees a ajouter
 
-## Contribuer
+- [ ] `Vessel` : nom, armateur, numero d'immatriculation et capacite.
+- [ ] `Port` : code, nom et pays.
+- [ ] `Voyage` : navire, ports, dates, numero et statut.
+- [ ] `Vehicle` : immatriculation, type et capacite.
+- [ ] `LoadingPlan` : reference, voyage, statut, total et validation.
+- [ ] `CargoLine` : client, chauffeur, vehicule, colis, description, poids, anomalie et position.
+- [ ] Historique des changements et versions du plan.
 
-- Fork → branche feature → PR → revue.
-- Respecter la structure `modules/` (controller/service/routes) et les conventions de codage.
+Les poids doivent etre stockes en kilogrammes, puis affiches en tonnes :
 
-## Contacts & support
+```text
+poidsEnTonnes = poidsEnKilogrammes / 1000
+```
 
-- Auteur / mainteneur : (ajoute ton nom et contact ici)
-- Pour des incidents en production : consulter les logs (Winston) et les enregistrements d'audit.
+Pour le document de reference, le total attendu est de `95,444 tonnes`.
 
-## Licence
+### Routes API a implementer
 
-- Indiquer la licence du projet (ex: MIT) — ajoute un fichier LICENSE si nécessaire.
+- [ ] `GET/POST /api/v1/vessels`
+- [ ] `GET/POST/PUT /api/v1/voyages`
+- [ ] `GET/POST /api/v1/loading-plans`
+- [ ] `GET/PUT/DELETE /api/v1/loading-plans/:id`
+- [ ] `POST /api/v1/loading-plans/:id/lines`
+- [ ] `PUT/DELETE /api/v1/loading-plans/:id/lines/:lineId`
+- [ ] `POST /api/v1/loading-plans/:id/validate`
+- [ ] `GET /api/v1/loading-plans/:id/export`
 
----
+### Regles metier a implementer
 
-## Notes finales
+- [ ] poids strictement positif ;
+- [ ] colis entier et positif ;
+- [ ] total recalcule cote serveur ;
+- [ ] total inferieur ou egal a la capacite du navire ;
+- [ ] dates du voyage coherentes ;
+- [ ] client obligatoire pour chaque ligne ;
+- [ ] plan valide non modifiable sans nouvelle version ;
+- [ ] permissions distinctes pour consulter, modifier et valider ;
+- [ ] audit des creations, modifications, validations et exports.
 
-Ce README couvre l'essentiel pour mettre en route, sécuriser et maintenir l'application. Si tu veux que j'ajoute des sections supplémentaires (ex: diagrammes d'architecture, runbooks de déploiement, playbook d'incidents, exemples de payloads API), dis-moi lesquelles et j'ajoute ça.
+## Feuille de route
 
-Voir documentation:
+### Phase 1 - Fondations logistiques
 
-- **Frontend**: [client/README.md#comment-ajouter-un-nouveau-module](./client/README.md)
-- **Backend**: [server/README.md#comment-ajouter-un-nouveau-module](./server/README.md)
+- [ ] Ajouter les modeles Prisma `Vessel`, `Port`, `Voyage`, `Vehicle`, `LoadingPlan` et `CargoLine`.
+- [ ] Creer et verifier la migration.
+- [ ] Ajouter les permissions `VESSELS`, `VOYAGES`, `LOADING_PLANS` et `CARGO`.
+- [ ] Ajouter le module backend `loading-plans` selon le pattern controller/service/routes/validation.
+- [ ] Ajouter des donnees de demonstration coherentes avec le document de reference.
 
-## 🐛 Troubleshooting
+### Phase 2 - Saisie et suivi
 
-### Frontend erreurs
+- [ ] Creer l'ecran de gestion des navires.
+- [ ] Creer l'ecran de creation d'un voyage.
+- [ ] Remplacer la maquette Template par un formulaire connecte a l'API.
+- [ ] Ajouter une saisie dynamique de plusieurs lignes de marchandises.
+- [ ] Afficher les totaux par date, client et voyage.
+- [ ] Ajouter les statuts `DRAFT`, `SUBMITTED`, `VALIDATED`, `CLOSED`.
 
-- Vérifier imports depuis `/shared`, `/features`
-- Vérifier Tailwind config pour couleurs custom
-- Vérifier token stocké dans localStorage
+### Phase 3 - Generation du document
 
-### Backend erreurs
+- [ ] Creer la previsualisation du plan de chargement.
+- [ ] Reproduire l'en-tete du navire, du voyage et du port.
+- [ ] Afficher les lignes groupees par date de chargement.
+- [ ] Afficher le poids total en tonnes.
+- [ ] Ajouter l'impression.
+- [ ] Ajouter l'export PDF.
+- [ ] Conserver la version generee et sa date d'export.
 
-- Vérifier `.env` (DATABASE_URL, JWT_SECRET)
-- Vérifier migrations: `npx prisma migrate status`
-- Vérifier logs serveur pour erreurs
+### Phase 4 - Optimisation du chargement
 
-### CORS / Cookies
+- [ ] Ajouter dimensions et volume des marchandises.
+- [ ] Ajouter zones et capacites physiques du navire.
+- [ ] Gerer les marchandises dangereuses et les incompatibilites.
+- [ ] Gerer l'ordre des escales et dechargements.
+- [ ] Implementer un calcul d'affectation par zone.
+- [ ] Ajouter les controles d'equilibrage du navire.
 
-- Frontend: `withCredentials: true` (déjà dans axiosInstance)
-- Backend: `sameSite: "lax"` configuré pour dev
+## Checkpoints de suivi
 
-## 📞 Contacts & Support
+Mettre a jour cette section a chaque etape importante. Une case ne doit etre cochee qu'apres verification dans le code et un test de fonctionnement.
 
-Pour questions spécifiques:
+### Checkpoint 0 - Socle existant
 
-1. **Frontend** → Voir [client/README.md](./client/README.md)
-2. **Backend** → Voir [server/README.md](./server/README.md)
-3. **Architecture** → Consulter ce fichier
+- [x] Architecture client/serveur identifiee.
+- [x] Authentification et autorisations de base disponibles.
+- [x] Entites administratives existantes.
+- [x] Migrations Prisma existantes verifiees.
+- [ ] Tests automatises du socle ajoutes.
 
-## 📈 Roadmap Maintenance
+### Checkpoint 1 - Modele maritime
 
-- [ ] Tester chaque nouveau module
-- [ ] Mettre à jour README si architecture change
-- [ ] Surveiller migrations Prisma
-- [ ] Auditeur sécurité JWT/cookies
-- [ ] Optimiser bundle Vite (lazy loading)
-- [ ] Ajouter tests unitaires
+- [ ] Navire persiste en base.
+- [ ] Port persiste en base.
+- [ ] Voyage persiste en base.
+- [ ] Capacite du navire controlee.
+- [ ] CRUD et validations testes.
 
-## ✅ Checklist Avant Production
+### Checkpoint 2 - Marchandises
 
-- [ ] Variables `.env` configurées
-- [ ] Database PostgreSQL live
-- [ ] CORS configuré pour domaine prod
-- [ ] JWT_SECRET sécurisé
-- [ ] Cookie secure: true (HTTPS)
-- [ ] Build optimisé frontend
-- [ ] Tests login flow end-to-end
+- [ ] Vehicule distingue du chauffeur.
+- [ ] Ligne de marchandise persistee.
+- [ ] Client relie a la marchandise.
+- [ ] Poids et nombre de colis valides.
+- [ ] Totaux recalcules cote serveur.
 
----
+### Checkpoint 3 - Plan de chargement
 
-**Version**: 1.0  
-**Architecture**: Feature-Based Modularity  
-**Dernière mise à jour**: 2026-07-18
+- [ ] Plan cree depuis un voyage.
+- [ ] Plusieurs lignes ajoutees et modifiees.
+- [ ] Statut et validation geres.
+- [ ] Audit de la validation disponible.
+- [ ] Permissions metier appliquees.
 
-**Développé avec ❤️ pour la gestion maritime**
+### Checkpoint 4 - Document final
+
+- [ ] Previsualisation conforme au modele fourni.
+- [ ] Poids total affiche correctement.
+- [ ] Impression disponible.
+- [ ] PDF genere.
+- [ ] Historique des exports conserve.
+
+## Tests et qualite
+
+Le serveur declare actuellement un script de test placeholder. La couverture applicative reste donc a construire.
+
+- [ ] Ajouter des tests unitaires des services metier.
+- [ ] Ajouter des tests de validation des poids, colis et dates.
+- [ ] Ajouter des tests d'integration des routes API.
+- [ ] Tester les permissions par role et par action.
+- [ ] Tester la generation du document avec le cas des `95,444 tonnes`.
+- [ ] Ajouter un controle de build frontend dans chaque checkpoint.
+- [ ] Ajouter une verification Prisma apres chaque migration.
+
+Commandes de verification minimales :
+
+```bash
+cd client
+npm run build
+
+cd ../server
+npx prisma validate
+npx prisma migrate status
+```
+
+## Documentation associee
+
+- [Documentation client](./client/README.md)
+- [Documentation serveur](./server/README.md)
+- [Schema Prisma](./server/prisma/schema.prisma)
+- [Routes API](./server/src/modules/_routes.js)
+- [Configuration des routes frontend](./client/src/core/routes/routeConfig.jsx)
+
+## Regles de mise a jour du README
+
+Lorsqu'une fonctionnalite est terminee :
+
+1. Cocher la fonctionnalite correspondante.
+2. Ajouter la migration, la route ou l'ecran concerne dans la section appropriee.
+3. Decrire la verification effectuee dans le checkpoint.
+4. Deplacer les elements termines hors de la feuille de route.
+5. Mettre a jour la date de reference en haut du document.
+
+Ce README est le tableau de bord documentaire du projet : il doit decrire l'etat du code, pas seulement l'architecture souhaitee.

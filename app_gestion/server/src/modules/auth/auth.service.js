@@ -14,7 +14,10 @@ const getAccessTokenSecret = () => {
 
 const getRefreshTokenSecret = () => {
   if (!process.env.JWT_REFRESH_SECRET) {
-    throw new AppError("JWT_REFRESH_SECRET est manquant dans l'environnement.", 500);
+    throw new AppError(
+      "JWT_REFRESH_SECRET est manquant dans l'environnement.",
+      500,
+    );
   }
 
   return process.env.JWT_REFRESH_SECRET;
@@ -133,7 +136,10 @@ const rotateRefreshToken = async (refreshTokenValue) => {
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const newRefresh = createRefreshToken(currentToken.employeeId, currentToken.familyId);
+    const newRefresh = createRefreshToken(
+      currentToken.employeeId,
+      currentToken.familyId,
+    );
     const newExpiresAt = new Date(Date.now() + getRefreshTokenLifetimeMs());
 
     const createdRefresh = await tx.refreshToken.create({
@@ -183,6 +189,7 @@ const loginEmployee = async ({ identifier, password }) => {
       hasAppAccess: true,
       isActive: true,
       deletedAt: true,
+      department: departmentSelect,
       permissions: { select: { module: true, action: true } },
     },
   });
