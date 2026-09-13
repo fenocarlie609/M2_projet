@@ -1,5 +1,9 @@
-import { FiAnchor } from "react-icons/fi";
-import { MdSpaceDashboard, MdViewModule } from "react-icons/md";
+import { FiAnchor, FiClipboard } from "react-icons/fi";
+import {
+  MdDirectionsBoat,
+  MdSpaceDashboard,
+  MdViewModule,
+} from "react-icons/md";
 import { FaUserTie, FaTruck, FaUserLock } from "react-icons/fa";
 import { IoIosSettings } from "react-icons/io";
 import { FaUsers } from "react-icons/fa6";
@@ -12,6 +16,8 @@ import { TemplatePage } from "@/features/template";
 import { ClientPage } from "@/features/client";
 import { DriverPage } from "@/features/driver";
 import { ModulePage } from "@/features/module";
+import { MaritimePage } from "@/features/maritime";
+import { LoadingPlansPage } from "@/features/loadingPlans";
 
 const withDashboardLayout = (page) => (
   <dashboard.DashboardLayout>{page}</dashboard.DashboardLayout>
@@ -61,6 +67,24 @@ export const appRoutes = [
     element: withDashboardLayout(<DriverPage />),
     requiredPermission: { module: "DRIVER", action: "READ" },
     icon: FaTruck,
+    showInSidebar: true,
+  },
+  {
+    path: "/maritime",
+    label: "Référentiel maritime",
+    section: "Logistique",
+    element: withDashboardLayout(<MaritimePage />),
+    requiredPermission: { module: "VESSELS", action: "READ" },
+    icon: MdDirectionsBoat,
+    showInSidebar: true,
+  },
+  {
+    path: "/loading-plans",
+    label: "Plans de chargement",
+    section: "Logistique",
+    element: withDashboardLayout(<LoadingPlansPage />),
+    requiredPermission: { module: "LOADING_PLANS", action: "READ" },
+    icon: FiClipboard,
     showInSidebar: true,
   },
   {

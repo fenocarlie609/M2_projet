@@ -4,9 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run test:unit",
+    "test:unit": "node --test test/unit/logistics-validation.test.js",
+    "test:integration": "node --test test/integration/logistics-data.test.js",
     "dev": "npx dotenv -e .env.development -- nodemon server.js",
-    "start": "npx dotenv -e .env.production -- node server.js"
+    "start": "npx dotenv -e .env.production -- node server.js",
+    "seed:loading": "node prisma/seedLoadingPlan.js"
   },
   "keywords": [],
   "author": "",

@@ -89,6 +89,8 @@ model Employee {
   auditLogs     AuditLog[]
   notificationRead NotificationRead[]
   refreshTokens RefreshToken[]
+  validatedLoadingPlans LoadingPlan[] @relation("LoadingPlanValidator")
+  loadedCargoLines CargoLine[] @relation("CargoLineLoader")
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -147,6 +149,7 @@ model Client {
   name      String
   type      EntityType @default(INDIVIDUAL)
   phone     String?
+  cargoLines CargoLine[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -159,10 +162,152 @@ model Driver {
   type         EntityType @default(INDIVIDUAL)
   licensePlate String
   phone        String?
+  cargoLines   CargoLine[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   @@map("drivers")
+}
+
+// ==========================================
+// 3. DONNÉES MARITIMES
+// ==========================================
+
+model Vessel {
+  id                   String   @id @default(uuid())
+  name                 String
+  operatorName         String?
+  registrationNumber   String?  @unique
+  capacityTons         Decimal?
+  status               String   @default("ACTIVE")
+
+  voyages              Voyage[]
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  deletedAt            DateTime?
+
+  @@index([status])
+  @@index([deletedAt])
+  @@map("vessels")
+}
+
+model Port {
+  id                   String   @id @default(uuid())
+  code                 String   @unique
+  name                 String
+  country              String?
+
+  departureVoyages     Voyage[] @relation("DeparturePort")
+  arrivalVoyages       Voyage[] @relation("ArrivalPort")
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  deletedAt            DateTime?
+
+  @@index([deletedAt])
+  @@map("ports")
+}
+
+model Voyage {
+  id                   String   @id @default(uuid())
+  vesselId             String
+  departurePortId      String
+  arrivalPortId        String
+  voyageNumber         String
+  departureDate        DateTime?
+  arrivalDate          DateTime?
+  status               String   @default("DRAFT")
+
+  vessel               Vessel   @relation(fields: [vesselId], references: [id])
+  departurePort        Port     @relation("DeparturePort", fields: [departurePortId], references: [id])
+  arrivalPort          Port     @relation("ArrivalPort", fields: [arrivalPortId], references: [id])
+  loadingPlans         LoadingPlan[]
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  deletedAt            DateTime?
+
+  @@unique([vesselId, voyageNumber])
+  @@index([departurePortId])
+  @@index([arrivalPortId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("voyages")
+}
+
+model Vehicle {
+  id                   String   @id @default(uuid())
+  licensePlate         String   @unique
+  type                 String?
+  capacityTons         Decimal?
+  status               String   @default("ACTIVE")
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  deletedAt            DateTime?
+  cargoLines           CargoLine[]
+
+  @@index([status])
+  @@index([deletedAt])
+  @@map("vehicles")
+}
+
+model LoadingPlan {
+  id             String   @id @default(uuid())
+  reference      String   @unique
+  voyageId       String
+  status         String   @default("DRAFT")
+  totalWeightKg  Decimal  @default(0)
+  validatedAt    DateTime?
+  validatedById  String?
+
+  voyage         Voyage   @relation(fields: [voyageId], references: [id])
+  validatedBy    Employee? @relation("LoadingPlanValidator", fields: [validatedById], references: [id])
+  cargoLines     CargoLine[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  @@index([voyageId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("loading_plans")
+}
+
+model CargoLine {
+  id             String   @id @default(uuid())
+  loadingPlanId  String
+  clientId       String
+  driverId       String?
+  vehicleId      String?
+  loadedById     String?
+  loadingDate    DateTime?
+  packageCount   Int
+  description    String
+  weightKg       Decimal
+  anomaly        String?
+  loadingPosition String?
+  isHazardous    Boolean  @default(false)
+  status         String   @default("PENDING")
+
+  loadingPlan    LoadingPlan @relation(fields: [loadingPlanId], references: [id], onDelete: Cascade)
+  client         Client      @relation(fields: [clientId], references: [id])
+  driver         Driver?     @relation(fields: [driverId], references: [id])
+  vehicle        Vehicle?    @relation(fields: [vehicleId], references: [id])
+  loadedBy       Employee?   @relation("CargoLineLoader", fields: [loadedById], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  @@index([loadingPlanId])
+  @@index([clientId])
+  @@index([loadingDate])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("cargo_lines")
 }
 
 model Notification {

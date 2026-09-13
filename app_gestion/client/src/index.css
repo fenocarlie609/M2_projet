@@ -29,6 +29,18 @@
   --shadow-glass: 0 8px 32px 0 rgba(0, 31, 63, 0.04);
 }
 
+@keyframes loadingBar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
 /* Conteneur de la notification */
 .Toastify__toast {
   background-color: #0f172a !important; /* Slate-900 */

@@ -32,18 +32,18 @@ L'objectif fonctionnel est de faire evoluer l'application vers la gestion comple
 
 ## Etat global
 
-| Domaine                  | Etat         | Commentaire                                               |
-| ------------------------ | ------------ | --------------------------------------------------------- |
-| Architecture modulaire   | Termine      | Organisation frontend par features et backend par modules |
-| Authentification         | Termine      | JWT, cookies, refresh tokens et rotation                  |
-| Securite API             | Partiel      | Protection principale en place, sanitation a finaliser    |
-| Administration           | Partiel      | Employes, utilisateurs, permissions et structure interne  |
-| Clients et chauffeurs    | Partiel      | CRUD presents, mais pas encore relies a une cargaison     |
-| Suivi maritime           | Non commence | Navires, ports et voyages absents du modele metier        |
-| Gestion des marchandises | Non commence | Aucun modele persiste de cargaison ou de ligne de fret    |
-| Plan de chargement       | Non commence | La page Template est une maquette UI non connectee        |
-| Export PDF / impression  | Non commence | A concevoir apres stabilisation du manifeste              |
-| Tests automatises        | Non commence | Aucun script de test applicatif configure                 |
+| Domaine                  | Etat         | Commentaire                                                    |
+| ------------------------ | ------------ | -------------------------------------------------------------- |
+| Architecture modulaire   | Termine      | Organisation frontend par features et backend par modules      |
+| Authentification         | Termine      | JWT, cookies, refresh tokens et rotation                       |
+| Securite API             | Partiel      | Protection principale en place, sanitation a finaliser         |
+| Administration           | Partiel      | Employes, utilisateurs, permissions et structure interne       |
+| Clients et chauffeurs    | Partiel      | CRUD presents, mais pas encore relies a une cargaison          |
+| Suivi maritime           | Partiel      | Modeles, routes CRUD et premier ecran de reference disponibles |
+| Gestion des marchandises | Partiel      | API et saisie de lignes disponibles, tests metier a completer  |
+| Plan de chargement       | Partiel      | Creation, lignes et total disponibles, export encore a venir   |
+| Export PDF / impression  | Non commence | A concevoir apres stabilisation du manifeste                   |
+| Tests automatises        | Non commence | Aucun script de test applicatif configure                      |
 
 ## Fonctionnalites realisees
 
@@ -97,9 +97,10 @@ L'objectif fonctionnel est de faire evoluer l'application vers la gestion comple
 La page `client/src/features/template/pages/TemplatePage.jsx` est actuellement un laboratoire visuel. Elle contient des exemples de formulaire, de calendrier et de manifeste, mais :
 
 - [ ] le formulaire n'enregistre pas de donnees dans PostgreSQL ;
-- [ ] aucun appel API de cargaison n'est effectue ;
-- [ ] aucun modele `Vessel`, `Voyage`, `LoadingPlan` ou `CargoLine` n'existe ;
-- [ ] aucun calcul de poids total n'est implemente ;
+- [ ] cette maquette Template n'enregistre pas de donnees dans PostgreSQL ;
+- [ ] la maquette Template n'est pas encore remplacee par l'ecran metier `/loading-plans` ;
+- [x] les routes API `LoadingPlan` et `CargoLine` sont disponibles dans le module dedie ;
+- [x] le poids total est recalcule cote serveur et affiche en tonnes ;
 - [ ] aucun export PDF ou impression du plan n'est disponible ;
 - [ ] aucune validation metier ne bloque la surcharge d'un navire ;
 - [ ] aucun workflow brouillon, soumis, valide ou cloture n'est implemente.
@@ -137,6 +138,7 @@ app_gestion/
 - `clients`
 - `drivers`
 - `notifications`
+- `maritime`
 
 ### Modeles Prisma actuellement disponibles
 
@@ -151,6 +153,10 @@ app_gestion/
 - `Notification`
 - `NotificationRead`
 - `RefreshToken`
+- `Vessel`
+- `Port`
+- `Voyage`
+- `Vehicle`
 
 ## Installation
 
@@ -278,12 +284,12 @@ Vessel
 
 ### Donnees a ajouter
 
-- [ ] `Vessel` : nom, armateur, numero d'immatriculation et capacite.
-- [ ] `Port` : code, nom et pays.
-- [ ] `Voyage` : navire, ports, dates, numero et statut.
-- [ ] `Vehicle` : immatriculation, type et capacite.
-- [ ] `LoadingPlan` : reference, voyage, statut, total et validation.
-- [ ] `CargoLine` : client, chauffeur, vehicule, colis, description, poids, anomalie et position.
+- [x] `Vessel` : nom, armateur, numero d'immatriculation et capacite.
+- [x] `Port` : code, nom et pays.
+- [x] `Voyage` : navire, ports, dates, numero et statut.
+- [x] `Vehicle` : immatriculation, type et capacite.
+- [x] `LoadingPlan` : reference, voyage, statut, total et validation.
+- [x] `CargoLine` : client, chauffeur, vehicule, colis, description, poids, anomalie et position.
 - [ ] Historique des changements et versions du plan.
 
 Les poids doivent etre stockes en kilogrammes, puis affiches en tonnes :
@@ -296,13 +302,19 @@ Pour le document de reference, le total attendu est de `95,444 tonnes`.
 
 ### Routes API a implementer
 
-- [ ] `GET/POST /api/v1/vessels`
-- [ ] `GET/POST/PUT /api/v1/voyages`
-- [ ] `GET/POST /api/v1/loading-plans`
-- [ ] `GET/PUT/DELETE /api/v1/loading-plans/:id`
-- [ ] `POST /api/v1/loading-plans/:id/lines`
-- [ ] `PUT/DELETE /api/v1/loading-plans/:id/lines/:lineId`
-- [ ] `POST /api/v1/loading-plans/:id/validate`
+- [x] `GET/POST /api/v1/maritime/vessels`
+- [x] `GET/POST/PUT/DELETE /api/v1/maritime/vessels/:id`
+- [x] `GET/POST /api/v1/maritime/ports`
+- [x] `GET/POST/PUT/DELETE /api/v1/maritime/ports/:id`
+- [x] `GET/POST /api/v1/maritime/voyages`
+- [x] `GET/POST/PUT/DELETE /api/v1/maritime/voyages/:id`
+- [x] `GET/POST /api/v1/maritime/vehicles`
+- [x] `GET/POST/PUT/DELETE /api/v1/maritime/vehicles/:id`
+- [x] `GET/POST /api/v1/loading-plans`
+- [x] `GET/PUT/DELETE /api/v1/loading-plans/:id`
+- [x] `POST /api/v1/loading-plans/:id/lines`
+- [x] `PUT/DELETE /api/v1/loading-plans/:id/lines/:lineId`
+- [x] `POST /api/v1/loading-plans/:id/validate`
 - [ ] `GET /api/v1/loading-plans/:id/export`
 
 ### Regles metier a implementer
@@ -321,18 +333,24 @@ Pour le document de reference, le total attendu est de `95,444 tonnes`.
 
 ### Phase 1 - Fondations logistiques
 
-- [ ] Ajouter les modeles Prisma `Vessel`, `Port`, `Voyage`, `Vehicle`, `LoadingPlan` et `CargoLine`.
-- [ ] Creer et verifier la migration.
+- [x] Ajouter les modeles Prisma `Vessel`, `Port`, `Voyage` et `Vehicle`.
+- [x] Ajouter les modeles Prisma `LoadingPlan` et `CargoLine`.
+- [x] Creer et verifier la migration `add_maritime_models`.
+- [x] Creer et verifier la migration `add_loading_plans_and_cargo_lines`.
 - [ ] Ajouter les permissions `VESSELS`, `VOYAGES`, `LOADING_PLANS` et `CARGO`.
-- [ ] Ajouter le module backend `loading-plans` selon le pattern controller/service/routes/validation.
+- [x] Ajouter le module backend `maritime` selon le pattern controller/service/routes/validation.
+- [x] Ajouter le module backend `loading-plans` selon le pattern controller/service/routes/validation.
 - [ ] Ajouter des donnees de demonstration coherentes avec le document de reference.
+- [x] Ajouter un seed rejouable avec plusieurs navires, voyages, clients et plans de chargement.
 
 ### Phase 2 - Saisie et suivi
 
-- [ ] Creer l'ecran de gestion des navires.
-- [ ] Creer l'ecran de creation d'un voyage.
+- [x] Creer l'ecran de gestion des navires, ports et vehicules.
+- [x] Creer l'ecran de creation et de modification d'un voyage.
+- [x] Connecter le referentiel maritime aux routes CRUD de l'API.
 - [ ] Remplacer la maquette Template par un formulaire connecte a l'API.
-- [ ] Ajouter une saisie dynamique de plusieurs lignes de marchandises.
+- [x] Ajouter une saisie dynamique de plusieurs lignes de marchandises.
+- [x] Afficher le poids total du plan et la capacite du navire.
 - [ ] Afficher les totaux par date, client et voyage.
 - [ ] Ajouter les statuts `DRAFT`, `SUBMITTED`, `VALIDATED`, `CLOSED`.
 
@@ -369,27 +387,29 @@ Mettre a jour cette section a chaque etape importante. Une case ne doit etre coc
 
 ### Checkpoint 1 - Modele maritime
 
-- [ ] Navire persiste en base.
-- [ ] Port persiste en base.
-- [ ] Voyage persiste en base.
+- [x] Navire persiste en base.
+- [x] Port persiste en base.
+- [x] Voyage persiste en base.
+- [x] Vehicule persiste en base.
 - [ ] Capacite du navire controlee.
 - [ ] CRUD et validations testes.
 
 ### Checkpoint 2 - Marchandises
 
-- [ ] Vehicule distingue du chauffeur.
-- [ ] Ligne de marchandise persistee.
-- [ ] Client relie a la marchandise.
+- [x] Vehicule distingue du chauffeur.
+- [x] Ligne de marchandise persistee.
+- [x] Client relie a la marchandise.
 - [ ] Poids et nombre de colis valides.
 - [ ] Totaux recalcules cote serveur.
 
 ### Checkpoint 3 - Plan de chargement
 
-- [ ] Plan cree depuis un voyage.
-- [ ] Plusieurs lignes ajoutees et modifiees.
-- [ ] Statut et validation geres.
+- [x] API de creation du plan reliee a un voyage.
+- [x] API d'ajout, modification et suppression des lignes disponible.
+- [x] API de validation et controle de capacite disponible.
 - [ ] Audit de la validation disponible.
-- [ ] Permissions metier appliquees.
+- [ ] Tests HTTP des parcours complets realises.
+- [ ] Permissions metier attribuees et testees.
 
 ### Checkpoint 4 - Document final
 
@@ -403,9 +423,9 @@ Mettre a jour cette section a chaque etape importante. Une case ne doit etre coc
 
 Le serveur declare actuellement un script de test placeholder. La couverture applicative reste donc a construire.
 
-- [ ] Ajouter des tests unitaires des services metier.
-- [ ] Ajouter des tests de validation des poids, colis et dates.
-- [ ] Ajouter des tests d'integration des routes API.
+- [x] Ajouter des tests unitaires des validations metier.
+- [x] Tester les validations des poids, colis et dates.
+- [x] Ajouter un test d'integration des donnees logistiques seedees.
 - [ ] Tester les permissions par role et par action.
 - [ ] Tester la generation du document avec le cas des `95,444 tonnes`.
 - [ ] Ajouter un controle de build frontend dans chaque checkpoint.
@@ -421,6 +441,16 @@ cd ../server
 npx prisma validate
 npx prisma migrate status
 ```
+
+Tests du module logistique :
+
+```bash
+cd server
+npm test
+npm run test:integration
+```
+
+Le test d'integration suppose que les donnees de demonstration ont ete chargees avec `npm run seed:loading`.
 
 ## Documentation associee
 

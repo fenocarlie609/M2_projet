@@ -15,6 +15,12 @@ async function main() {
     { code: "EMPLOYEES", label: "Employés" },
     { code: "USERS", label: "Utilisateurs & Accès" },
     { code: "DEPARTMENTS", label: "Départements & Postes" },
+    { code: "VESSELS", label: "Navires" },
+    { code: "PORTS", label: "Ports" },
+    { code: "VOYAGES", label: "Voyages maritimes" },
+    { code: "VEHICLES", label: "Véhicules" },
+    { code: "LOADING_PLANS", label: "Plans de chargement" },
+    { code: "CARGO", label: "Marchandises" },
     // TODO: ajouter les autres modules réels (ex: "CHARGEMENT", "AUDIT", ...)
   ];
 

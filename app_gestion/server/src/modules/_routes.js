@@ -37,6 +37,8 @@ const { moduleRoutes } = require("./modules");
 const { clientRoutes } = require("./clients");
 const { driverRoutes } = require("./driver");
 const { notificationRoutes } = require("./notifications");
+const { maritimeRoutes } = require("./maritime");
+const { loadingPlanRoutes } = require("./loading-plans");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -47,5 +49,7 @@ router.use("/uploads", uploadRoutes);
 router.use("/clients", clientRoutes);
 router.use("/drivers", driverRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/maritime", maritimeRoutes);
+router.use("/loading-plans", loadingPlanRoutes);
 
 module.exports = router;
