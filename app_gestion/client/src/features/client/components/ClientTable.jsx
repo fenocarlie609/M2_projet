@@ -14,6 +14,11 @@ export function ClientTable({ data, isLoading, onEdit, onDelete }) {
       className: "font-semibold text-slate-900",
     },
     {
+      header: "Référence",
+      key: "reference",
+      render: (row) => row.reference || "—",
+    },
+    {
       header: "Type d'entité",
       key: "type",
       render: (row) => (
@@ -22,6 +27,7 @@ export function ClientTable({ data, isLoading, onEdit, onDelete }) {
         </Badge>
       ),
     },
+    { header: "Email", key: "email", render: (row) => row.email || "—" },
     { header: "Téléphone", key: "phone", render: (row) => row.phone || "—" },
     {
       header: "Actions",

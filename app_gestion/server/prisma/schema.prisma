@@ -18,6 +18,12 @@ enum EntityType {
   INDIVIDUAL   // Particulier / Personne Physique
 }
 
+enum ClientAddressType {
+  BILLING
+  DELIVERY
+  BOTH
+}
+
 // ==========================================
 // 1. ARCHITECTURE INTERNE (EMPLOYÉS & ACCÈS)
 // ==========================================
@@ -145,15 +151,105 @@ model AuditLog {
 // ==========================================
 
 model Client {
-  id        String     @id @default(uuid())
-  name      String
-  type      EntityType @default(INDIVIDUAL)
-  phone     String?
-  cargoLines CargoLine[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                   String          @id @default(uuid())
+  reference            String?         @unique
+  name                 String
+  type                 EntityType      @default(INDIVIDUAL)
+
+  // Identite d'un particulier
+  firstName            String?
+  lastName             String?
+  cin                  String?         @unique
+  cinIssuedAt          DateTime?
+  cinIssuedPlace       String?
+
+  // Identite d'une entreprise
+  legalName            String?
+  tradeName            String?
+  nif                  String?         @unique
+  stat                 String?         @unique
+  rcs                  String?
+  legalForm            String?
+  activity             String?
+
+  // Coordonnees et conditions commerciales
+  email                String?
+  phone                String?
+  secondaryPhone       String?
+  paymentTerms         String?
+  currency             String          @default("MGA")
+  taxExempt            Boolean         @default(false)
+  taxExemptionReason   String?
+  contractNumber       String?
+  habitualCargoType    String?
+
+  // Personne responsable de la reception
+  receptionContactName  String?
+  receptionContactPhone String?
+  receptionContactEmail String?
+
+  isActive             Boolean         @default(true)
+  notes                String?
+  cargoLines           CargoLine[]
+  addresses            ClientAddress[]
+  documents            ClientDocument[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  deletedAt            DateTime?
+
+  @@index([type])
+  @@index([name])
+  @@index([deletedAt])
 
   @@map("clients")
+}
+
+model ClientAddress {
+  id           String            @id @default(uuid())
+  clientId     String
+  type         ClientAddressType
+  label        String?
+  addressLine1 String
+  addressLine2 String?
+  city         String?
+  region       String?
+  postalCode   String?
+  country      String            @default("Madagascar")
+  isDefault    Boolean           @default(false)
+
+  client       Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  @@index([clientId, type])
+  @@index([deletedAt])
+  @@map("client_addresses")
+}
+
+model ClientDocument {
+  id           String   @id @default(uuid())
+  clientId     String
+  documentType String
+  documentNumber String?
+  fileName     String?
+  fileUrl      String?
+  issuedAt     DateTime?
+  expiresAt    DateTime?
+  verifiedAt   DateTime?
+  notes        String?
+
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@index([clientId, documentType])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@map("client_documents")
 }
 
 model Driver {

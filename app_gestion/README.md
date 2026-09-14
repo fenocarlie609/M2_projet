@@ -38,7 +38,7 @@ L'objectif fonctionnel est de faire evoluer l'application vers la gestion comple
 | Authentification         | Termine      | JWT, cookies, refresh tokens et rotation                       |
 | Securite API             | Partiel      | Protection principale en place, sanitation a finaliser         |
 | Administration           | Partiel      | Employes, utilisateurs, permissions et structure interne       |
-| Clients et chauffeurs    | Partiel      | CRUD presents, mais pas encore relies a une cargaison          |
+| Clients et chauffeurs    | Partiel      | Fiches clients enrichies et clients relies aux marchandises    |
 | Suivi maritime           | Partiel      | Modeles, routes CRUD et premier ecran de reference disponibles |
 | Gestion des marchandises | Partiel      | API et saisie de lignes disponibles, tests metier a completer  |
 | Plan de chargement       | Partiel      | Creation, lignes et total disponibles, export encore a venir   |
@@ -76,6 +76,7 @@ L'objectif fonctionnel est de faire evoluer l'application vers la gestion comple
 - [x] Gestion des departements.
 - [x] Gestion des postes.
 - [x] Gestion des clients.
+- [x] Fiche Client enrichie avec identite, fiscalite, adresses et documents.
 - [x] Gestion des chauffeurs.
 - [x] Gestion des modules applicatifs.
 - [x] Gestion des notifications.
@@ -127,6 +128,27 @@ app_gestion/
 └── vitrine/                # Site vitrine independant
 ```
 
+### Convention frontend des features
+
+Les modules CRUD simples suivent la structure de reference du module Client :
+
+```text
+feature/
+├── components/
+├── pages/
+├── service/
+└── index.js
+```
+
+- [x] `client` sert de module de reference avec un formulaire et une modale partages.
+- [x] `driver` utilise une modale unique pour la creation et la modification.
+- [x] `module` utilise maintenant `ModuleModal` et un service dans `service/`.
+- [x] `employee` utilise maintenant `EmployeeModal`, un service dans `service/` et une page `EmployeePage.jsx`.
+- [x] `companyStructure` utilise maintenant un service dans `service/`.
+- [x] `maritime` et `loadingPlans` suivent deja cette convention.
+- [ ] `users` reste organise par operations specialisees : acces, permissions et mot de passe.
+- [ ] `companyStructure` peut encore fusionner ses formulaires par sous-entite si le besoin apparait, mais departements et postes restent volontairement distincts.
+
 ### Modules backend actuellement enregistres
 
 - `auth`
@@ -149,6 +171,8 @@ app_gestion/
 - `EmployeePermission`
 - `AuditLog`
 - `Client`
+- `ClientAddress`
+- `ClientDocument`
 - `Driver`
 - `Notification`
 - `NotificationRead`
@@ -348,6 +372,7 @@ Pour le document de reference, le total attendu est de `95,444 tonnes`.
 - [x] Creer l'ecran de gestion des navires, ports et vehicules.
 - [x] Creer l'ecran de creation et de modification d'un voyage.
 - [x] Connecter le referentiel maritime aux routes CRUD de l'API.
+- [x] Mettre a jour le formulaire Client avec les donnees d'identite, facturation et livraison.
 - [ ] Remplacer la maquette Template par un formulaire connecte a l'API.
 - [x] Ajouter une saisie dynamique de plusieurs lignes de marchandises.
 - [x] Afficher le poids total du plan et la capacite du navire.
@@ -424,6 +449,7 @@ Mettre a jour cette section a chaque etape importante. Une case ne doit etre coc
 Le serveur declare actuellement un script de test placeholder. La couverture applicative reste donc a construire.
 
 - [x] Ajouter des tests unitaires des validations metier.
+- [x] Tester les identites Client, adresses, documents et exonération fiscale.
 - [x] Tester les validations des poids, colis et dates.
 - [x] Ajouter un test d'integration des donnees logistiques seedees.
 - [ ] Tester les permissions par role et par action.

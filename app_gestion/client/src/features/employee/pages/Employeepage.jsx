@@ -6,8 +6,7 @@ import { FiPlus } from "react-icons/fi";
 import {
   employeeService,
   EmployeeTable,
-  EmployeeAddModal,
-  EmployeeEditModal,
+  EmployeeModal,
   EmployeeCard,
 } from "@/features/employee";
 
@@ -15,8 +14,7 @@ function EmployeePage() {
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -69,12 +67,12 @@ function EmployeePage() {
     } else {
       fetchEmployees();
     }
-    setIsAddModalOpen(false);
+    setIsModalOpen(false);
   };
 
   const handleOpenEdit = (employee) => {
     setSelectedEmployee(employee);
-    setIsEditModalOpen(true);
+    setIsModalOpen(true);
   };
 
   const handleUpdateEmployee = async (employeeId, updatedData) => {
@@ -90,7 +88,6 @@ function EmployeePage() {
       } else {
         fetchEmployees();
       }
-      setIsEditModalOpen(false);
     } catch (error) {
       console.error("Erreur lors de la mise à jour de l'employé :", error);
     } finally {
@@ -124,7 +121,10 @@ function EmployeePage() {
         <Button
           variant="primary"
           icon={FiPlus}
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            setSelectedEmployee(null);
+            setIsModalOpen(true);
+          }}
         >
           Ajouter un employé
         </Button>
@@ -151,19 +151,14 @@ function EmployeePage() {
         ))}
       </div>
 
-      <EmployeeAddModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onEmployeeCreated={handleCreateEmployee}
-      />
-
-      <EmployeeEditModal
-        isOpen={isEditModalOpen}
+      <EmployeeModal
+        isOpen={isModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
+          setIsModalOpen(false);
           setSelectedEmployee(null);
         }}
         selectedEmployee={selectedEmployee}
+        onEmployeeCreated={handleCreateEmployee}
         onEmployeeUpdated={handleUpdateEmployee}
       />
 

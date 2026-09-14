@@ -1,4 +1,3 @@
-// src/features/module/services/modules.service.js
 import { createCrudService } from "@/shared/services/";
 
 const modulesCrud = createCrudService("/modules");

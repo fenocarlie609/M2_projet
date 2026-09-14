@@ -7,16 +7,14 @@ import {
   clientService,
   ClientTable,
   ClientCard,
-  ClientAddModal,
-  ClientEditModal,
+  ClientModal,
 } from "@/features/client";
 
 function ClientPage() {
   const [clients, setClients] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
   const [selectedClient, setSelectedClient] = useState(null);
@@ -74,7 +72,7 @@ function ClientPage() {
 
   const handleOpenEdit = (client) => {
     setSelectedClient(client);
-    setIsEditModalOpen(true);
+    setIsClientModalOpen(true);
   };
 
   const handleUpdateClient = async (clientId, updatedData) => {
@@ -89,8 +87,7 @@ function ClientPage() {
       }
     } catch (error) {
       console.error("Erreur lors de la mise à jour du client :", error);
-    } finally {
-      setSelectedClient(null);
+      throw error;
     }
   };
 
@@ -123,7 +120,10 @@ function ClientPage() {
         <Button
           variant="primary"
           icon={FiPlus}
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            setSelectedClient(null);
+            setIsClientModalOpen(true);
+          }}
         >
           Ajouter un client
         </Button>
@@ -140,7 +140,7 @@ function ClientPage() {
       </div>
 
       {/* Vue Cards : Écrans Mobile */}
-      <div className="block md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid md:hidden grid-cols-1 sm:grid-cols-2 gap-4">
         {clients.length === 0 && !isLoading && (
           <p className="text-sm text-slate-400 text-center py-6">
             Aucun client enregistré.
@@ -156,19 +156,14 @@ function ClientPage() {
         ))}
       </div>
 
-      <ClientAddModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onClientCreated={handleCreateClient}
-      />
-
-      <ClientEditModal
-        isOpen={isEditModalOpen}
+      <ClientModal
+        isOpen={isClientModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
+          setIsClientModalOpen(false);
           setSelectedClient(null);
         }}
         selectedClient={selectedClient}
+        onClientCreated={handleCreateClient}
         onClientUpdated={handleUpdateClient}
       />
 
