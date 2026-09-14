@@ -1,6 +1,7 @@
 import { FiAnchor, FiClipboard } from "react-icons/fi";
 import {
   MdDirectionsBoat,
+  MdLocationOn,
   MdSpaceDashboard,
   MdViewModule,
 } from "react-icons/md";
@@ -16,8 +17,10 @@ import { TemplatePage } from "@/features/template";
 import { ClientPage } from "@/features/client";
 import { DriverPage } from "@/features/driver";
 import { ModulePage } from "@/features/module";
-import { MaritimePage } from "@/features/maritime";
 import { LoadingPlansPage } from "@/features/loadingPlans";
+import { ShipPage } from "@/features/ship";
+import { PortPage } from "@/features/ports";
+import { VoyagePage } from "@/features/voyages";
 
 const withDashboardLayout = (page) => (
   <dashboard.DashboardLayout>{page}</dashboard.DashboardLayout>
@@ -70,12 +73,30 @@ export const appRoutes = [
     showInSidebar: true,
   },
   {
-    path: "/maritime",
-    label: "Référentiel maritime",
+    path: "/ship",
+    label: "Navires",
     section: "Logistique",
-    element: withDashboardLayout(<MaritimePage />),
-    requiredPermission: { module: "VESSELS", action: "READ" },
+    element: withDashboardLayout(<ShipPage />),
+    requiredPermission: { module: "SHIP", action: "READ" },
     icon: MdDirectionsBoat,
+    showInSidebar: true,
+  },
+  {
+    path: "/ports",
+    label: "Ports",
+    section: "Logistique",
+    element: withDashboardLayout(<PortPage />),
+    requiredPermission: { module: "PORTS", action: "READ" },
+    icon: MdLocationOn,
+    showInSidebar: true,
+  },
+  {
+    path: "/voyages",
+    label: "Voyages",
+    section: "Logistique",
+    element: withDashboardLayout(<VoyagePage />),
+    requiredPermission: { module: "VOYAGES", action: "READ" },
+    icon: FiAnchor,
     showInSidebar: true,
   },
   {
