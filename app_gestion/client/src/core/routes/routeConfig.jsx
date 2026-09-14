@@ -65,8 +65,8 @@ export const appRoutes = [
   },
   {
     path: "/driver",
-    label: "chauffeur",
-    section: "Commercial",
+    label: "Transporteurs",
+    section: "Logistique",
     element: withDashboardLayout(<DriverPage />),
     requiredPermission: { module: "DRIVER", action: "READ" },
     icon: FaTruck,
