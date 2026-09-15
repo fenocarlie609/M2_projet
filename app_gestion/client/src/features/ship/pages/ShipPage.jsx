@@ -19,7 +19,7 @@ function ShipPage() {
     try {
       setIsLoading(true);
       const response = await shipService.getShips();
-      setShips(response.data?.ships || []);
+      setShips(response.data?.vessels || []);
     } catch (error) {
       console.error("Erreur lors de la récupération des navires :", error);
     } finally {

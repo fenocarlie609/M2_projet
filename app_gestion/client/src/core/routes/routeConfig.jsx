@@ -77,7 +77,7 @@ export const appRoutes = [
     label: "Navires",
     section: "Logistique",
     element: withDashboardLayout(<ShipPage />),
-    requiredPermission: { module: "SHIP", action: "READ" },
+    requiredPermission: { module: "VESSELS", action: "READ" },
     icon: MdDirectionsBoat,
     showInSidebar: true,
   },

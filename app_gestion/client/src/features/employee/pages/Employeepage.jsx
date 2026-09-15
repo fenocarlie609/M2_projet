@@ -1,4 +1,3 @@
-// src/features/employee/pages/EmployeePage.jsx
 import React, { useEffect, useState } from "react";
 import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
@@ -42,7 +41,10 @@ function EmployeePage() {
 
       const { action } = payload;
       if (action === "created" && payload.employee) {
-        setEmployees((prev) => [payload.employee, ...prev]);
+        setEmployees((prev) => {
+          const exists = prev.some((e) => e.id === payload.employee.id);
+          return exists ? prev : [payload.employee, ...prev];
+        });
       } else if (action === "updated" && payload.employee) {
         setEmployees((prev) =>
           prev.map((e) =>
@@ -63,7 +65,11 @@ function EmployeePage() {
   const handleCreateEmployee = async (newEmployeeData) => {
     const response = await employeeService.createEmployee(newEmployeeData);
     if (response?.data?.employee) {
-      setEmployees((prev) => [...prev, response.data.employee]);
+      const newEmp = response.data.employee;
+      setEmployees((prev) => {
+        const exists = prev.some((e) => e.id === newEmp.id);
+        return exists ? prev : [newEmp, ...prev];
+      });
     } else {
       fetchEmployees();
     }
@@ -105,7 +111,7 @@ function EmployeePage() {
     try {
       setIsDeleting(true);
       await employeeService.deleteEmployee(selectedEmployee.id);
-      setEmployees(employees.filter((e) => e.id !== selectedEmployee.id));
+      setEmployees((prev) => prev.filter((e) => e.id !== selectedEmployee.id));
       setIsDeleteAlertOpen(false);
     } catch (error) {
       console.error("Erreur suppression :", error);
@@ -146,7 +152,6 @@ function EmployeePage() {
             employee={employee}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
-            //onViewDetails={(emp) => handleOpenDetailsModal(emp)} // Exemple : Ouvre un Drawer ou un Dialog de détails
           />
         ))}
       </div>

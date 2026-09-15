@@ -89,10 +89,11 @@ export function EmployeeModal({
     (department) => department.id === formData.departmentId,
   );
   const positions = selectedDepartment?.positions || [];
+
   const update = (name, value) => {
     setFormData((current) => ({
       ...current,
-      [name]: name === "departmentId" ? value : value,
+      [name]: value,
       ...(name === "departmentId" ? { positionId: "" } : {}),
     }));
     setError("");
@@ -122,11 +123,14 @@ export function EmployeeModal({
     try {
       setIsSubmitting(true);
       setError("");
+
       const payload = {
         ...formData,
+        matricule: isEditing ? formData.matricule : undefined, // N'envoie pas le matricule si création
         cin: formData.cin || undefined,
         avatarUrl: formData.avatarUrl || undefined,
       };
+
       if (isEditing) await onEmployeeUpdated(selectedEmployee.id, payload);
       else await onEmployeeCreated(payload);
       onClose();
@@ -155,6 +159,7 @@ export function EmployeeModal({
       label: department.label,
     })),
   ];
+
   const positionOptions = [
     {
       value: "",
@@ -210,12 +215,24 @@ export function EmployeeModal({
           onChange={(event) => update("name", event.target.value)}
           required
         />
-        <Input
-          label="Matricule"
-          value={formData.matricule}
-          onChange={(event) => update("matricule", event.target.value)}
-          required
-        />
+
+        {/* Champ Matricule dynamique */}
+        {isEditing ? (
+          <Input
+            label="Matricule"
+            value={formData.matricule}
+            onChange={(event) => update("matricule", event.target.value)}
+            required
+          />
+        ) : (
+          <Input
+            label="Matricule"
+            value="Généré automatiquement à la création"
+            disabled
+            className="bg-slate-100 text-slate-500 cursor-not-allowed italic"
+          />
+        )}
+
         <Input
           label="CIN (optionnel)"
           value={formData.cin}

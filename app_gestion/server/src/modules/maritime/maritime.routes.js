@@ -61,7 +61,7 @@ registerCrudRoutes({
   path: "/voyages",
   resource: "voyage",
   label: "Voyage",
-  module: "VOYAGES",
+  module: "LOADING_PLANS",
   validation: voyageValidation,
 });
 registerCrudRoutes({

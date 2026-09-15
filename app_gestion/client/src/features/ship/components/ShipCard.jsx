@@ -15,7 +15,7 @@ export function ShipCard({ ship, onEdit, onDelete }) {
 
   const actionMenuItems = [];
 
-  if (checkPermission("SHIPS", "UPDATE")) {
+  if (checkPermission("VESSELS", "UPDATE")) {
     actionMenuItems.push({
       label: "Modifier",
       icon: FiEdit3,
@@ -23,7 +23,7 @@ export function ShipCard({ ship, onEdit, onDelete }) {
     });
   }
 
-  if (checkPermission("SHIPS", "DELETE")) {
+  if (checkPermission("VESSELS", "DELETE")) {
     actionMenuItems.push({
       label: "Supprimer",
       icon: FiTrash2,

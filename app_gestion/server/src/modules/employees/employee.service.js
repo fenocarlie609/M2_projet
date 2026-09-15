@@ -1,4 +1,3 @@
-// src/modules/employees/employee.service.js
 const { prisma } = require("../../config/database");
 const { hashPassword } = require("../../common/utils/password.utils");
 const AppError = require("../../common/utils/AppError");
@@ -8,7 +7,75 @@ const {
 } = require("../notifications/notification.service");
 
 /**
- * Crée un nouvel employé.
+ * Génère un code court et propre pour les départements ou postes.
+ * Exemples :
+ * - "SALES_REPRESENTATIVE" -> "SREP"
+ * - "FINANCIAL_ANALYST" -> "FANAL"
+ * - "SOFTWARE_ENG" -> "SENG"
+ * - "DBA" -> "DBA"
+ * - "Technologie & Systèmes" -> "TECH"
+ */
+const formatCode = (rawCodeOrName) => {
+  if (!rawCodeOrName) return "GEN";
+
+  // Si c'est un identifiant avec des mots séparés par des "_" ou des espaces
+  const words = rawCodeOrName.split(/[\s_]+/);
+  if (words.length > 1) {
+    const initials = words
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase();
+    if (initials.length >= 2) return initials;
+  }
+
+  // Sinon, prend les 4 premiers caractères alphanumériques
+  return rawCodeOrName
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .substring(0, 4)
+    .toUpperCase();
+};
+
+/**
+ * Génère automatiquement un matricule sous la forme : DEPT-POSTE-INDEX
+ */
+const generateMatricule = async (departmentId, positionId) => {
+  const department = await prisma.department.findUnique({
+    where: { id: departmentId },
+  });
+  if (!department) throw new AppError("Département non trouvé.", 404);
+
+  const position = await prisma.position.findUnique({
+    where: { id: positionId },
+  });
+  if (!position) throw new AppError("Poste non trouvé.", 404);
+
+  const deptCode = formatCode(department.code || department.name);
+  const posCode = formatCode(position.code || position.title);
+
+  // Compte les employés ayant le même poste
+  const count = await prisma.employee.count({
+    where: { positionId },
+  });
+
+  const sequence = String(count + 1).padStart(2, "0");
+  return `${deptCode}-${posCode}-${sequence}`;
+};
+
+/**
+ * Notifie les IT/Superadmins pour les demandes d'accès.
+ */
+const notifyItForAccessRequest = async (employee) => {
+  await createNotification({
+    type: "ACCESS_REQUEST",
+    message: `${employee.name} (${employee.matricule}) a besoin d'un accès à l'application.`,
+    payload: { employeeId: employee.id },
+    targetModule: "USERS",
+    targetAction: "CREATE",
+  });
+};
+
+/**
+ * Crée un nouvel employé avec génération automatique du matricule.
  */
 const createEmployee = async (data) => {
   const { permissions = [], password, ...rest } = data;
@@ -22,11 +89,19 @@ const createEmployee = async (data) => {
     }
   }
 
-  const existingMatricule = await prisma.employee.findUnique({
-    where: { matricule: rest.matricule },
-  });
-  if (existingMatricule) {
-    throw new AppError("Ce matricule est déjà utilisé.", 400);
+  // Génération automatique si non fourni par le client
+  if (!rest.matricule) {
+    rest.matricule = await generateMatricule(
+      rest.departmentId,
+      rest.positionId,
+    );
+  } else {
+    const existingMatricule = await prisma.employee.findUnique({
+      where: { matricule: rest.matricule },
+    });
+    if (existingMatricule) {
+      throw new AppError("Ce matricule est déjà utilisé.", 400);
+    }
   }
 
   if (rest.hasAppAccess && rest.email) {
@@ -59,29 +134,11 @@ const createEmployee = async (data) => {
     },
   });
 
-  // Un employé créé directement avec hasAppAccess=true (rare, en général on
-  // crée d'abord la fiche RH puis on demande l'accès) déclenche aussi la
-  // notification, pour rester cohérent avec updateEmployee ci-dessous.
   if (employee.hasAppAccess) {
     await notifyItForAccessRequest(employee);
   }
 
   return employee;
-};
-
-/**
- * Notifie les employés ayant la permission USERS:CREATE (les IT/superadmin,
- * seuls capables d'accorder un accès applicatif via le module "users")
- * qu'un employé attend une activation.
- */
-const notifyItForAccessRequest = async (employee) => {
-  await createNotification({
-    type: "ACCESS_REQUEST",
-    message: `${employee.name} (${employee.matricule}) a besoin d'un accès à l'application.`,
-    payload: { employeeId: employee.id },
-    targetModule: "USERS",
-    targetAction: "CREATE",
-  });
 };
 
 /**
@@ -117,8 +174,6 @@ const updateEmployee = async (id, data) => {
     payload.password = null;
   }
 
-  // On récupère l'état AVANT modification pour détecter la transition
-  // false -> true sur hasAppAccess (seul cas qui doit notifier l'IT).
   const previousEmployee = await prisma.employee.findUnique({
     where: { id },
     select: { hasAppAccess: true },
@@ -148,8 +203,6 @@ const updateEmployee = async (id, data) => {
     await notifyItForAccessRequest(updatedEmployee);
   }
 
-  // RH a désactivé hasAppAccess avant que l'IT n'ait traité la demande :
-  // la notification n'a plus lieu d'être.
   if (justDisabledAccess) {
     await deleteAccessRequestNotifications(id);
   }
@@ -158,7 +211,7 @@ const updateEmployee = async (id, data) => {
 };
 
 /**
- * Suppression logique (soft delete) : on désactive aussi l'accès à l'app.
+ * Soft delete de l'employé.
  */
 const softDeleteEmployee = async (id) => {
   return await prisma.employee.update({

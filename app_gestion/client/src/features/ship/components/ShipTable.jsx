@@ -37,9 +37,9 @@ export function ShipTable({ data, isLoading, onEdit, onDelete }) {
       header: "Actions",
       key: "actions",
       render: (row) => {
-        // CORRECTION : c'était "CLIENTS" (copier-coller) au lieu de "SHIPS"
-        const canUpdate = checkPermission("SHIPS", "UPDATE");
-        const canDelete = checkPermission("SHIPS", "DELETE");
+        // CORRECTION : c'était "CLIENTS" (copier-coller) au lieu de "VESSELS"
+        const canUpdate = checkPermission("VESSELS", "UPDATE");
+        const canDelete = checkPermission("VESSELS", "DELETE");
 
         if (!canUpdate && !canDelete)
           return <span className="text-xs text-slate-400">—</span>;
