@@ -1,4 +1,4 @@
-import { FiAnchor, FiClipboard } from "react-icons/fi";
+import { FiAnchor, FiClipboard, FiTruck } from "react-icons/fi";
 import {
   MdDirectionsBoat,
   MdLocationOn,
@@ -17,10 +17,11 @@ import { TemplatePage } from "@/features/template";
 import { ClientPage } from "@/features/client";
 import { DriverPage } from "@/features/driver";
 import { ModulePage } from "@/features/module";
-import { LoadingPlansPage } from "@/features/loadingPlans";
+import { PlansPage } from "@/features/plans";
 import { ShipPage } from "@/features/ship";
 import { PortPage } from "@/features/ports";
 import { VoyagePage } from "@/features/voyages";
+import { LoadPage } from "@/features/plans";
 
 const withDashboardLayout = (page) => (
   <dashboard.DashboardLayout>{page}</dashboard.DashboardLayout>
@@ -63,15 +64,15 @@ export const appRoutes = [
     icon: FaUserTie,
     showInSidebar: true,
   },
-  {
-    path: "/driver",
-    label: "Transporteurs",
-    section: "Logistique",
-    element: withDashboardLayout(<DriverPage />),
-    requiredPermission: { module: "DRIVER", action: "READ" },
-    icon: FaTruck,
-    showInSidebar: true,
-  },
+  // {
+  //   path: "/driver",
+  //   label: "Transporteurs",
+  //   section: "Logistique",
+  //   element: withDashboardLayout(<DriverPage />),
+  //   requiredPermission: { module: "DRIVER", action: "READ" },
+  //   icon: FaTruck,
+  //   showInSidebar: true,
+  // },
   {
     path: "/ship",
     label: "Navires",
@@ -100,13 +101,22 @@ export const appRoutes = [
     showInSidebar: true,
   },
   {
-    path: "/loading-plans",
-    label: "Plans de chargement",
+    path: "/plans",
+    label: "Plans de Manutention",
     section: "Logistique",
-    element: withDashboardLayout(<LoadingPlansPage />),
+    element: withDashboardLayout(<PlansPage />),
     requiredPermission: { module: "LOADING_PLANS", action: "READ" },
     icon: FiClipboard,
     showInSidebar: true,
+  },
+  {
+    path: "/plans/load/:reference",
+    label: "Chargement",
+    section: "Logistique",
+    element: withDashboardLayout(<LoadPage />),
+    requiredPermission: { module: "LOADING_PLANS", action: "READ" },
+    icon: FiTruck,
+    showInSidebar: false,
   },
   {
     path: "/users",

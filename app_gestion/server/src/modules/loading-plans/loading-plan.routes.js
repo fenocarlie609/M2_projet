@@ -3,7 +3,7 @@ const authMiddleware = require("../../common/middlewares/auth.middleware");
 const validate = require("../../common/middlewares/validate.middleware");
 const { APP_ACTIONS } = require("../../common/utils/constants");
 const controller = require("./loading-plan.controller");
-const { planValidation, lineValidation } = require("./loading-plan.validation");
+const { LoadValidation, lineValidation } = require("./loading-plan.validation");
 
 const router = express.Router();
 router.use(authMiddleware.protect);
@@ -16,7 +16,7 @@ router
   )
   .post(
     authMiddleware.authorize("LOADING_PLANS", APP_ACTIONS.CREATE),
-    validate(planValidation.create),
+    validate(LoadValidation.create),
     controller.create,
   );
 
@@ -28,7 +28,7 @@ router
   )
   .put(
     authMiddleware.authorize("LOADING_PLANS", APP_ACTIONS.UPDATE),
-    validate(planValidation.update),
+    validate(LoadValidation.update),
     controller.update,
   )
   .delete(

@@ -8,8 +8,8 @@ const {
   vehicleValidation,
 } = require("../../src/modules/maritime/maritime.validation");
 const {
-  planValidation,
-  lineValidation,
+  LoadValidation,
+  loadValidation,
 } = require("../../src/modules/loading-plans/loading-plan.validation");
 
 const parse = (schema, value) => schema.body.parse(value);
@@ -59,29 +59,31 @@ test("accepte un véhicule et normalise son immatriculation", () => {
   assert.equal(vehicle.licensePlate, "1234 AB");
 });
 
-test("valide un plan de chargement brouillon", () => {
-  const plan = parse(planValidation.create, {
+test("valide un plan de chargement par défaut", () => {
+  const plan = parse(LoadValidation.create, {
     reference: "PL-TEST-001",
     voyageId: "voyage-id",
   });
-  assert.equal(plan.status, "DRAFT");
+  assert.equal(plan.status, false);
+  assert.equal(plan.operationType, "LOAD");
 });
 
 test("valide une ligne de marchandise complète", () => {
-  const line = parse(lineValidation.create, {
+  const load = parse(loadValidation.create, {
     clientId: "client-id",
     packageCount: "10",
     description: "Sacs de riz",
     weightKg: "2500.5",
   });
-  assert.equal(line.packageCount, 10);
-  assert.equal(line.weightKg, 2500.5);
-  assert.equal(line.isHazardous, false);
+  assert.equal(load.packageCount, 10);
+  assert.equal(load.weightKg, 2500.5);
+  assert.equal(load.isHazardous, false);
+  assert.equal(load.status, "PENDING");
 });
 
 test("refuse une ligne avec zéro colis ou zéro poids", () => {
   assert.throws(() =>
-    parse(lineValidation.create, {
+    parse(loadValidation.create, {
       clientId: "client-id",
       packageCount: 0,
       description: "Marchandise invalide",
@@ -91,9 +93,9 @@ test("refuse une ligne avec zéro colis ou zéro poids", () => {
 });
 
 test("refuse un plan ou une ligne sans identifiant obligatoire", () => {
-  assert.throws(() => parse(planValidation.create, { reference: "PL-TEST" }));
+  assert.throws(() => parse(LoadValidation.create, { reference: "PL-TEST" }));
   assert.throws(() =>
-    parse(lineValidation.create, {
+    parse(loadValidation.create, {
       packageCount: 2,
       description: "Sacs",
       weightKg: 100,

@@ -13,16 +13,13 @@ const planInclude = {
   validatedBy: {
     select: { id: true, name: true, matricule: true },
   },
-  cargoLines: {
+  loads: {
+    // 👈 REPLACÉ CARGOLINES PAR LOADS
     where: { deletedAt: null },
-    orderBy: { loadingDate: "asc" },
+    orderBy: { createdAt: "desc" },
     include: {
       client: true,
-      driver: true,
-      vehicle: true,
-      loadedBy: {
-        select: { id: true, name: true, matricule: true },
-      },
+      loadedBy: { select: { id: true, name: true, matricule: true } },
     },
   },
 };
@@ -61,14 +58,31 @@ const ensureCapacity = (plan, totalWeightKg) => {
   }
 };
 
-const getAllPlans = () =>
-  prisma.loadingPlan.findMany({
+const getAllPlans = async () => {
+  return await prisma.loadingPlan.findMany({
     where: { deletedAt: null },
+    include: planInclude,
     orderBy: { createdAt: "desc" },
+  });
+};
+
+const getPlanById = (id) => getPlanOrThrow(id);
+
+const getPlanByReference = async (reference) => {
+  const plan = await prisma.loadingPlan.findFirst({
+    where: {
+      reference: reference,
+      deletedAt: null,
+    },
     include: planInclude,
   });
 
-const getPlanById = (id) => getPlanOrThrow(id);
+  if (!plan) {
+    throw new AppError("Plan de chargement introuvable.", 404);
+  }
+
+  return plan;
+};
 
 const createPlan = async (data) => {
   const voyage = await prisma.voyage.findFirst({
@@ -84,7 +98,7 @@ const createPlan = async (data) => {
     data: {
       reference: data.reference,
       voyageId: data.voyageId,
-      status: data.status || "DRAFT",
+      status: data.status || false,
       totalWeightKg: decimal(0),
     },
     include: planInclude,
@@ -232,6 +246,7 @@ const validatePlan = async (id, employeeId) =>
 module.exports = {
   getAllPlans,
   getPlanById,
+  s,
   createPlan,
   updatePlan,
   deletePlan,

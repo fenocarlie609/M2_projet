@@ -7,6 +7,8 @@ export const Select = ({
   options = [], // Array of { value: 'quai', label: 'À quai' }
   id,
   className = "",
+  placeholder,
+  value,
   ...props
 }) => {
   return (
@@ -22,6 +24,7 @@ export const Select = ({
       <div className="relative">
         <select
           id={id}
+          value={value ?? ""}
           className={`
             w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-medium transition-all duration-200 appearance-none
             focus:outline-none focus:bg-white focus:ring-2 cursor-pointer
@@ -33,6 +36,11 @@ export const Select = ({
           `}
           {...props}
         >
+          {placeholder && (
+            <option value="" disabled hidden={props.required}>
+              {placeholder}
+            </option>
+          )}
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}

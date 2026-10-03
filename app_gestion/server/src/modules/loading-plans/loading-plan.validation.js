@@ -3,23 +3,24 @@ const { z } = require("zod");
 const planCreate = z.object({
   reference: z.string().trim().min(1, "La référence du plan est requise"),
   voyageId: z.string().trim().min(1, "Le voyage est requis"),
-  status: z.enum(["DRAFT", "SUBMITTED"]).default("DRAFT"),
+  status: z.boolean().default(false),
+  operationType: z.enum(["LOAD", "UNLOAD"]).default("LOAD"),
 });
 
 const planUpdate = z
   .object({
     reference: z.string().trim().min(1).optional(),
     voyageId: z.string().trim().min(1).optional(),
-    status: z.enum(["DRAFT", "SUBMITTED"]).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Au moins un champ doit être fourni pour la mise à jour.",
   });
 
-const lineCreate = z.object({
+const loadCreate = z.object({
   clientId: z.string().trim().min(1, "Le client est requis"),
-  driverId: z.string().trim().optional().nullable(),
-  vehicleId: z.string().trim().optional().nullable(),
+  driverName: z.string().trim().optional().nullable(),
+  vehiclePlate: z.string().trim().optional().nullable(),
+  loadedById: z.string().trim().optional().nullable(),
   loadingDate: z.coerce.date().optional().nullable(),
   packageCount: z.coerce
     .number()
@@ -30,21 +31,22 @@ const lineCreate = z.object({
   anomaly: z.string().trim().optional().nullable(),
   loadingPosition: z.string().trim().optional().nullable(),
   isHazardous: z.boolean().default(false),
+  status: z.enum(["PENDING", "LOADED", "CANCELLED"]).default("PENDING"),
 });
 
-const lineUpdate = lineCreate
+const loadUpdate = loadCreate
   .partial()
   .refine((data) => Object.keys(data).length > 0, {
     message: "Au moins un champ doit être fourni pour la mise à jour.",
   });
 
 module.exports = {
-  planValidation: {
+  LoadValidation: {
     create: { body: planCreate },
     update: { body: planUpdate },
   },
-  lineValidation: {
-    create: { body: lineCreate },
-    update: { body: lineUpdate },
+  loadValidation: {
+    create: { body: loadCreate },
+    update: { body: loadUpdate },
   },
 };

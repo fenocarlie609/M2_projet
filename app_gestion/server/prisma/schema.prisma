@@ -70,37 +70,35 @@ model Employee {
   id            String    @id @default(uuid())
 
   // Informations Personnelles & Professionnelles
-  name          String    // Nom complet
-  cin           String?   @unique // Numéro CIN (optionnel : certains employés n'en ont pas encore)
-  matricule     String    @unique // Numéro de matricule interne (attribué par la RH), utilisable pour se connecter
+  name          String    
+  cin           String?   @unique 
+  matricule     String    @unique 
   phone         String?
-  avatarUrl     String?   // Photo de l'employé
+  avatarUrl     String?   
 
-  // Un employé a UNE seule position, elle-même rattachée à UN seul département.
-  // On stocke aussi departmentId directement (dénormalisé) pour permettre la
-  // contrainte de clé étrangère composite ci-dessous.
   departmentId  String
   positionId    String
   department    Department @relation(fields: [departmentId], references: [id])
   position      Position   @relation(fields: [positionId, departmentId], references: [id, departmentId])
 
-  // --- SECTION COMPTE & ACCÈS À L'APPLICATION ---
-  hasAppAccess  Boolean   @default(false) // Permet de marquer si l'employé a le droit d'utiliser l'app
-  email         String?   @unique // Requis uniquement si hasAppAccess = true
-  password      String?   // Requis uniquement si hasAppAccess = true
-  isActive      Boolean   @default(false) // Si le compte est activé/validé par l'admin
+  hasAppAccess  Boolean   @default(false) 
+  email         String?   @unique 
+  password      String?   
+  isActive      Boolean   @default(false) 
 
   // Relations
-  permissions   EmployeePermission[] // Liste des permissions spécifiques de cet employé
+  permissions   EmployeePermission[] 
   auditLogs     AuditLog[]
   notificationRead NotificationRead[]
   refreshTokens RefreshToken[]
   validatedLoadingPlans LoadingPlan[] @relation("LoadingPlanValidator")
-  loadedCargoLines CargoLine[] @relation("CargoLineLoader")
+  
+  // MODIFICATION : Relation mise à jour vers Load
+  loadedLoads   Load[]     @relation("LoadLoader")
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime? // Soft delete pour l'employé
+  deletedAt     DateTime? 
 
   @@map("employees")
 }
@@ -156,14 +154,12 @@ model Client {
   name                 String
   type                 EntityType      @default(INDIVIDUAL)
 
-  // Identite d'un particulier
   firstName            String?
   lastName             String?
   cin                  String?         @unique
   cinIssuedAt          DateTime?
   cinIssuedPlace       String?
 
-  // Identite d'une entreprise
   legalName            String?
   tradeName            String?
   nif                  String?         @unique
@@ -172,7 +168,6 @@ model Client {
   legalForm            String?
   activity             String?
 
-  // Coordonnees et conditions commerciales
   email                String?
   phone                String?
   secondaryPhone       String?
@@ -183,14 +178,15 @@ model Client {
   contractNumber       String?
   habitualCargoType    String?
 
-  // Personne responsable de la reception
   receptionContactName  String?
   receptionContactPhone String?
   receptionContactEmail String?
 
   isActive             Boolean         @default(true)
   notes                String?
-  cargoLines           CargoLine[]
+  
+  // MODIFICATION : Relation mise à jour vers Load
+  loads                Load[]
   addresses            ClientAddress[]
   documents            ClientDocument[]
   createdAt            DateTime        @default(now())
@@ -250,19 +246,6 @@ model ClientDocument {
   @@index([expiresAt])
   @@index([deletedAt])
   @@map("client_documents")
-}
-
-model Driver {
-  id           String     @id @default(uuid())
-  name         String
-  type         EntityType @default(INDIVIDUAL)
-  licensePlate String
-  phone        String?
-  cargoLines   CargoLine[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  @@map("drivers")
 }
 
 // ==========================================
@@ -332,35 +315,20 @@ model Voyage {
   @@map("voyages")
 }
 
-model Vehicle {
-  id                   String   @id @default(uuid())
-  licensePlate         String   @unique
-  type                 String?
-  capacityTons         Decimal?
-  status               String   @default("ACTIVE")
-
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  deletedAt            DateTime?
-  cargoLines           CargoLine[]
-
-  @@index([status])
-  @@index([deletedAt])
-  @@map("vehicles")
-}
-
 model LoadingPlan {
   id             String   @id @default(uuid())
   reference      String   @unique
   voyageId       String
-  status         String   @default("DRAFT")
+  status         Boolean  @default(false)
   totalWeightKg  Decimal  @default(0)
   validatedAt    DateTime?
   validatedById  String?
 
   voyage         Voyage   @relation(fields: [voyageId], references: [id])
   validatedBy    Employee? @relation("LoadingPlanValidator", fields: [validatedById], references: [id])
-  cargoLines     CargoLine[]
+  
+  // MODIFICATION : Relation mise à jour vers Load
+  loads          Load[]
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -372,12 +340,12 @@ model LoadingPlan {
   @@map("loading_plans")
 }
 
-model CargoLine {
+model Load {
   id             String   @id @default(uuid())
   loadingPlanId  String
   clientId       String
-  driverId       String?
-  vehicleId      String?
+  driverName     String?   
+  vehiclePlate   String?   
   loadedById     String?
   loadingDate    DateTime?
   packageCount   Int
@@ -390,9 +358,7 @@ model CargoLine {
 
   loadingPlan    LoadingPlan @relation(fields: [loadingPlanId], references: [id], onDelete: Cascade)
   client         Client      @relation(fields: [clientId], references: [id])
-  driver         Driver?     @relation(fields: [driverId], references: [id])
-  vehicle        Vehicle?    @relation(fields: [vehicleId], references: [id])
-  loadedBy       Employee?   @relation("CargoLineLoader", fields: [loadedById], references: [id])
+  loadedBy       Employee?   @relation("LoadLoader", fields: [loadedById], references: [id])
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -403,7 +369,7 @@ model CargoLine {
   @@index([loadingDate])
   @@index([status])
   @@index([deletedAt])
-  @@map("cargo_lines")
+  @@map("loads") // Nom de la table mis à jour en "loads"
 }
 
 model Notification {

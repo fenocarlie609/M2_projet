@@ -33,11 +33,6 @@ export function VoyageTable({ data, isLoading, onEdit, onDelete }) {
       render: (row) => row.arrivalPort?.name || "-",
     },
     {
-      key: "arrivalDate",
-      header: "Arrivée",
-      render: (row) => formatDate(row.arrivalDate),
-    },
-    {
       key: "status",
       header: "Statut",
       render: (row) => {

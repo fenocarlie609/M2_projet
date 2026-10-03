@@ -1,29 +1,20 @@
+// src/features/loadingPlans/pages/LoadingPlansPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  FiArrowLeft,
-  FiCheckCircle,
-  FiEdit2,
-  FiPlus,
-  FiTrash2,
-} from "react-icons/fi";
-import { MdScale } from "react-icons/md";
+import { FiArrowLeft, FiCheckCircle, FiPlus } from "react-icons/fi";
 import {
   Alert,
-  Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
-  Input,
-  Modal,
   PageHeader,
-  Select,
   Table,
 } from "@/shared/components/ui";
 import { loadingPlanService } from "@/features/loadingPlans";
-import { maritimeService } from "@/features/maritime";
+import { voyageService } from "@/features/voyages";
 import { clientService } from "@/features/client";
-import { driverService } from "@/features/driver";
+import { PlanModal } from "../components/LoadPlanModal";
+import { CargoLineModal } from "../components/CargoLineModal";
 
 const getErrorMessage = (error, fallback) => {
   const responseData = error?.response?.data;
@@ -43,228 +34,20 @@ const getErrorMessage = (error, fallback) => {
 
   return responseData?.message || fallback;
 };
+
 const toTons = (kg) =>
   (Number(kg || 0) / 1000).toLocaleString("fr-FR", {
     maximumFractionDigits: 3,
   });
+
 const formatDate = (value) =>
   value ? new Date(value).toLocaleDateString("fr-FR") : "-";
-
-const statusOptions = [
-  { value: "DRAFT", label: "Brouillon" },
-  { value: "SUBMITTED", label: "Soumis" },
-];
-
-function PlanForm({ voyages, onSubmit, onClose, isSaving, error }) {
-  const [formData, setFormData] = useState({
-    reference: "",
-    voyageId: "",
-    status: "DRAFT",
-  });
-
-  return (
-    <form
-      className="space-y-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit(formData);
-      }}
-    >
-      {error && (
-        <Alert variant="error" title="Création impossible">
-          {error}
-        </Alert>
-      )}
-      <Input
-        label="Référence du plan"
-        placeholder="Ex: PL-2026-001"
-        value={formData.reference}
-        onChange={(event) =>
-          setFormData({ ...formData, reference: event.target.value })
-        }
-        required
-      />
-      <Select
-        label="Voyage maritime"
-        value={formData.voyageId}
-        onChange={(event) =>
-          setFormData({ ...formData, voyageId: event.target.value })
-        }
-        options={voyages.map((voyage) => ({
-          value: voyage.id,
-          label: `${voyage.voyageNumber} - ${voyage.vessel?.name || "Navire"}`,
-        }))}
-        required
-      />
-      <Select
-        label="Statut initial"
-        value={formData.status}
-        onChange={(event) =>
-          setFormData({ ...formData, status: event.target.value })
-        }
-        options={statusOptions}
-      />
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="secondary" onClick={onClose}>
-          Annuler
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSaving}>
-          {isSaving ? "Création..." : "Créer le plan"}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function CargoLineForm({
-  clients,
-  drivers,
-  vehicles,
-  onSubmit,
-  onClose,
-  isSaving,
-  error,
-}) {
-  const [formData, setFormData] = useState({
-    clientId: "",
-    driverId: "",
-    vehicleId: "",
-    loadingDate: "",
-    packageCount: "",
-    description: "",
-    weightKg: "",
-    anomaly: "",
-    loadingPosition: "",
-    isHazardous: false,
-  });
-  const update = (name, value) =>
-    setFormData((current) => ({ ...current, [name]: value }));
-
-  return (
-    <form
-      className="space-y-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit({
-          ...formData,
-          driverId: formData.driverId || null,
-          vehicleId: formData.vehicleId || null,
-          loadingDate: formData.loadingDate || null,
-          packageCount: Number(formData.packageCount),
-          weightKg: Number(formData.weightKg),
-        });
-      }}
-    >
-      {error && (
-        <Alert variant="error" title="Ajout impossible">
-          {error}
-        </Alert>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Client"
-          value={formData.clientId}
-          onChange={(event) => update("clientId", event.target.value)}
-          options={clients.map((client) => ({
-            value: client.id,
-            label: client.name,
-          }))}
-          required
-        />
-        <Input
-          label="Description de la marchandise"
-          value={formData.description}
-          onChange={(event) => update("description", event.target.value)}
-          required
-        />
-        <Input
-          label="Nombre de colis"
-          type="number"
-          min="1"
-          step="1"
-          value={formData.packageCount}
-          onChange={(event) => update("packageCount", event.target.value)}
-          required
-        />
-        <Input
-          label="Poids total (kg)"
-          type="number"
-          min="0.01"
-          step="0.01"
-          value={formData.weightKg}
-          onChange={(event) => update("weightKg", event.target.value)}
-          required
-        />
-        <Select
-          label="Chauffeur"
-          value={formData.driverId}
-          onChange={(event) => update("driverId", event.target.value)}
-          options={[
-            { value: "", label: "Non affecté" },
-            ...drivers.map((driver) => ({
-              value: driver.id,
-              label: driver.name,
-            })),
-          ]}
-        />
-        <Select
-          label="Véhicule"
-          value={formData.vehicleId}
-          onChange={(event) => update("vehicleId", event.target.value)}
-          options={[
-            { value: "", label: "Non affecté" },
-            ...vehicles.map((vehicle) => ({
-              value: vehicle.id,
-              label: vehicle.licensePlate,
-            })),
-          ]}
-        />
-        <Input
-          label="Date de chargement"
-          type="date"
-          value={formData.loadingDate}
-          onChange={(event) => update("loadingDate", event.target.value)}
-        />
-        <Input
-          label="Position de chargement"
-          placeholder="Ex: C2"
-          value={formData.loadingPosition}
-          onChange={(event) => update("loadingPosition", event.target.value)}
-        />
-        <Input
-          label="Anomalie"
-          placeholder="Facultatif"
-          value={formData.anomaly}
-          onChange={(event) => update("anomaly", event.target.value)}
-        />
-        <label className="flex items-center gap-3 text-sm font-medium text-slate-700 pt-7">
-          <input
-            type="checkbox"
-            checked={formData.isHazardous}
-            onChange={(event) => update("isHazardous", event.target.checked)}
-          />{" "}
-          Marchandise dangereuse
-        </label>
-      </div>
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="secondary" onClick={onClose}>
-          Annuler
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSaving}>
-          {isSaving ? "Ajout..." : "Ajouter la marchandise"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 function LoadingPlansPage() {
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [voyages, setVoyages] = useState([]);
   const [clients, setClients] = useState([]);
-  const [drivers, setDrivers] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
   const [modal, setModal] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -273,23 +56,14 @@ function LoadingPlansPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [nextPlans, nextVoyages, nextClients, nextDrivers, nextVehicles] =
-        await Promise.all([
-          loadingPlanService.getPlans(),
-          maritimeService.getAll("voyages"),
-          clientService
-            .getClients()
-            .then((response) => response.data?.clients || []),
-          driverService
-            .getDrivers()
-            .then((response) => response.data?.drivers || []),
-          maritimeService.getAll("vehicles"),
-        ]);
-      setPlans(nextPlans);
-      setVoyages(nextVoyages);
-      setClients(nextClients);
-      setDrivers(nextDrivers);
-      setVehicles(nextVehicles);
+      const [nextPlans, voyagesRes, clientsRes] = await Promise.all([
+        loadingPlanService.getPlans(),
+        voyageService.getVoyages(),
+        clientService.getClients(),
+      ]);
+      setPlans(nextPlans?.data?.loadingPlans || nextPlans || []);
+      setVoyages(voyagesRes.data?.voyages || voyagesRes || []);
+      setClients(clientsRes.data?.clients || []);
     } catch (requestError) {
       setError(
         getErrorMessage(
@@ -516,22 +290,15 @@ function LoadingPlansPage() {
             />
           </CardContent>
         </Card>
-        <Modal
+
+        <CargoLineModal
           isOpen={modal === "line"}
           onClose={() => setModal(null)}
-          title="Ajouter une marchandise"
-          maxWidth="max-w-3xl"
-        >
-          <CargoLineForm
-            clients={clients}
-            drivers={drivers}
-            vehicles={vehicles}
-            onSubmit={handleAddLine}
-            onClose={() => setModal(null)}
-            isSaving={isSaving}
-            error={error}
-          />
-        </Modal>
+          clients={clients}
+          onSubmit={handleAddLine}
+          isSaving={isSaving}
+          error={error}
+        />
       </div>
     );
   }
@@ -564,19 +331,15 @@ function LoadingPlansPage() {
         isLoading={isLoading}
         emptyMessage="Aucun plan de chargement enregistré."
       />
-      <Modal
+
+      <PlanModal
         isOpen={modal === "plan"}
         onClose={() => setModal(null)}
-        title="Créer un plan de chargement"
-      >
-        <PlanForm
-          voyages={voyages}
-          onSubmit={handleCreatePlan}
-          onClose={() => setModal(null)}
-          isSaving={isSaving}
-          error={error}
-        />
-      </Modal>
+        voyages={voyages}
+        onSubmit={handleCreatePlan}
+        isSaving={isSaving}
+        error={error}
+      />
     </div>
   );
 }

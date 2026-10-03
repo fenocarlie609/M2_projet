@@ -39,6 +39,7 @@ const { driverRoutes } = require("./driver");
 const { notificationRoutes } = require("./notifications");
 const { maritimeRoutes } = require("./maritime");
 const { loadingPlanRoutes } = require("./loading-plans");
+const { voyageRoutes } = require("./voyage");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -47,9 +48,10 @@ router.use("/company-structure", companyStructureRoutes);
 router.use("/modules", moduleRoutes);
 router.use("/uploads", uploadRoutes);
 router.use("/clients", clientRoutes);
-router.use("/drivers", driverRoutes);
+// router.use("/drivers", driverRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/maritime", maritimeRoutes);
 router.use("/loading-plans", loadingPlanRoutes);
+router.use("/voyages", voyageRoutes);
 
 module.exports = router;

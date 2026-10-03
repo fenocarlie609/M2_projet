@@ -8,7 +8,7 @@ import {
   VoyageTable,
   VoyageCard,
   VoyageModal,
-} from "@/features/voyages";
+} from "@/features/voyages"; // Assurez-vous du nom exact du dossier
 
 function VoyagePage() {
   const [voyages, setVoyages] = useState([]);
@@ -36,15 +36,17 @@ function VoyagePage() {
     fetchVoyages();
   }, []);
 
-  // Temps réel : diffusé par voyage.service.js (backend) sur create/update/delete,
-  // y compris par un autre utilisateur connecté.
+  // Écouteur temps réel sécurisé contre les doublons
   useEffect(() => {
     const onVoyagesChanged = (payload) => {
       if (!payload || !payload.action) return fetchVoyages();
 
       const { action } = payload;
       if (action === "created" && payload.voyage) {
-        setVoyages((prev) => [payload.voyage, ...prev]);
+        setVoyages((prev) => {
+          const exists = prev.some((v) => v.id === payload.voyage.id);
+          return exists ? prev : [payload.voyage, ...prev];
+        });
       } else if (action === "updated" && payload.voyage) {
         setVoyages((prev) =>
           prev.map((v) => (v.id === payload.voyage.id ? payload.voyage : v)),
@@ -65,7 +67,11 @@ function VoyagePage() {
   const handleCreateVoyage = async (newVoyageData) => {
     const response = await voyageService.createVoyage(newVoyageData);
     if (response?.data?.voyage) {
-      setVoyages((prev) => [response.data.voyage, ...prev]);
+      const newVoyage = response.data.voyage;
+      setVoyages((prev) => {
+        const exists = prev.some((v) => v.id === newVoyage.id);
+        return exists ? prev : [newVoyage, ...prev];
+      });
     } else {
       fetchVoyages();
     }
@@ -102,7 +108,7 @@ function VoyagePage() {
     try {
       setIsDeleting(true);
       await voyageService.deleteVoyage(selectedVoyage.id);
-      setVoyages(voyages.filter((v) => v.id !== selectedVoyage.id));
+      setVoyages((prev) => prev.filter((v) => v.id !== selectedVoyage.id));
       setIsDeleteAlertOpen(false);
     } catch (error) {
       console.error("Erreur suppression voyage :", error);

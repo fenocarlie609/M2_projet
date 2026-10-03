@@ -1,7 +1,6 @@
-// src/features/voyage/service/voyage.service.js
 import { createCrudService } from "@/shared/services/";
 
-const voyageCrud = createCrudService("/maritime/voyages");
+const voyageCrud = createCrudService("/voyages");
 
 export const voyageService = {
   getVoyages: () => voyageCrud.getAll(),

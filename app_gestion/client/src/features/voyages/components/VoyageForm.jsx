@@ -69,7 +69,7 @@ export function VoyageForm({
           shipService.getShips(),
           portService.getPorts(),
         ]);
-        setVessels(shipsResponse.data?.ships || []);
+        setVessels(shipsResponse.data?.vessels || []);
         setPorts(portsResponse.data?.ports || []);
       } catch (loadError) {
         console.error("Erreur lors du chargement des options :", loadError);
@@ -100,13 +100,24 @@ export function VoyageForm({
 
   const vesselOptions = vessels.map((vessel) => ({
     value: vessel.id,
-    label: vessel.name,
+    label:
+      vessel.name + (vessel.operatorName ? ` (${vessel.operatorName})` : ""),
   }));
 
-  const portOptions = ports.map((port) => ({
+  const toPortOption = (port) => ({
     value: port.id,
     label: `${port.name} (${port.code})`,
-  }));
+  });
+
+  // Le port déjà choisi comme arrivée ne doit plus apparaître dans "Port de
+  // départ", et inversement, pour empêcher de sélectionner deux fois le même port.
+  const departurePortOptions = ports
+    .filter((port) => port.id !== formData.arrivalPortId)
+    .map(toPortOption);
+
+  const arrivalPortOptions = ports
+    .filter((port) => port.id !== formData.departurePortId)
+    .map(toPortOption);
 
   return (
     <Form onSubmit={handleSubmit} className="space-y-5">
@@ -139,7 +150,7 @@ export function VoyageForm({
           label="Port de départ"
           value={formData.departurePortId}
           onChange={(event) => update("departurePortId", event.target.value)}
-          options={portOptions}
+          options={departurePortOptions}
           placeholder="Sélectionner un port"
           disabled={isLoadingOptions}
           required
@@ -149,7 +160,7 @@ export function VoyageForm({
           label="Port d'arrivée"
           value={formData.arrivalPortId}
           onChange={(event) => update("arrivalPortId", event.target.value)}
-          options={portOptions}
+          options={arrivalPortOptions}
           placeholder="Sélectionner un port"
           disabled={isLoadingOptions}
           required

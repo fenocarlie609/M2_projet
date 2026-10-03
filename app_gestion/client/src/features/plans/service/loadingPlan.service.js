@@ -9,6 +9,7 @@ export const loadingPlanService = {
     return response?.data?.loadingPlans || [];
   },
   getPlanById: (id) => planCrud.getById(id),
+  getPlanByReference: (reference) => planCrud.getByReference(reference),
   createPlan: (data) => planCrud.create(data),
   updatePlan: (id, data) => planCrud.update(id, data),
   deletePlan: (id) => planCrud.remove(id),
