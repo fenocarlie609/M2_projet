@@ -1,11 +1,17 @@
 const { z } = require("zod");
 
-const planCreate = z.object({
-  reference: z.string().trim().min(1, "La référence du plan est requise"),
-  voyageId: z.string().trim().min(1, "Le voyage est requis"),
-  status: z.boolean().default(false),
-  operationType: z.enum(["LOAD", "UNLOAD"]).default("LOAD"),
-});
+const planCreate = z
+  .object({
+    reference: z.string().trim().min(1, "La référence du plan est requise"),
+    voyageId: z.string().trim().min(1, "Le voyage est requis"),
+    status: z.boolean().default(false),
+    operationType: z.enum(["LOAD", "UNLOAD"]).default("LOAD"),
+  })
+  .refine((data) => data.operationType === "LOAD", {
+    message:
+      "Les plans de déchargement sont générés automatiquement après validation du chargement.",
+    path: ["operationType"],
+  });
 
 const planUpdate = z
   .object({

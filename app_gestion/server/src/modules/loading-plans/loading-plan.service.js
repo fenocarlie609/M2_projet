@@ -13,6 +13,12 @@ const planInclude = {
   validatedBy: {
     select: { id: true, name: true, matricule: true },
   },
+  sourceLoadingPlan: {
+    select: { id: true, reference: true },
+  },
+  unloadPlan: {
+    select: { id: true, reference: true, status: true, validatedAt: true },
+  },
   loads: {
     where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
@@ -93,6 +99,13 @@ const getPlanByReference = async (reference) => {
 };
 
 const createPlan = async (data) => {
+  if (data.operationType === "UNLOAD") {
+    throw new AppError(
+      "Un plan de déchargement est généré automatiquement après validation du chargement.",
+      409,
+    );
+  }
+
   const voyage = await prisma.voyage.findFirst({
     where: { id: data.voyageId, deletedAt: null },
   });
@@ -136,10 +149,16 @@ const updatePlan = async (id, data) => {
 const deletePlan = async (id) => {
   const plan = await getPlanOrThrow(id);
   ensureEditable(plan);
+  if (plan.sourceLoadingPlanId) {
+    throw new AppError(
+      "Un plan de déchargement généré automatiquement ne peut pas être supprimé.",
+      409,
+    );
+  }
   await prisma.loadingPlan.delete({ where: { id } });
 };
 
-const createLoad = async (planId, data, loadedById) =>
+const createLoad = async (planId, data, employeeId) =>
   prisma.$transaction(async (transaction) => {
     const plan = await getPlanOrThrow(planId, transaction);
     ensureEditable(plan);
@@ -158,7 +177,7 @@ const createLoad = async (planId, data, loadedById) =>
         ...data,
         weightKg: decimal(data.weightKg),
         loadingPlanId: planId,
-        loadedById,
+        loadedById: data.status === "LOADED" ? employeeId : null,
       },
       include: loadInclude,
     });
@@ -171,7 +190,7 @@ const createLoad = async (planId, data, loadedById) =>
     return load;
   });
 
-const updateLoad = async (planId, loadId, data) =>
+const updateLoad = async (planId, loadId, data, employeeId) =>
   prisma.$transaction(async (transaction) => {
     const plan = await getPlanOrThrow(planId, transaction);
     ensureEditable(plan);
@@ -203,6 +222,11 @@ const updateLoad = async (planId, loadId, data) =>
       where: { id: loadId },
       data: {
         ...data,
+        ...(data.status === "LOADED" && currentLoad.status !== "LOADED"
+          ? { loadedById: employeeId }
+          : data.status && data.status !== "LOADED"
+            ? { loadedById: null }
+            : {}),
         ...(data.weightKg === undefined
           ? {}
           : { weightKg: decimal(data.weightKg) }),
@@ -261,7 +285,7 @@ const validatePlan = async (id, employeeId) =>
     const totalWeightKg = sumActiveLoadWeights(plan.loads);
     ensureCapacity(plan, totalWeightKg);
 
-    return transaction.loadingPlan.update({
+    const validatedPlan = await transaction.loadingPlan.update({
       where: { id },
       data: {
         status: true,
@@ -271,6 +295,37 @@ const validatePlan = async (id, employeeId) =>
       },
       include: planInclude,
     });
+
+    if (plan.operationType === "LOAD") {
+      const unloadLoads = loads.map((load) => ({
+        clientId: load.clientId,
+        driverName: null,
+        vehiclePlate: null,
+        loadingDate: null,
+        packageCount: load.packageCount,
+        description: load.description,
+        weightKg: decimal(load.weightKg),
+        anomaly: load.anomaly,
+        loadingPosition: load.loadingPosition,
+        isHazardous: load.isHazardous,
+        status: "PENDING",
+      }));
+      const unloadPlan = await transaction.loadingPlan.create({
+        data: {
+          reference: `DECH-${plan.reference}`,
+          voyageId: plan.voyageId,
+          operationType: "UNLOAD",
+          sourceLoadingPlanId: plan.id,
+          status: false,
+          totalWeightKg,
+          loads: { create: unloadLoads },
+        },
+        include: planInclude,
+      });
+      return { ...validatedPlan, unloadPlan };
+    }
+
+    return validatedPlan;
   });
 
 module.exports = {

@@ -147,16 +147,22 @@ function PlansPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={activeTab === "UNLOAD" ? "Plans de déchargement" : "Plans de chargement"}
+        title={
+          activeTab === "UNLOAD"
+            ? "Plans de déchargement"
+            : "Plans de chargement"
+        }
         subtitle="Consultez les opérations et le manifeste associés à chaque voyage."
       >
-        {checkPermission("LOADING_PLANS", "CREATE") && (
+        {activeTab === "LOAD" && checkPermission("LOADING_PLANS", "CREATE") && (
           <Button
             variant="primary"
             icon={FiPlus}
             onClick={() => handleOpenModal()}
           >
-            {activeTab === "UNLOAD" ? "Nouveau plan de déchargement" : "Nouveau plan de chargement"}
+            {activeTab === "UNLOAD"
+              ? "Nouveau plan de déchargement"
+              : "Nouveau plan de chargement"}
           </Button>
         )}
       </PageHeader>

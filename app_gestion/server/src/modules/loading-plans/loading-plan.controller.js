@@ -53,6 +53,7 @@ exports.updateLoad = catchAsync(async (req, res) => {
     req.params.id,
     req.params.loadId,
     req.body,
+    req.user.id,
   );
   res.status(200).json({ status: "success", data: { load } });
 });

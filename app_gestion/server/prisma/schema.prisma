@@ -332,6 +332,9 @@ model LoadingPlan {
 
   voyage         Voyage   @relation(fields: [voyageId], references: [id])
   validatedBy    Employee? @relation("LoadingPlanValidator", fields: [validatedById], references: [id])
+  sourceLoadingPlanId String? @unique
+  sourceLoadingPlan LoadingPlan? @relation("LoadingPlanUnload", fields: [sourceLoadingPlanId], references: [id], onDelete: SetNull)
+  unloadPlan     LoadingPlan? @relation("LoadingPlanUnload")
   
   // MODIFICATION : Relation mise à jour vers Load
   loads          Load[]

@@ -22,6 +22,15 @@ export function LoadPlanTable({
 
   const columns = [
     { key: "reference", header: "Référence" },
+    ...(operationType === "UNLOAD"
+      ? [
+          {
+            key: "sourceLoadingPlan",
+            header: "Plan de chargement",
+            render: (row) => row.sourceLoadingPlan?.reference || "-",
+          },
+        ]
+      : []),
     {
       key: "vessel",
       header: "Navire",
@@ -108,7 +117,7 @@ export function LoadPlanTable({
                 onClick={() => onOpen(row)}
               />
             )}
-            {canDelete && onDelete && !isLocked && (
+            {canDelete && onDelete && !isLocked && !row.sourceLoadingPlanId && (
               <Button
                 variant="ghost"
                 size="sm"

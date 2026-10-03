@@ -23,6 +23,10 @@ import {
 import { useAuth } from "@/features/auth";
 import { clientService } from "@/features/client";
 import { loadingPlanService } from "@/features/plans";
+import {
+  LoadingManifestPdf,
+  UnloadingManifestPdf,
+} from "../components/LoadingManifestPdf";
 
 const getErrorMessage = (error, fallback) => {
   const response = error?.response?.data;
@@ -72,6 +76,14 @@ const statusLabel = (status, operationType) => {
   if (status === "LOADED")
     return operationType === "UNLOAD" ? "Déchargé" : "Chargé";
   return operationType === "UNLOAD" ? "À décharger" : "À charger";
+};
+
+const formatLoader = (load) => {
+  const loader = load.loadedBy;
+  if (!loader?.name) return "Chargeur non renseigné";
+  return loader.matricule
+    ? `${loader.name} (${loader.matricule})`
+    : loader.name;
 };
 
 function LoadPage({ operationType = "LOAD" }) {
@@ -249,17 +261,22 @@ function LoadPage({ operationType = "LOAD" }) {
     },
     {
       key: "driverName",
-      header: "Chauffeur",
+      header: isUnload ? "Chauffeur déchargement" : "Chauffeur",
       render: (load) => load.driverName || "-",
     },
     {
       key: "vehiclePlate",
-      header: "Véhicule",
+      header: isUnload ? "Véhicule déchargement" : "Véhicule",
       render: (load) => load.vehiclePlate || "-",
     },
     {
+      key: "loadedBy",
+      header: isUnload ? "Déchargeur" : "Chargeur",
+      render: (load) => formatLoader(load),
+    },
+    {
       key: "loadingDate",
-      header: "Date",
+      header: isUnload ? "Date de déchargement" : "Date de chargement",
       render: (load) => formatDate(load.loadingDate),
     },
     {
@@ -338,6 +355,24 @@ function LoadPage({ operationType = "LOAD" }) {
         >
           Retour aux plans
         </Button>
+        {operationType === "LOAD" && isLocked && (
+          <LoadingManifestPdf plan={plan} onError={setError} />
+        )}
+        {operationType === "UNLOAD" && isLocked && (
+          <UnloadingManifestPdf plan={plan} onError={setError} />
+        )}
+        {operationType === "LOAD" && plan?.unloadPlan && (
+          <Button
+            variant="secondary"
+            onClick={() =>
+              navigate(
+                `/plans/unload/${encodeURIComponent(plan.unloadPlan.reference)}`,
+              )
+            }
+          >
+            Ouvrir le déchargement
+          </Button>
+        )}
         {!isLocked && canValidate && (
           <Button
             variant="primary"
@@ -349,7 +384,6 @@ function LoadPage({ operationType = "LOAD" }) {
           </Button>
         )}
       </PageHeader>
-
       {error && (
         <Alert variant="error" title="Erreur">
           {error}
@@ -497,21 +531,21 @@ function LoadPage({ operationType = "LOAD" }) {
               required
             />
             <Input
-              label="Chauffeur"
+              label={isUnload ? "Chauffeur au déchargement" : "Chauffeur"}
               value={formData.driverName}
               onChange={(event) =>
                 updateField("driverName", event.target.value)
               }
             />
             <Input
-              label="Immatriculation"
+              label={isUnload ? "Immatriculation au déchargement" : "Immatriculation"}
               value={formData.vehiclePlate}
               onChange={(event) =>
                 updateField("vehiclePlate", event.target.value)
               }
             />
             <Input
-              label="Date"
+              label={isUnload ? "Date de déchargement" : "Date de chargement"}
               type="date"
               value={formData.loadingDate}
               onChange={(event) =>
