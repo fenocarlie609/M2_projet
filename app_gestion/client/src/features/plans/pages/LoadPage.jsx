@@ -538,7 +538,9 @@ function LoadPage({ operationType = "LOAD" }) {
               }
             />
             <Input
-              label={isUnload ? "Immatriculation au déchargement" : "Immatriculation"}
+              label={
+                isUnload ? "Immatriculation au déchargement" : "Immatriculation"
+              }
               value={formData.vehiclePlate}
               onChange={(event) =>
                 updateField("vehiclePlate", event.target.value)
