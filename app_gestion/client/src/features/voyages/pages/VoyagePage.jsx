@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 import {
   voyageService,
   VoyageTable,
@@ -11,6 +12,7 @@ import {
 } from "@/features/voyages"; // Assurez-vous du nom exact du dossier
 
 function VoyagePage() {
+  const { checkPermission } = useAuth();
   const [voyages, setVoyages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -121,7 +123,7 @@ function VoyagePage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Voyages" subtitle="Gérez les voyages de la flotte.">
-        <Button
+        {checkPermission("VOYAGES", "CREATE") && <Button
           variant="primary"
           icon={FiPlus}
           onClick={() => {
@@ -130,7 +132,7 @@ function VoyagePage() {
           }}
         >
           Ajouter un voyage
-        </Button>
+        </Button>}
       </PageHeader>
 
       <div className="hidden md:block">

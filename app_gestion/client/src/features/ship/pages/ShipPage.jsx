@@ -3,9 +3,11 @@ import React, { useEffect, useState } from "react";
 import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 import { shipService, ShipTable, ShipCard, ShipModal } from "@/features/ship";
 
 function ShipPage() {
+  const { checkPermission } = useAuth();
   const [ships, setShips] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -113,7 +115,7 @@ function ShipPage() {
         title="Navires"
         subtitle="Gérez le registre des navires de la flotte."
       >
-        <Button
+        {checkPermission("VESSELS", "CREATE") && <Button
           variant="primary"
           icon={FiPlus}
           onClick={() => {
@@ -122,7 +124,7 @@ function ShipPage() {
           }}
         >
           Ajouter un navire
-        </Button>
+        </Button>}
       </PageHeader>
 
       <div className="hidden md:block">

@@ -129,7 +129,6 @@ export const AuthProvider = ({ children }) => {
     if (!socket.connected) {
       socket.connect();
     }
-    socket.emit("join-profile", user.id);
 
     // Le backend pousse le profil complet à jour (ex: permissions modifiées,
     // changement de département/poste) sur ce canal.

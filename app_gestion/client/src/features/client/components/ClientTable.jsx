@@ -29,8 +29,8 @@ export function ClientTable({ data, isLoading, onEdit, onDelete }) {
       header: "Actions",
       key: "actions",
       render: (row) => {
-        const canUpdate = checkPermission("CLIENTS", "UPDATE");
-        const canDelete = checkPermission("CLIENTS", "DELETE");
+        const canUpdate = checkPermission("CLIENT", "UPDATE");
+        const canDelete = checkPermission("CLIENT", "DELETE");
 
         if (!canUpdate && !canDelete)
           return <span className="text-xs text-slate-400">—</span>;

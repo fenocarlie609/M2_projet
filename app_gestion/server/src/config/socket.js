@@ -1,5 +1,7 @@
 // src/config/socket.js
 const { Server } = require("socket.io");
+const { prisma } = require("./database");
+const { getSocketEmployeeId } = require("../common/utils/socketAuth");
 
 let io;
 
@@ -15,19 +17,47 @@ const initSocket = (server) => {
     },
   });
 
-  io.on("connection", (socket) => {
-    // Dès qu'un client se connecte, il rejoint une "room" privée basée sur son ID
-    socket.on("join-profile", (employeeId) => {
-      if (employeeId) {
-        socket.join(`employee_${employeeId}`);
-        console.log(
-          `[Socket] Employé ${employeeId} a rejoint son canal privé.`,
-        );
-      }
+  io.use(async (socket, next) => {
+    const employeeId = getSocketEmployeeId(socket.handshake.headers.cookie, {
+      cookieSecret: process.env.COOKIE_SECRET,
+      jwtSecret: process.env.JWT_SECRET,
     });
 
+    if (!employeeId) return next(new Error("unauthorized"));
+
+    try {
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: {
+          id: true,
+          hasAppAccess: true,
+          isActive: true,
+          deletedAt: true,
+        },
+      });
+
+      if (
+        !employee ||
+        employee.deletedAt ||
+        !employee.hasAppAccess ||
+        !employee.isActive
+      ) {
+        return next(new Error("unauthorized"));
+      }
+
+      socket.data.employeeId = employee.id;
+      next();
+    } catch (error) {
+      next(new Error("unauthorized"));
+    }
+  });
+
+  io.on("connection", (socket) => {
+    const employeeId = socket.data.employeeId;
+    socket.join(`employee_${employeeId}`);
+
     socket.on("disconnect", () => {
-      console.log("[Socket] Client déconnecté.");
+      console.log(`[Socket] Employé ${employeeId} déconnecté.`);
     });
   });
 

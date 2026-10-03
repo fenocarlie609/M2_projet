@@ -3,9 +3,11 @@ import React, { useEffect, useState } from "react";
 import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 import { portService, PortTable, PortCard, PortModal } from "@/features/ports";
 
 function PortPage() {
+  const { checkPermission } = useAuth();
   const [ports, setPorts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -110,7 +112,7 @@ function PortPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Ports" subtitle="Gérez le registre des ports.">
-        <Button
+        {checkPermission("PORTS", "CREATE") && <Button
           variant="primary"
           icon={FiPlus}
           onClick={() => {
@@ -119,7 +121,7 @@ function PortPage() {
           }}
         >
           Ajouter un port
-        </Button>
+        </Button>}
       </PageHeader>
 
       <div className="hidden md:block">

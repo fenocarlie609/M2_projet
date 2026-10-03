@@ -12,7 +12,10 @@ router.use(authMiddleware.protect);
 
 router
   .route("/")
-  .get(voyageController.getAllVoyages)
+  .get(
+    authMiddleware.authorize("VOYAGES", APP_ACTIONS.READ),
+    voyageController.getAllVoyages,
+  )
   .post(
     authMiddleware.authorize("VOYAGES", APP_ACTIONS.CREATE),
     validate(voyageValidation.create),
@@ -21,7 +24,10 @@ router
 
 router
   .route("/:id")
-  .get(voyageController.getVoyageById)
+  .get(
+    authMiddleware.authorize("VOYAGES", APP_ACTIONS.READ),
+    voyageController.getVoyageById,
+  )
   .put(
     authMiddleware.authorize("VOYAGES", APP_ACTIONS.UPDATE),
     validate(voyageValidation.update),
