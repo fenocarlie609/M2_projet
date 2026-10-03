@@ -14,8 +14,6 @@ export function ModuleTable({ data, isLoading, onEdit, onDelete }) {
   // remplacez cette ligne par checkPermission("MODULES", "UPDATE"/"DELETE").
   const canManage = user.department.code === "TECH" || "ADMIN";
 
-  console.log(user.department.code);
-
   const columns = [
     { header: "Code", key: "code" },
     { header: "Libellé", key: "label" },

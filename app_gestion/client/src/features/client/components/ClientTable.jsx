@@ -14,15 +14,17 @@ export function ClientTable({ data, isLoading, onEdit, onDelete }) {
       className: "font-semibold text-slate-900",
     },
     {
-      header: "Type d'entité",
+      header: "Type",
       key: "type",
       render: (row) => (
-        <Badge variant={row.type === "COMPANY" ? "navy" : "secondary"}>
+        <Badge variant={row.type === "COMPANY" ? "navy" : "info"}>
           {row.type === "COMPANY" ? "Entreprise" : "Particulier"}
         </Badge>
       ),
     },
+    { header: "Email", key: "email", render: (row) => row.email || "—" },
     { header: "Téléphone", key: "phone", render: (row) => row.phone || "—" },
+    { header: "Adresse", key: "address", render: (row) => row.address || "—" },
     {
       header: "Actions",
       key: "actions",

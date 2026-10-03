@@ -8,20 +8,17 @@ import {
   modulesService,
   ModuleTable,
   ModuleCard,
-  ModuleAddModal,
-  ModuleEditModal,
+  ModuleModal,
 } from "@/features/module";
 
 function ModulePage() {
   const { user } = useAuth();
-  console.log("ModulePage - user:", user);
   const canManage = user?.department?.code === "TECH";
 
   const [modules, setModules] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
   const [selectedModule, setSelectedModule] = useState(null);
@@ -56,13 +53,13 @@ function ModulePage() {
 
   const handleCreateModule = async (data) => {
     await modulesService.createModule(data);
-    setIsAddModalOpen(false);
+    setIsModalOpen(false);
     fetchModules();
   };
 
   const handleOpenEdit = (appModule) => {
     setSelectedModule(appModule);
-    setIsEditModalOpen(true);
+    setIsModalOpen(true);
   };
 
   const handleUpdateModule = async (id, data) => {
@@ -100,7 +97,10 @@ function ModulePage() {
           <Button
             variant="primary"
             icon={FiPlus}
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setSelectedModule(null);
+              setIsModalOpen(true);
+            }}
           >
             Ajouter un module
           </Button>
@@ -127,19 +127,14 @@ function ModulePage() {
         ))}
       </div>
 
-      <ModuleAddModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onModuleCreated={handleCreateModule}
-      />
-
-      <ModuleEditModal
-        isOpen={isEditModalOpen}
+      <ModuleModal
+        isOpen={isModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
+          setIsModalOpen(false);
           setSelectedModule(null);
         }}
         selectedModule={selectedModule}
+        onModuleCreated={handleCreateModule}
         onModuleUpdated={handleUpdateModule}
       />
 

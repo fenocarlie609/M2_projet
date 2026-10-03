@@ -11,14 +11,17 @@ export const Card = ({ children, className = "" }) => {
   );
 };
 
-export const CardHeader = ({ title, subtitle, className = "" }) => (
+export const CardHeader = ({ title, subtitle, children, className = "" }) => (
   <div
-    className={`px-4 py-3.5 sm:px-6 sm:py-4.5 border-b border-slate-100 ${className}`}
+    className={`px-4 py-3.5 sm:px-6 sm:py-4.5 border-b border-slate-100 flex items-start justify-between gap-4 ${className}`}
   >
-    <h3 className="font-bold text-slate-900 text-sm sm:text-base">{title}</h3>
-    {subtitle && (
-      <p className="text-[11px] sm:text-xs text-slate-500 mt-1">{subtitle}</p>
-    )}
+    <div>
+      <h3 className="font-bold text-slate-900 text-sm sm:text-base">{title}</h3>
+      {subtitle && (
+        <p className="text-[11px] sm:text-xs text-slate-500 mt-1">{subtitle}</p>
+      )}
+    </div>
+    {children && <div className="shrink-0">{children}</div>}
   </div>
 );
 

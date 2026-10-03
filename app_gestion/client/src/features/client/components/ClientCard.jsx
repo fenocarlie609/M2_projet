@@ -5,6 +5,7 @@ import {
   FiTrash2,
   FiEdit3,
   FiPhone,
+  FiMapPin,
   FiBriefcase,
   FiUser,
 } from "react-icons/fi";
@@ -56,7 +57,7 @@ export function ClientCard({ client, onEdit, onDelete }) {
                 {client.name}
               </h4>
               <Badge
-                variant={isCompany ? "navy" : "secondary"}
+                variant={isCompany ? "navy" : "info"}
                 className="mt-1 text-[10px] px-1.5 py-0"
               >
                 {isCompany ? "Entreprise" : "Particulier"}
@@ -73,6 +74,12 @@ export function ClientCard({ client, onEdit, onDelete }) {
           <div className="flex items-center gap-2 text-xs text-slate-500 pt-1.5 border-t border-slate-50">
             <FiPhone className="text-slate-400 shrink-0" size={13} />
             <span className="font-medium truncate">{client.phone}</span>
+          </div>
+        )}
+        {client.address && (
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <FiMapPin className="shrink-0 text-slate-400" size={13} />
+            <span className="truncate">{client.address}</span>
           </div>
         )}
       </CardContent>

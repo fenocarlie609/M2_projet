@@ -1,18 +1,29 @@
-// src/features/client/client.validation.js
 const { z } = require("zod");
 
-const createClientSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  type: z.enum(["COMPANY", "INDIVIDUAL"]).default("INDIVIDUAL"),
-  phone: z.string().optional().nullable(),
-});
+const clientFields = {
+  name: z.string().trim().min(1, "Le nom du client est requis"),
+  type: z.enum(["COMPANY", "INDIVIDUAL"]),
+  email: z
+    .string()
+    .trim()
+    .email("L'email est invalide")
+    .optional()
+    .nullable(),
+  phone: z.string().trim().optional().nullable(),
+  address: z.string().trim().optional().nullable(),
+};
+
+const createClientSchema = z
+  .object({
+    ...clientFields,
+    type: clientFields.type.default("INDIVIDUAL"),
+  })
+  .strict();
 
 const updateClientSchema = z
-  .object({
-    name: z.string().min(1).optional(),
-    type: z.enum(["COMPANY", "INDIVIDUAL"]).optional(),
-    phone: z.string().optional().nullable(),
-  })
+  .object(clientFields)
+  .partial()
+  .strict()
   .refine((data) => Object.keys(data).length > 0, {
     message: "Au moins un champ doit être fourni pour la mise à jour.",
   });

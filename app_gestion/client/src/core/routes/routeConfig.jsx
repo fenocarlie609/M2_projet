@@ -1,5 +1,10 @@
-import { FiAnchor } from "react-icons/fi";
-import { MdSpaceDashboard, MdViewModule } from "react-icons/md";
+import { FiAnchor, FiClipboard, FiTruck } from "react-icons/fi";
+import {
+  MdDirectionsBoat,
+  MdLocationOn,
+  MdSpaceDashboard,
+  MdViewModule,
+} from "react-icons/md";
 import { FaUserTie, FaTruck, FaUserLock } from "react-icons/fa";
 import { IoIosSettings } from "react-icons/io";
 import { FaUsers } from "react-icons/fa6";
@@ -12,6 +17,11 @@ import { TemplatePage } from "@/features/template";
 import { ClientPage } from "@/features/client";
 import { DriverPage } from "@/features/driver";
 import { ModulePage } from "@/features/module";
+import { PlansPage } from "@/features/plans";
+import { ShipPage } from "@/features/ship";
+import { PortPage } from "@/features/ports";
+import { VoyagePage } from "@/features/voyages";
+import { LoadPage } from "@/features/plans";
 
 const withDashboardLayout = (page) => (
   <dashboard.DashboardLayout>{page}</dashboard.DashboardLayout>
@@ -54,14 +64,68 @@ export const appRoutes = [
     icon: FaUserTie,
     showInSidebar: true,
   },
+  // {
+  //   path: "/driver",
+  //   label: "Transporteurs",
+  //   section: "Logistique",
+  //   element: withDashboardLayout(<DriverPage />),
+  //   requiredPermission: { module: "DRIVER", action: "READ" },
+  //   icon: FaTruck,
+  //   showInSidebar: true,
+  // },
   {
-    path: "/driver",
-    label: "chauffeur",
-    section: "Commercial",
-    element: withDashboardLayout(<DriverPage />),
-    requiredPermission: { module: "DRIVER", action: "READ" },
-    icon: FaTruck,
+    path: "/ship",
+    label: "Navires",
+    section: "Logistique",
+    element: withDashboardLayout(<ShipPage />),
+    requiredPermission: { module: "VESSELS", action: "READ" },
+    icon: MdDirectionsBoat,
     showInSidebar: true,
+  },
+  {
+    path: "/ports",
+    label: "Ports",
+    section: "Logistique",
+    element: withDashboardLayout(<PortPage />),
+    requiredPermission: { module: "PORTS", action: "READ" },
+    icon: MdLocationOn,
+    showInSidebar: true,
+  },
+  {
+    path: "/voyages",
+    label: "Voyages",
+    section: "Logistique",
+    element: withDashboardLayout(<VoyagePage />),
+    requiredPermission: { module: "VOYAGES", action: "READ" },
+    icon: FiAnchor,
+    showInSidebar: true,
+  },
+  {
+    path: "/plans",
+    label: "Plans de Manutention",
+    section: "Logistique",
+    element: withDashboardLayout(<PlansPage />),
+    requiredPermission: { module: "LOADING_PLANS", action: "READ" },
+    icon: FiClipboard,
+    showInSidebar: true,
+  },
+  {
+    path: "/plans/load/:reference",
+    label: "Chargement",
+    section: "Logistique",
+    element: withDashboardLayout(<LoadPage operationType="LOAD" />),
+    requiredPermission: { module: "LOADING_PLANS", action: "READ" },
+    icon: FiTruck,
+    showInSidebar: false,
+  },
+  {
+    path: "/plans/unload/:reference",
+    label: "Déchargement",
+    section: "Logistique",
+    element: withDashboardLayout(<LoadPage operationType="UNLOAD" />),
+    requiredPermission: { module: "LOADING_PLANS", action: "READ" },
+    icon: FiTruck,
+    showInSidebar: false,
   },
   {
     path: "/users",

@@ -18,6 +18,17 @@ enum EntityType {
   INDIVIDUAL   // Particulier / Personne Physique
 }
 
+enum ClientAddressType {
+  BILLING
+  DELIVERY
+  BOTH
+}
+
+enum LoadingPlanOperation {
+  LOAD
+  UNLOAD
+}
+
 // ==========================================
 // 1. ARCHITECTURE INTERNE (EMPLOYÉS & ACCÈS)
 // ==========================================
@@ -64,35 +75,35 @@ model Employee {
   id            String    @id @default(uuid())
 
   // Informations Personnelles & Professionnelles
-  name          String    // Nom complet
-  cin           String?   @unique // Numéro CIN (optionnel : certains employés n'en ont pas encore)
-  matricule     String    @unique // Numéro de matricule interne (attribué par la RH), utilisable pour se connecter
+  name          String    
+  cin           String?   @unique 
+  matricule     String    @unique 
   phone         String?
-  avatarUrl     String?   // Photo de l'employé
+  avatarUrl     String?   
 
-  // Un employé a UNE seule position, elle-même rattachée à UN seul département.
-  // On stocke aussi departmentId directement (dénormalisé) pour permettre la
-  // contrainte de clé étrangère composite ci-dessous.
   departmentId  String
   positionId    String
   department    Department @relation(fields: [departmentId], references: [id])
   position      Position   @relation(fields: [positionId, departmentId], references: [id, departmentId])
 
-  // --- SECTION COMPTE & ACCÈS À L'APPLICATION ---
-  hasAppAccess  Boolean   @default(false) // Permet de marquer si l'employé a le droit d'utiliser l'app
-  email         String?   @unique // Requis uniquement si hasAppAccess = true
-  password      String?   // Requis uniquement si hasAppAccess = true
-  isActive      Boolean   @default(false) // Si le compte est activé/validé par l'admin
+  hasAppAccess  Boolean   @default(false) 
+  email         String?   @unique 
+  password      String?   
+  isActive      Boolean   @default(false) 
 
   // Relations
-  permissions   EmployeePermission[] // Liste des permissions spécifiques de cet employé
+  permissions   EmployeePermission[] 
   auditLogs     AuditLog[]
   notificationRead NotificationRead[]
   refreshTokens RefreshToken[]
+  validatedLoadingPlans LoadingPlan[] @relation("LoadingPlanValidator")
+  
+  // MODIFICATION : Relation mise à jour vers Load
+  loadedLoads   Load[]     @relation("LoadLoader")
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime? // Soft delete pour l'employé
+  deletedAt     DateTime? 
 
   @@map("employees")
 }
@@ -143,26 +154,231 @@ model AuditLog {
 // ==========================================
 
 model Client {
-  id        String     @id @default(uuid())
-  name      String
-  type      EntityType @default(INDIVIDUAL)
-  phone     String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                   String          @id @default(uuid())
+  reference            String?         @unique
+  name                 String
+  type                 EntityType      @default(INDIVIDUAL)
+
+  firstName            String?
+  lastName             String?
+  cin                  String?         @unique
+  cinIssuedAt          DateTime?
+  cinIssuedPlace       String?
+
+  legalName            String?
+  tradeName            String?
+  nif                  String?         @unique
+  stat                 String?         @unique
+  rcs                  String?
+  legalForm            String?
+  activity             String?
+
+  email                String?
+  phone                String?
+  secondaryPhone       String?
+  paymentTerms         String?
+  currency             String          @default("MGA")
+  taxExempt            Boolean         @default(false)
+  taxExemptionReason   String?
+  contractNumber       String?
+  habitualCargoType    String?
+
+  receptionContactName  String?
+  receptionContactPhone String?
+  receptionContactEmail String?
+
+  isActive             Boolean         @default(true)
+  notes                String?
+  
+  // MODIFICATION : Relation mise à jour vers Load
+  loads                Load[]
+  addresses            ClientAddress[]
+  documents            ClientDocument[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  deletedAt            DateTime?
+
+  @@index([type])
+  @@index([name])
+  @@index([deletedAt])
 
   @@map("clients")
 }
 
-model Driver {
-  id           String     @id @default(uuid())
-  name         String
-  type         EntityType @default(INDIVIDUAL)
-  licensePlate String
-  phone        String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+model ClientAddress {
+  id           String            @id @default(uuid())
+  clientId     String
+  type         ClientAddressType
+  label        String?
+  addressLine1 String
+  addressLine2 String?
+  city         String?
+  region       String?
+  postalCode   String?
+  country      String            @default("Madagascar")
+  isDefault    Boolean           @default(false)
 
-  @@map("drivers")
+  client       Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  @@index([clientId, type])
+  @@index([deletedAt])
+  @@map("client_addresses")
+}
+
+model ClientDocument {
+  id           String   @id @default(uuid())
+  clientId     String
+  documentType String
+  documentNumber String?
+  fileName     String?
+  fileUrl      String?
+  issuedAt     DateTime?
+  expiresAt    DateTime?
+  verifiedAt   DateTime?
+  notes        String?
+
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@index([clientId, documentType])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@map("client_documents")
+}
+
+// ==========================================
+// 3. DONNÉES MARITIMES
+// ==========================================
+
+model Vessel {
+  id                   String   @id @default(uuid())
+  name                 String
+  operatorName         String?
+  registrationNumber   String?  @unique
+  capacityTons         Decimal?
+  status               String   @default("ACTIVE")
+
+  voyages              Voyage[]
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  deletedAt            DateTime?
+
+  @@index([status])
+  @@index([deletedAt])
+  @@map("vessels")
+}
+
+model Port {
+  id                   String   @id @default(uuid())
+  code                 String   @unique
+  name                 String
+  country              String?
+
+  departureVoyages     Voyage[] @relation("DeparturePort")
+  arrivalVoyages       Voyage[] @relation("ArrivalPort")
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  deletedAt            DateTime?
+
+  @@index([deletedAt])
+  @@map("ports")
+}
+
+model Voyage {
+  id                   String   @id @default(uuid())
+  vesselId             String
+  departurePortId      String
+  arrivalPortId        String
+  voyageNumber         String
+  departureDate        DateTime?
+  arrivalDate          DateTime?
+  status               String   @default("DRAFT")
+
+  vessel               Vessel   @relation(fields: [vesselId], references: [id])
+  departurePort        Port     @relation("DeparturePort", fields: [departurePortId], references: [id])
+  arrivalPort          Port     @relation("ArrivalPort", fields: [arrivalPortId], references: [id])
+  loadingPlans         LoadingPlan[]
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  deletedAt            DateTime?
+
+  @@unique([vesselId, voyageNumber])
+  @@index([departurePortId])
+  @@index([arrivalPortId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("voyages")
+}
+
+model LoadingPlan {
+  id             String   @id @default(uuid())
+  reference      String   @unique
+  voyageId       String
+  status         Boolean  @default(false)
+  operationType  LoadingPlanOperation @default(LOAD)
+  totalWeightKg  Decimal  @default(0)
+  validatedAt    DateTime?
+  validatedById  String?
+
+  voyage         Voyage   @relation(fields: [voyageId], references: [id])
+  validatedBy    Employee? @relation("LoadingPlanValidator", fields: [validatedById], references: [id])
+  sourceLoadingPlanId String? @unique
+  sourceLoadingPlan LoadingPlan? @relation("LoadingPlanUnload", fields: [sourceLoadingPlanId], references: [id], onDelete: SetNull)
+  unloadPlan     LoadingPlan? @relation("LoadingPlanUnload")
+  
+  // MODIFICATION : Relation mise à jour vers Load
+  loads          Load[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  @@index([voyageId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("loading_plans")
+}
+
+model Load {
+  id             String   @id @default(uuid())
+  loadingPlanId  String
+  clientId       String
+  driverName     String?   
+  vehiclePlate   String?   
+  loadedById     String?
+  loadingDate    DateTime?
+  packageCount   Int
+  description    String
+  weightKg       Decimal
+  anomaly        String?
+  loadingPosition String?
+  isHazardous    Boolean  @default(false)
+  status         String   @default("PENDING")
+
+  loadingPlan    LoadingPlan @relation(fields: [loadingPlanId], references: [id], onDelete: Cascade)
+  client         Client      @relation(fields: [clientId], references: [id])
+  loadedBy       Employee?   @relation("LoadLoader", fields: [loadedById], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  @@index([loadingPlanId])
+  @@index([clientId])
+  @@index([loadingDate])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("loads") // Nom de la table mis à jour en "loads"
 }
 
 model Notification {

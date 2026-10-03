@@ -2,9 +2,11 @@
 const rateLimit = require("express-rate-limit");
 const logger = require("./logger");
 
+const isDevelopment = process.env.NODE_ENV === "development";
+
 const appLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // Fenêtre de 15 minutes
-  max: 100, // Limite chaque IP à 100 requêtes par fenêtre
+  max: isDevelopment ? 500 : 100,
   standardHeaders: true, // Retourne les infos de limite dans les headers RateLimit-*
   legacyHeaders: false, // Désactive les anciens headers X-RateLimit-*
   message: {

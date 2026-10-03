@@ -1,4 +1,3 @@
-// src/features/employee/pages/EmployeePage.jsx
 import React, { useEffect, useState } from "react";
 import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
@@ -6,8 +5,7 @@ import { FiPlus } from "react-icons/fi";
 import {
   employeeService,
   EmployeeTable,
-  EmployeeAddModal,
-  EmployeeEditModal,
+  EmployeeModal,
   EmployeeCard,
 } from "@/features/employee";
 
@@ -15,8 +13,7 @@ function EmployeePage() {
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -44,7 +41,10 @@ function EmployeePage() {
 
       const { action } = payload;
       if (action === "created" && payload.employee) {
-        setEmployees((prev) => [payload.employee, ...prev]);
+        setEmployees((prev) => {
+          const exists = prev.some((e) => e.id === payload.employee.id);
+          return exists ? prev : [payload.employee, ...prev];
+        });
       } else if (action === "updated" && payload.employee) {
         setEmployees((prev) =>
           prev.map((e) =>
@@ -65,16 +65,20 @@ function EmployeePage() {
   const handleCreateEmployee = async (newEmployeeData) => {
     const response = await employeeService.createEmployee(newEmployeeData);
     if (response?.data?.employee) {
-      setEmployees((prev) => [...prev, response.data.employee]);
+      const newEmp = response.data.employee;
+      setEmployees((prev) => {
+        const exists = prev.some((e) => e.id === newEmp.id);
+        return exists ? prev : [newEmp, ...prev];
+      });
     } else {
       fetchEmployees();
     }
-    setIsAddModalOpen(false);
+    setIsModalOpen(false);
   };
 
   const handleOpenEdit = (employee) => {
     setSelectedEmployee(employee);
-    setIsEditModalOpen(true);
+    setIsModalOpen(true);
   };
 
   const handleUpdateEmployee = async (employeeId, updatedData) => {
@@ -90,7 +94,6 @@ function EmployeePage() {
       } else {
         fetchEmployees();
       }
-      setIsEditModalOpen(false);
     } catch (error) {
       console.error("Erreur lors de la mise à jour de l'employé :", error);
     } finally {
@@ -108,7 +111,7 @@ function EmployeePage() {
     try {
       setIsDeleting(true);
       await employeeService.deleteEmployee(selectedEmployee.id);
-      setEmployees(employees.filter((e) => e.id !== selectedEmployee.id));
+      setEmployees((prev) => prev.filter((e) => e.id !== selectedEmployee.id));
       setIsDeleteAlertOpen(false);
     } catch (error) {
       console.error("Erreur suppression :", error);
@@ -124,7 +127,10 @@ function EmployeePage() {
         <Button
           variant="primary"
           icon={FiPlus}
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            setSelectedEmployee(null);
+            setIsModalOpen(true);
+          }}
         >
           Ajouter un employé
         </Button>
@@ -146,24 +152,18 @@ function EmployeePage() {
             employee={employee}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
-            //onViewDetails={(emp) => handleOpenDetailsModal(emp)} // Exemple : Ouvre un Drawer ou un Dialog de détails
           />
         ))}
       </div>
 
-      <EmployeeAddModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onEmployeeCreated={handleCreateEmployee}
-      />
-
-      <EmployeeEditModal
-        isOpen={isEditModalOpen}
+      <EmployeeModal
+        isOpen={isModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
+          setIsModalOpen(false);
           setSelectedEmployee(null);
         }}
         selectedEmployee={selectedEmployee}
+        onEmployeeCreated={handleCreateEmployee}
         onEmployeeUpdated={handleUpdateEmployee}
       />
 

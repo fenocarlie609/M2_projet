@@ -1,51 +1,119 @@
-// src/features/client/client.service.js
 const { prisma } = require("../../config/database");
 
-/**
- * Crée un nouveau client.
- */
+const activeAddressInclude = {
+  addresses: {
+    where: { deletedAt: null },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+  },
+};
+
+const toBasicClient = (client) => {
+  if (!client) return null;
+
+  return {
+    id: client.id,
+    name: client.name,
+    type: client.type,
+    email: client.email,
+    phone: client.phone,
+    address: client.addresses?.[0]?.addressLine1 || "",
+    createdAt: client.createdAt,
+    updatedAt: client.updatedAt,
+  };
+};
+
 const createClient = async (data) => {
-  return await prisma.client.create({
-    data,
+  const { address, ...clientData } = data;
+  const client = await prisma.client.create({
+    data: {
+      ...clientData,
+      ...(address
+        ? {
+            addresses: {
+              create: [
+                {
+                  type: "BOTH",
+                  addressLine1: address,
+                  country: "Madagascar",
+                  isDefault: true,
+                },
+              ],
+            },
+          }
+        : {}),
+    },
+    include: activeAddressInclude,
   });
+
+  return toBasicClient(client);
 };
 
-/**
- * Met à jour un client existant.
- */
 const updateClient = async (id, data) => {
-  return await prisma.client.update({
-    where: { id },
-    data,
+  const { address, ...clientData } = data;
+
+  return prisma.$transaction(async (transaction) => {
+    await transaction.client.update({ where: { id }, data: clientData });
+
+    if (address !== undefined) {
+      const currentAddress = await transaction.clientAddress.findFirst({
+        where: { clientId: id, deletedAt: null },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      });
+
+      if (address) {
+        if (currentAddress) {
+          await transaction.clientAddress.update({
+            where: { id: currentAddress.id },
+            data: { addressLine1: address, isDefault: true },
+          });
+        } else {
+          await transaction.clientAddress.create({
+            data: {
+              clientId: id,
+              type: "BOTH",
+              addressLine1: address,
+              country: "Madagascar",
+              isDefault: true,
+            },
+          });
+        }
+      } else if (currentAddress) {
+        await transaction.clientAddress.update({
+          where: { id: currentAddress.id },
+          data: { deletedAt: new Date(), isDefault: false },
+        });
+      }
+    }
+
+    const client = await transaction.client.findUnique({
+      where: { id },
+      include: activeAddressInclude,
+    });
+    return toBasicClient(client);
   });
 };
 
-/**
- * Supprime définitivement un client (Hard Delete).
- * Note : Le modèle Client n'a pas de champ deletedAt dans le schéma actuel.
- */
-const deleteClient = async (id) => {
-  return await prisma.client.delete({
+const deleteClient = async (id) =>
+  prisma.client.delete({
     where: { id },
   });
-};
 
-/**
- * Récupère tous les clients.
- */
 const getAllClients = async () => {
-  return await prisma.client.findMany({
+  const clients = await prisma.client.findMany({
     orderBy: { createdAt: "desc" },
+    include: activeAddressInclude,
   });
+
+  return clients.map(toBasicClient);
 };
 
-/**
- * Récupère un client par son ID.
- */
 const getClientById = async (id) => {
-  return await prisma.client.findUnique({
+  const client = await prisma.client.findUnique({
     where: { id },
+    include: activeAddressInclude,
   });
+
+  return toBasicClient(client);
 };
 
 module.exports = {

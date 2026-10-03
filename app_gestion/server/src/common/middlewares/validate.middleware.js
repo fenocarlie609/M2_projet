@@ -33,6 +33,8 @@ const validate = (schemas) => {
           message: err.message,
         }));
 
+        console.warn("Validation échouée:", errorsFormatted);
+
         // On crée une erreur 400 (Bad Request) propre avec le détail des champs
         const validationError = new AppError(
           "Erreur de validation des données entrantes",

@@ -13,6 +13,7 @@ import {
   normalizePermissions,
   showToast,
 } from "@/shared/utils/";
+import Load from "@/shared/utils/Load";
 
 export const AuthContext = createContext(null);
 
@@ -166,7 +167,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{ user, setUser, login, logout, loading, checkPermission }}
     >
-      {!loading && children}
+      {loading ? <Load /> : children}
     </AuthContext.Provider>
   );
 };
