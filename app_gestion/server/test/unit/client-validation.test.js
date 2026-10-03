@@ -4,68 +4,52 @@ const {
   clientValidation,
 } = require("../../src/modules/clients/client.validation");
 
-const parseClient = (value) => clientValidation.create.body.parse(value);
+const parseCreateClient = (value) => clientValidation.create.body.parse(value);
+const parseUpdateClient = (value) => clientValidation.update.body.parse(value);
 
-test("accepte un particulier avec CIN et adresse", () => {
-  const client = parseClient({
+test("valide les informations de base d'un particulier", () => {
+  const client = parseCreateClient({
     name: "Jean Rakoto",
-    type: "INDIVIDUAL",
-    cin: "101010101010",
-    addresses: [
-      {
-        type: "BOTH",
-        addressLine1: "Rue de Test",
-        city: "Toamasina",
-      },
-    ],
+    phone: "+261 34 00 000 00",
+    email: "jean@test.mg",
+    address: "Rue de Test, Toamasina",
   });
 
   assert.equal(client.type, "INDIVIDUAL");
-  assert.equal(client.addresses.length, 1);
+  assert.equal(client.name, "Jean Rakoto");
+  assert.equal(client.address, "Rue de Test, Toamasina");
 });
 
-test("accepte une entreprise avec NIF, STAT et document", () => {
-  const client = parseClient({
+test("accepte une entreprise avec le même formulaire minimal", () => {
+  const client = parseCreateClient({
     name: "Societe Test",
     type: "COMPANY",
-    nif: "NIF-TEST",
-    stat: "STAT-TEST",
     email: "contact@test.mg",
-    documents: [
-      {
-        documentType: "NIF",
-        documentNumber: "NIF-TEST",
-      },
-    ],
   });
 
   assert.equal(client.type, "COMPANY");
-  assert.equal(client.currency, "MGA");
-  assert.equal(client.documents[0].documentType, "NIF");
+  assert.equal(client.name, "Societe Test");
 });
 
-test("exige le motif lorsqu'une entreprise est exonérée", () => {
+test("refuse les champs hors du contrat et les emails invalides", () => {
   assert.throws(() =>
-    parseClient({
-      name: "Entreprise Exoneree",
-      type: "COMPANY",
-      taxExempt: true,
+    parseCreateClient({
+      name: "Client Test",
+      cin: "101010101010",
     }),
   );
-});
-
-test("valide les types d'adresses et les emails", () => {
   assert.throws(() =>
-    parseClient({
-      name: "Client Invalide",
+    parseCreateClient({
+      name: "Client Test",
       email: "email-invalide",
     }),
   );
+});
 
-  assert.throws(() =>
-    parseClient({
-      name: "Client Invalide",
-      addresses: [{ type: "UNKNOWN", addressLine1: "Rue Test" }],
-    }),
-  );
+test("autorise une mise à jour partielle non vide", () => {
+  assert.deepEqual(parseUpdateClient({ phone: "+261 34 00 000 00" }), {
+    phone: "+261 34 00 000 00",
+  });
+  assert.throws(() => parseUpdateClient({}));
+  assert.throws(() => parseCreateClient({ name: "   " }));
 });

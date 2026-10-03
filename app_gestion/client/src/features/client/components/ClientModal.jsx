@@ -52,7 +52,7 @@ export function ClientModal({
           ? `Modifier le client : ${selectedClient.name}`
           : "Ajouter un nouveau client"
       }
-      maxWidth="max-w-4xl"
+      maxWidth="max-w-2xl"
     >
       <ClientForm
         selectedClient={selectedClient}

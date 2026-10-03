@@ -13,15 +13,14 @@ test.after(async () => {
 });
 
 test("les données logistiques de démonstration sont présentes", async () => {
-  const [vessels, ports, voyages, clients, plans, loads] =
-    await Promise.all([
-      prisma.vessel.count(),
-      prisma.port.count(),
-      prisma.voyage.count(),
-      prisma.client.count(),
-      prisma.loadingPlan.count(),
-      prisma.load.count(),
-    ]);
+  const [vessels, ports, voyages, clients, plans, loads] = await Promise.all([
+    prisma.vessel.count(),
+    prisma.port.count(),
+    prisma.voyage.count(),
+    prisma.client.count(),
+    prisma.loadingPlan.count(),
+    prisma.load.count(),
+  ]);
 
   assert.ok(vessels >= 2);
   assert.ok(ports >= 4);

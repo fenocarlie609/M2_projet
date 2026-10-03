@@ -94,8 +94,16 @@ export function LoadPlanTable({
                 variant="ghost"
                 size="sm"
                 icon={FiEye}
-                title={operationType === "UNLOAD" ? "Ouvrir le déchargement" : "Ouvrir le chargement"}
-                aria-label={operationType === "UNLOAD" ? "Ouvrir le déchargement" : "Ouvrir le chargement"}
+                title={
+                  operationType === "UNLOAD"
+                    ? "Ouvrir le déchargement"
+                    : "Ouvrir le chargement"
+                }
+                aria-label={
+                  operationType === "UNLOAD"
+                    ? "Ouvrir le déchargement"
+                    : "Ouvrir le chargement"
+                }
                 className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
                 onClick={() => onOpen(row)}
               />
