@@ -14,7 +14,6 @@ const planInclude = {
     select: { id: true, name: true, matricule: true },
   },
   loads: {
-    // 👈 REPLACÉ CARGOLINES PAR LOADS
     where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
     include: {
@@ -22,6 +21,11 @@ const planInclude = {
       loadedBy: { select: { id: true, name: true, matricule: true } },
     },
   },
+};
+
+const loadInclude = {
+  client: true,
+  loadedBy: { select: { id: true, name: true, matricule: true } },
 };
 
 const decimal = (value) => new Prisma.Decimal(String(value));
@@ -40,8 +44,8 @@ const getPlanOrThrow = async (id, transaction = prisma) => {
 };
 
 const ensureEditable = (plan) => {
-  if (["VALIDATED", "CLOSED"].includes(plan.status)) {
-    throw new AppError("Ce plan n'est plus modifiable.", 409);
+  if (plan.validatedAt) {
+    throw new AppError("Ce plan est validé et n'est plus modifiable.", 409);
   }
 };
 
@@ -58,22 +62,26 @@ const ensureCapacity = (plan, totalWeightKg) => {
   }
 };
 
-const getAllPlans = async () => {
-  return await prisma.loadingPlan.findMany({
+const sumActiveLoadWeights = (loads, overrides = {}) =>
+  loads.reduce((total, load) => {
+    if (load.id === overrides.excludeId) return total;
+    const candidate = load.id === overrides.loadId ? overrides.load : load;
+    if (candidate.status === "CANCELLED") return total;
+    return total.add(decimal(candidate.weightKg));
+  }, decimal(0));
+
+const getAllPlans = async () =>
+  prisma.loadingPlan.findMany({
     where: { deletedAt: null },
     include: planInclude,
     orderBy: { createdAt: "desc" },
   });
-};
 
 const getPlanById = (id) => getPlanOrThrow(id);
 
 const getPlanByReference = async (reference) => {
   const plan = await prisma.loadingPlan.findFirst({
-    where: {
-      reference: reference,
-      deletedAt: null,
-    },
+    where: { reference, deletedAt: null },
     include: planInclude,
   });
 
@@ -87,7 +95,6 @@ const getPlanByReference = async (reference) => {
 const createPlan = async (data) => {
   const voyage = await prisma.voyage.findFirst({
     where: { id: data.voyageId, deletedAt: null },
-    include: { vessel: true },
   });
 
   if (!voyage) {
@@ -98,7 +105,8 @@ const createPlan = async (data) => {
     data: {
       reference: data.reference,
       voyageId: data.voyageId,
-      status: data.status || false,
+      operationType: data.operationType,
+      status: false,
       totalWeightKg: decimal(0),
     },
     include: planInclude,
@@ -108,6 +116,15 @@ const createPlan = async (data) => {
 const updatePlan = async (id, data) => {
   const plan = await getPlanOrThrow(id);
   ensureEditable(plan);
+
+  if (data.voyageId && data.voyageId !== plan.voyageId) {
+    const voyage = await prisma.voyage.findFirst({
+      where: { id: data.voyageId, deletedAt: null },
+      include: { vessel: true },
+    });
+    if (!voyage) throw new AppError("Voyage introuvable.", 404);
+    ensureCapacity({ ...plan, voyage }, decimal(plan.totalWeightKg));
+  }
 
   return prisma.loadingPlan.update({
     where: { id },
@@ -122,100 +139,110 @@ const deletePlan = async (id) => {
   await prisma.loadingPlan.delete({ where: { id } });
 };
 
-const createLine = async (planId, data, loadedById) =>
+const createLoad = async (planId, data, loadedById) =>
   prisma.$transaction(async (transaction) => {
     const plan = await getPlanOrThrow(planId, transaction);
     ensureEditable(plan);
 
-    const totalWeightKg = decimal(plan.totalWeightKg).add(
-      decimal(data.weightKg),
+    const loads = await transaction.load.findMany({
+      where: { loadingPlanId: planId, deletedAt: null },
+      select: { id: true, weightKg: true, status: true },
+    });
+    const totalWeightKg = sumActiveLoadWeights(loads).add(
+      data.status === "CANCELLED" ? decimal(0) : decimal(data.weightKg),
     );
     ensureCapacity(plan, totalWeightKg);
 
-    await transaction.loadingPlan.update({
-      where: { id: planId },
-      data: { totalWeightKg },
-    });
-
-    return transaction.cargoLine.create({
+    const load = await transaction.load.create({
       data: {
         ...data,
         weightKg: decimal(data.weightKg),
+        loadingPlanId: planId,
         loadedById,
       },
-      include: {
-        client: true,
-        driver: true,
-        vehicle: true,
-      },
+      include: loadInclude,
     });
-  });
-
-const updateLine = async (planId, lineId, data) =>
-  prisma.$transaction(async (transaction) => {
-    const plan = await getPlanOrThrow(planId, transaction);
-    ensureEditable(plan);
-
-    const currentLine = await transaction.cargoLine.findFirst({
-      where: { id: lineId, loadingPlanId: planId, deletedAt: null },
-    });
-
-    if (!currentLine) {
-      throw new AppError("Ligne de marchandise introuvable.", 404);
-    }
-
-    const currentWeightKg = decimal(currentLine.weightKg);
-    const nextWeightKg =
-      data.weightKg === undefined ? currentWeightKg : decimal(data.weightKg);
-    const totalWeightKg = decimal(plan.totalWeightKg)
-      .sub(currentWeightKg)
-      .add(nextWeightKg);
-    ensureCapacity(plan, totalWeightKg);
 
     await transaction.loadingPlan.update({
       where: { id: planId },
       data: { totalWeightKg },
     });
 
-    return transaction.cargoLine.update({
-      where: { id: lineId },
-      data: {
-        ...data,
-        ...(data.weightKg === undefined ? {} : { weightKg: nextWeightKg }),
-      },
-      include: {
-        client: true,
-        driver: true,
-        vehicle: true,
-      },
-    });
+    return load;
   });
 
-const deleteLine = async (planId, lineId) =>
+const updateLoad = async (planId, loadId, data) =>
   prisma.$transaction(async (transaction) => {
     const plan = await getPlanOrThrow(planId, transaction);
     ensureEditable(plan);
 
-    const line = await transaction.cargoLine.findFirst({
-      where: { id: lineId, loadingPlanId: planId, deletedAt: null },
+    const currentLoad = await transaction.load.findFirst({
+      where: { id: loadId, loadingPlanId: planId, deletedAt: null },
+    });
+    if (!currentLoad) throw new AppError("Marchandise introuvable.", 404);
+
+    const loads = await transaction.load.findMany({
+      where: { loadingPlanId: planId, deletedAt: null },
+      select: { id: true, weightKg: true, status: true },
+    });
+    const candidate = {
+      ...currentLoad,
+      ...data,
+      weightKg:
+        data.weightKg === undefined
+          ? currentLoad.weightKg
+          : decimal(data.weightKg),
+    };
+    const totalWeightKg = sumActiveLoadWeights(loads, {
+      loadId,
+      load: candidate,
+    });
+    ensureCapacity(plan, totalWeightKg);
+
+    const updatedLoad = await transaction.load.update({
+      where: { id: loadId },
+      data: {
+        ...data,
+        ...(data.weightKg === undefined
+          ? {}
+          : { weightKg: decimal(data.weightKg) }),
+      },
+      include: loadInclude,
     });
 
-    if (!line) {
-      throw new AppError("Ligne de marchandise introuvable.", 404);
-    }
-
-    const totalWeightKg = decimal(plan.totalWeightKg).sub(
-      decimal(line.weightKg),
-    );
     await transaction.loadingPlan.update({
       where: { id: planId },
-      data: {
-        totalWeightKg: totalWeightKg.greaterThan(0)
-          ? totalWeightKg
-          : decimal(0),
-      },
+      data: { totalWeightKg },
     });
-    await transaction.cargoLine.delete({ where: { id: lineId } });
+
+    return updatedLoad;
+  });
+
+const deleteLoad = async (planId, loadId) =>
+  prisma.$transaction(async (transaction) => {
+    const plan = await getPlanOrThrow(planId, transaction);
+    ensureEditable(plan);
+
+    const load = await transaction.load.findFirst({
+      where: { id: loadId, loadingPlanId: planId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!load) throw new AppError("Marchandise introuvable.", 404);
+
+    const loads = await transaction.load.findMany({
+      where: { loadingPlanId: planId, deletedAt: null },
+      select: { id: true, weightKg: true, status: true },
+    });
+    const totalWeightKg = sumActiveLoadWeights(loads, { excludeId: loadId });
+
+    await transaction.load.update({
+      where: { id: loadId },
+      data: { deletedAt: new Date() },
+    });
+    await transaction.loadingPlan.update({
+      where: { id: planId },
+      data: { totalWeightKg },
+    });
   });
 
 const validatePlan = async (id, employeeId) =>
@@ -223,19 +250,22 @@ const validatePlan = async (id, employeeId) =>
     const plan = await getPlanOrThrow(id, transaction);
     ensureEditable(plan);
 
-    if (plan.cargoLines.length === 0) {
+    const loads = plan.loads.filter((load) => load.status !== "CANCELLED");
+    if (!loads.length || loads.some((load) => load.status !== "LOADED")) {
       throw new AppError(
-        "Un plan doit contenir au moins une marchandise.",
+        `Toutes les marchandises actives doivent être ${plan.operationType === "UNLOAD" ? "déchargées" : "chargées"} avant validation.`,
         409,
       );
     }
 
-    ensureCapacity(plan, decimal(plan.totalWeightKg));
+    const totalWeightKg = sumActiveLoadWeights(plan.loads);
+    ensureCapacity(plan, totalWeightKg);
 
     return transaction.loadingPlan.update({
       where: { id },
       data: {
-        status: "VALIDATED",
+        status: true,
+        totalWeightKg,
         validatedAt: new Date(),
         validatedById: employeeId,
       },
@@ -246,12 +276,12 @@ const validatePlan = async (id, employeeId) =>
 module.exports = {
   getAllPlans,
   getPlanById,
-  s,
+  getPlanByReference,
   createPlan,
   updatePlan,
   deletePlan,
-  createLine,
-  updateLine,
-  deleteLine,
+  createLoad,
+  updateLoad,
+  deleteLoad,
   validatePlan,
 };

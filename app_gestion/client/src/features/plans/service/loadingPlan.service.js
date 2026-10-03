@@ -9,26 +9,31 @@ export const loadingPlanService = {
     return response?.data?.loadingPlans || [];
   },
   getPlanById: (id) => planCrud.getById(id),
-  getPlanByReference: (reference) => planCrud.getByReference(reference),
+  getPlanByReference: async (reference) => {
+    const response = await axiosInstance.get(
+      `/loading-plans/reference/${encodeURIComponent(reference)}`,
+    );
+    return response.data;
+  },
   createPlan: (data) => planCrud.create(data),
   updatePlan: (id, data) => planCrud.update(id, data),
   deletePlan: (id) => planCrud.remove(id),
-  async addLine(planId, data) {
+  async addLoad(planId, data) {
     const response = await axiosInstance.post(
-      `/loading-plans/${planId}/lines`,
+      `/loading-plans/${planId}/loads`,
       data,
     );
     return response.data;
   },
-  async updateLine(planId, lineId, data) {
+  async updateLoad(planId, loadId, data) {
     const response = await axiosInstance.put(
-      `/loading-plans/${planId}/lines/${lineId}`,
+      `/loading-plans/${planId}/loads/${loadId}`,
       data,
     );
     return response.data;
   },
-  deleteLine: (planId, lineId) =>
-    axiosInstance.delete(`/loading-plans/${planId}/lines/${lineId}`),
+  deleteLoad: (planId, loadId) =>
+    axiosInstance.delete(`/loading-plans/${planId}/loads/${loadId}`),
   async validatePlan(planId) {
     const response = await axiosInstance.post(
       `/loading-plans/${planId}/validate`,

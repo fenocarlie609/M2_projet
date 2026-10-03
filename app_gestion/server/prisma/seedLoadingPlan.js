@@ -24,26 +24,11 @@ async function upsertVessel(data) {
   });
 }
 
-async function upsertVehicle(data) {
-  return prisma.vehicle.upsert({
-    where: { licensePlate: data.licensePlate },
-    update: data,
-    create: data,
-  });
-}
-
 async function findOrCreateClient(data) {
   const existing = await prisma.client.findFirst({
     where: { name: data.name },
   });
   return existing || prisma.client.create({ data });
-}
-
-async function findOrCreateDriver(data) {
-  const existing = await prisma.driver.findFirst({
-    where: { licensePlate: data.licensePlate },
-  });
-  return existing || prisma.driver.create({ data });
 }
 
 async function upsertVoyage(data) {
@@ -59,23 +44,42 @@ async function upsertVoyage(data) {
   });
 }
 
-async function seedPlan({ reference, voyageId, status, lines }) {
+async function seedPlan({ reference, voyageId, lines }) {
+  const isLoaded =
+    lines.length > 0 &&
+    lines.some((line) => line.status === "LOADED") &&
+    lines.every((line) => ["LOADED", "CANCELLED"].includes(line.status));
   const plan = await prisma.loadingPlan.upsert({
     where: { reference },
-    update: { voyageId, status },
-    create: { reference, voyageId, status, totalWeightKg: decimal(0) },
+    update: {
+      voyageId,
+      status: isLoaded,
+      operationType: "LOAD",
+      validatedAt: isLoaded ? new Date() : null,
+      validatedById: null,
+    },
+    create: {
+      reference,
+      voyageId,
+      status: isLoaded,
+      operationType: "LOAD",
+      validatedAt: isLoaded ? new Date() : null,
+      totalWeightKg: decimal(0),
+    },
   });
 
-  await prisma.cargoLine.deleteMany({ where: { loadingPlanId: plan.id } });
+  await prisma.load.deleteMany({ where: { loadingPlanId: plan.id } });
 
   const totalWeightKg = lines.reduce(
     (total, line) => total + Number(line.weightKg),
     0,
   );
 
-  await prisma.cargoLine.createMany({
-    data: lines.map((line) => ({
+  await prisma.load.createMany({
+    data: lines.map(({ driverId, vehicleId, ...line }) => ({
       ...line,
+      driverName: driverId,
+      vehiclePlate: vehicleId,
       loadingPlanId: plan.id,
       weightKg: decimal(line.weightKg),
     })),
@@ -84,7 +88,7 @@ async function seedPlan({ reference, voyageId, status, lines }) {
   return prisma.loadingPlan.update({
     where: { id: plan.id },
     data: { totalWeightKg: decimal(totalWeightKg) },
-    include: { cargoLines: true },
+    include: { loads: true },
   });
 }
 
@@ -200,83 +204,25 @@ async function main() {
       }),
     ]);
 
-  const [rakoto, odilon, jimmy, haja, fulgence, toihire] = await Promise.all([
-    findOrCreateDriver({
-      name: "Rakoto",
-      type: "INDIVIDUAL",
-      licensePlate: "8466AJ",
-      phone: "+261340001101",
-    }),
-    findOrCreateDriver({
-      name: "Odilon",
-      type: "INDIVIDUAL",
-      licensePlate: "ODILON-01",
-      phone: "+261340001102",
-    }),
-    findOrCreateDriver({
-      name: "Jimmy",
-      type: "INDIVIDUAL",
-      licensePlate: "4676AF",
-      phone: "+261340001103",
-    }),
-    findOrCreateDriver({
-      name: "Haja",
-      type: "INDIVIDUAL",
-      licensePlate: "6253DJ",
-      phone: "+261340001104",
-    }),
-    findOrCreateDriver({
-      name: "Fulgence",
-      type: "INDIVIDUAL",
-      licensePlate: "5066AH",
-      phone: "+261340001105",
-    }),
-    findOrCreateDriver({
-      name: "Toihire",
-      type: "INDIVIDUAL",
-      licensePlate: "0467AJ",
-      phone: "+261340001106",
-    }),
-  ]);
-
-  const [truckRakoto, truckJimmy, truckHaja, truckFulgence, truckToihire] =
-    await Promise.all([
-      upsertVehicle({
-        licensePlate: "8466AJ",
-        type: "Camion plateau",
-        capacityTons: decimal(20),
-        status: "ACTIVE",
-      }),
-      upsertVehicle({
-        licensePlate: "4676AF",
-        type: "Camion benne",
-        capacityTons: decimal(25),
-        status: "ACTIVE",
-      }),
-      upsertVehicle({
-        licensePlate: "6253DJ",
-        type: "Camion fourgon",
-        capacityTons: decimal(15),
-        status: "ACTIVE",
-      }),
-      upsertVehicle({
-        licensePlate: "5066AH",
-        type: "Camion citerne",
-        capacityTons: decimal(35),
-        status: "ACTIVE",
-      }),
-      upsertVehicle({
-        licensePlate: "0467AJ",
-        type: "Camion plateau",
-        capacityTons: decimal(30),
-        status: "ACTIVE",
-      }),
-    ]);
+  const [rakoto, odilon, jimmy, haja, fulgence, toihire] = [
+    { id: "Rakoto" },
+    { id: "Odilon" },
+    { id: "Jimmy" },
+    { id: "Haja" },
+    { id: "Fulgence" },
+    { id: "Toihire" },
+  ];
+  const [truckRakoto, truckJimmy, truckHaja, truckFulgence, truckToihire] = [
+    { id: "8466AJ" },
+    { id: "4676AF" },
+    { id: "6253DJ" },
+    { id: "5066AH" },
+    { id: "0467AJ" },
+  ];
 
   const referencePlan = await seedPlan({
     reference: "PL-13E-2026",
     voyageId: voyage13.id,
-    status: "SUBMITTED",
     lines: [
       {
         clientId: kenny.id,
@@ -427,7 +373,6 @@ async function main() {
   await seedPlan({
     reference: "PL-14E-2026",
     voyageId: voyage14.id,
-    status: "DRAFT",
     lines: [
       {
         clientId: kenny.id,
@@ -474,7 +419,6 @@ async function main() {
   await seedPlan({
     reference: "PL-21E-2026",
     voyageId: voyage21.id,
-    status: "SUBMITTED",
     lines: [
       {
         clientId: herve.id,

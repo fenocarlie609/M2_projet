@@ -24,6 +24,11 @@ enum ClientAddressType {
   BOTH
 }
 
+enum LoadingPlanOperation {
+  LOAD
+  UNLOAD
+}
+
 // ==========================================
 // 1. ARCHITECTURE INTERNE (EMPLOYÉS & ACCÈS)
 // ==========================================
@@ -320,6 +325,7 @@ model LoadingPlan {
   reference      String   @unique
   voyageId       String
   status         Boolean  @default(false)
+  operationType  LoadingPlanOperation @default(LOAD)
   totalWeightKg  Decimal  @default(0)
   validatedAt    DateTime?
   validatedById  String?

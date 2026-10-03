@@ -13,38 +13,35 @@ test.after(async () => {
 });
 
 test("les données logistiques de démonstration sont présentes", async () => {
-  const [vessels, ports, voyages, vehicles, clients, drivers, plans, lines] =
+  const [vessels, ports, voyages, clients, plans, loads] =
     await Promise.all([
       prisma.vessel.count(),
       prisma.port.count(),
       prisma.voyage.count(),
-      prisma.vehicle.count(),
       prisma.client.count(),
-      prisma.driver.count(),
       prisma.loadingPlan.count(),
-      prisma.cargoLine.count(),
+      prisma.load.count(),
     ]);
 
   assert.ok(vessels >= 2);
   assert.ok(ports >= 4);
   assert.ok(voyages >= 3);
-  assert.ok(vehicles >= 5);
   assert.ok(clients >= 7);
-  assert.ok(drivers >= 6);
   assert.ok(plans >= 3);
-  assert.ok(lines >= 16);
+  assert.ok(loads >= 16);
 });
 
 test("le plan de référence conserve le total attendu", async () => {
   const plan = await prisma.loadingPlan.findUnique({
     where: { reference: "PL-13E-2026" },
-    include: { cargoLines: true },
+    include: { loads: true },
   });
 
   assert.ok(plan, "Le plan PL-13E-2026 doit exister");
-  assert.equal(plan.status, "SUBMITTED");
+  assert.equal(plan.operationType, "LOAD");
+  assert.equal(plan.status, false);
   assert.equal(plan.totalWeightKg.toString(), "95444");
-  assert.equal(plan.cargoLines.length, 11);
+  assert.equal(plan.loads.length, 11);
 });
 
 test("le seed est rejouable sans dupliquer les référentiels", async () => {
@@ -59,14 +56,14 @@ test("le seed est rejouable sans dupliquer les référentiels", async () => {
   assert.equal(referencePorts, 1);
 });
 
-test("les poids à confirmer du document sont identifiés comme lignes en attente", async () => {
-  const pendingLines = await prisma.cargoLine.findMany({
+test("les poids à confirmer du document sont identifiés comme chargements en attente", async () => {
+  const pendingLoads = await prisma.load.findMany({
     where: {
       loadingPlan: { reference: "PL-13E-2026" },
       status: "PENDING",
     },
   });
 
-  assert.equal(pendingLines.length, 2);
-  assert.ok(pendingLines.every((line) => line.anomaly));
+  assert.equal(pendingLoads.length, 2);
+  assert.ok(pendingLoads.every((load) => load.anomaly));
 });

@@ -8,12 +8,10 @@ export function LoadPlanModal({
   isOpen,
   onClose,
   selectedPlan,
+  operationType = "LOAD",
   onLoadCreated,
   onPlanUpdated,
   voyages,
-  onSubmit,
-  isSaving,
-  error,
 }) {
   const isEditing = Boolean(selectedPlan);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,6 +58,7 @@ export function LoadPlanModal({
       <LoadPlanForm
         selectedPlan={selectedPlan}
         voyages={voyages}
+        operationType={operationType}
         onSubmit={handleSubmit}
         onClose={onClose}
         isSubmitting={isSubmitting}

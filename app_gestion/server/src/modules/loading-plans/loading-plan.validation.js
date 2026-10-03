@@ -20,7 +20,6 @@ const loadCreate = z.object({
   clientId: z.string().trim().min(1, "Le client est requis"),
   driverName: z.string().trim().optional().nullable(),
   vehiclePlate: z.string().trim().optional().nullable(),
-  loadedById: z.string().trim().optional().nullable(),
   loadingDate: z.coerce.date().optional().nullable(),
   packageCount: z.coerce
     .number()

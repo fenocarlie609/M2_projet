@@ -23,6 +23,11 @@ exports.getById = catchAsync(async (req, res, next) => {
   }
 });
 
+exports.getByReference = catchAsync(async (req, res) => {
+  const plan = await service.getPlanByReference(req.params.reference);
+  res.status(200).json({ status: "success", data: { loadingPlan: plan } });
+});
+
 exports.create = catchAsync(async (req, res) => {
   const plan = await service.createPlan(req.body);
   res.status(201).json({ status: "success", data: { loadingPlan: plan } });
@@ -38,22 +43,22 @@ exports.remove = catchAsync(async (req, res) => {
   res.status(204).send();
 });
 
-exports.createLine = catchAsync(async (req, res) => {
-  const line = await service.createLine(req.params.id, req.body, req.user.id);
-  res.status(201).json({ status: "success", data: { cargoLine: line } });
+exports.createLoad = catchAsync(async (req, res) => {
+  const load = await service.createLoad(req.params.id, req.body, req.user.id);
+  res.status(201).json({ status: "success", data: { load } });
 });
 
-exports.updateLine = catchAsync(async (req, res) => {
-  const line = await service.updateLine(
+exports.updateLoad = catchAsync(async (req, res) => {
+  const load = await service.updateLoad(
     req.params.id,
-    req.params.lineId,
+    req.params.loadId,
     req.body,
   );
-  res.status(200).json({ status: "success", data: { cargoLine: line } });
+  res.status(200).json({ status: "success", data: { load } });
 });
 
-exports.removeLine = catchAsync(async (req, res) => {
-  await service.deleteLine(req.params.id, req.params.lineId);
+exports.removeLoad = catchAsync(async (req, res) => {
+  await service.deleteLoad(req.params.id, req.params.loadId);
   res.status(204).send();
 });
 

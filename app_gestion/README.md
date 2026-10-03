@@ -100,13 +100,14 @@ La page `client/src/features/template/pages/TemplatePage.jsx` est actuellement u
 - [ ] le formulaire n'enregistre pas de donnees dans PostgreSQL ;
 - [ ] cette maquette Template n'enregistre pas de donnees dans PostgreSQL ;
 - [ ] la maquette Template n'est pas encore remplacee par l'ecran metier `/loading-plans` ;
-- [x] les routes API `LoadingPlan` et `CargoLine` sont disponibles dans le module dedie ;
-- [x] le poids total est recalcule cote serveur et affiche en tonnes ;
+- [x] les routes API `LoadingPlan` et `Load` sont disponibles dans le module dedie ;
+- [x] le poids total est recalcule cote serveur, la capacite du navire est controlee et les totaux sont affiches en tonnes ;
+- [x] les plans de chargement et de dechargement sont distingues par type d'operation ;
+- [x] la validation verrouille le plan et son manifeste ;
 - [ ] aucun export PDF ou impression du plan n'est disponible ;
-- [ ] aucune validation metier ne bloque la surcharge d'un navire ;
-- [ ] aucun workflow brouillon, soumis, valide ou cloture n'est implemente.
+- [ ] aucun workflow de versions du plan ni audit complet n'est disponible.
 
-Le terme `CHARGEMENT` apparait dans des commentaires de permissions et d'audit, mais cela ne constitue pas encore un module fonctionnel.
+Les marchandises sont stockees dans le modele `Load`; chauffeur et immatriculation sont des champs texte, sans tables `Driver` ou `Vehicle`.
 
 Le module `boats` presente dans certains exemples de documentation est egalement un exemple d'architecture : il n'est pas present dans `server/src/modules/`.
 
@@ -300,10 +301,8 @@ Le document cible doit permettre de produire un plan similaire au fichier de ref
 Vessel
 └── Voyage
     └── LoadingPlan
-        └── CargoLine
-            ├── Client
-            ├── Driver
-            └── Vehicle
+        └── Load
+            └── Client
 ```
 
 ### Donnees a ajouter
@@ -313,7 +312,7 @@ Vessel
 - [x] `Voyage` : navire, ports, dates, numero et statut.
 - [x] `Vehicle` : immatriculation, type et capacite.
 - [x] `LoadingPlan` : reference, voyage, statut, total et validation.
-- [x] `CargoLine` : client, chauffeur, vehicule, colis, description, poids, anomalie et position.
+- [x] `Load` : client, chauffeur et vehicule en texte, colis, description, poids, anomalie, position et etat.
 - [ ] Historique des changements et versions du plan.
 
 Les poids doivent etre stockes en kilogrammes, puis affiches en tonnes :
@@ -336,21 +335,19 @@ Pour le document de reference, le total attendu est de `95,444 tonnes`.
 - [x] `GET/POST/PUT/DELETE /api/v1/maritime/vehicles/:id`
 - [x] `GET/POST /api/v1/loading-plans`
 - [x] `GET/PUT/DELETE /api/v1/loading-plans/:id`
-- [x] `POST /api/v1/loading-plans/:id/lines`
-- [x] `PUT/DELETE /api/v1/loading-plans/:id/lines/:lineId`
+- [x] `GET /api/v1/loading-plans/reference/:reference`
+- [x] `POST /api/v1/loading-plans/:id/loads`
+- [x] `PUT/DELETE /api/v1/loading-plans/:id/loads/:loadId`
 - [x] `POST /api/v1/loading-plans/:id/validate`
 - [ ] `GET /api/v1/loading-plans/:id/export`
 
 ### Regles metier a implementer
 
-- [ ] poids strictement positif ;
-- [ ] colis entier et positif ;
-- [ ] total recalcule cote serveur ;
-- [ ] total inferieur ou egal a la capacite du navire ;
-- [ ] dates du voyage coherentes ;
-- [ ] client obligatoire pour chaque ligne ;
-- [ ] plan valide non modifiable sans nouvelle version ;
-- [ ] permissions distinctes pour consulter, modifier et valider ;
+- [x] poids strictement positif et colis entier et positif ;
+- [x] total recalcule cote serveur et inferieur ou egal a la capacite du navire ;
+- [x] client obligatoire pour chaque marchandise ;
+- [x] plan valide non modifiable ;
+- [x] permissions distinctes pour consulter, modifier, supprimer et valider ;
 - [ ] audit des creations, modifications, validations et exports.
 
 ## Feuille de route
@@ -358,7 +355,7 @@ Pour le document de reference, le total attendu est de `95,444 tonnes`.
 ### Phase 1 - Fondations logistiques
 
 - [x] Ajouter les modeles Prisma `Vessel`, `Port`, `Voyage` et `Vehicle`.
-- [x] Ajouter les modeles Prisma `LoadingPlan` et `CargoLine`.
+- [x] Ajouter les modeles Prisma `LoadingPlan` et `Load`.
 - [x] Creer et verifier la migration `add_maritime_models`.
 - [x] Creer et verifier la migration `add_loading_plans_and_cargo_lines`.
 - [ ] Ajouter les permissions `VESSELS`, `VOYAGES`, `LOADING_PLANS` et `CARGO`.

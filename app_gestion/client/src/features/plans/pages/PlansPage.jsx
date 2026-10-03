@@ -8,12 +8,12 @@ import {
   LoadPlanTable,
 } from "@/features/plans";
 import { voyageService } from "@/features/voyages";
-import { clientService } from "@/features/client";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/features/auth";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const TABS = [
-  { id: "loadPlans", label: "Chargement" },
-  { id: "unloadPlans", label: "Déchargement" },
+  { id: "LOAD", label: "Chargement" },
+  { id: "UNLOAD", label: "Déchargement" },
 ];
 
 const getErrorMessage = (error, fallback) => {
@@ -36,11 +36,13 @@ const getErrorMessage = (error, fallback) => {
 };
 
 function PlansPage() {
-  const [activeTab, setActiveTab] = useState("loadPlans");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() =>
+    searchParams.get("tab") === "UNLOAD" ? "UNLOAD" : "LOAD",
+  );
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [voyages, setVoyages] = useState([]);
-  const [clients, setClients] = useState([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,19 +50,21 @@ function PlansPage() {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
+  const { checkPermission } = useAuth();
+  const visiblePlans = plans.filter(
+    (plan) => (plan.operationType || "LOAD") === activeTab,
+  );
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [plansRes, voyagesRes, clientsRes] = await Promise.all([
+      const [plansRes, voyagesRes] = await Promise.all([
         loadingPlanService.getPlans(),
         voyageService.getVoyages(),
-        clientService.getClients(),
       ]);
 
-      setPlans(plansRes?.data?.loadingPlans || plansRes || []);
+      setPlans(Array.isArray(plansRes) ? plansRes : []);
       setVoyages(voyagesRes?.data?.voyages || voyagesRes || []);
-      setClients(clientsRes?.data?.clients || []);
     } catch (requestError) {
       setError(
         getErrorMessage(
@@ -89,17 +93,18 @@ function PlansPage() {
     setError("");
   };
 
-  const handleOpenLoad = (plan) => {
-  navigate(`/plans/load/${plan.reference}`);
-};
+  const handleOpenPlan = (plan) => {
+    navigate(
+      `/plans/${activeTab === "UNLOAD" ? "unload" : "load"}/${encodeURIComponent(plan.reference)}`,
+    );
+  };
 
-  const handleSavePlan = async (formData) => {
+  const handleSavePlan = async (planId, formData) => {
     setIsSaving(true);
     try {
-      if (selectedPlan) {
-        // En cas de mise à jour
+      if (planId) {
         const response = await loadingPlanService.updatePlan(
-          selectedPlan.id,
+          planId,
           formData,
         );
         const updated = response?.data?.loadingPlan;
@@ -107,9 +112,7 @@ function PlansPage() {
           prev.map((p) => (p.id === updated.id ? updated : p)),
         );
       } else {
-        // En cas de création
         const response = await loadingPlanService.createPlan(formData);
-        console.log(response);
         const created = response?.data?.loadingPlan;
         setPlans((prev) => [created, ...prev]);
       }
@@ -118,10 +121,15 @@ function PlansPage() {
       setError(
         getErrorMessage(requestError, "Impossible d'enregistrer le plan."),
       );
+      throw requestError;
     } finally {
       setIsSaving(false);
     }
   };
+
+  const handleCreatePlan = (formData) => handleSavePlan(null, formData);
+  const handleUpdatePlan = (planId, formData) =>
+    handleSavePlan(planId, formData);
 
   const handleDeletePlan = async (plan) => {
     if (!window.confirm(`Voulez-vous supprimer le plan "${plan.reference}" ?`))
@@ -139,16 +147,18 @@ function PlansPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Plans de chargement"
-        subtitle="Créez un manifeste maritime et suivez le poids total des marchandises."
+        title={activeTab === "UNLOAD" ? "Plans de déchargement" : "Plans de chargement"}
+        subtitle="Consultez les opérations et le manifeste associés à chaque voyage."
       >
-        <Button
-          variant="primary"
-          icon={FiPlus}
-          onClick={() => handleOpenModal()}
-        >
-          Nouveau plan
-        </Button>
+        {checkPermission("LOADING_PLANS", "CREATE") && (
+          <Button
+            variant="primary"
+            icon={FiPlus}
+            onClick={() => handleOpenModal()}
+          >
+            {activeTab === "UNLOAD" ? "Nouveau plan de déchargement" : "Nouveau plan de chargement"}
+          </Button>
+        )}
       </PageHeader>
 
       {error && (
@@ -159,29 +169,23 @@ function PlansPage() {
 
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
-      {activeTab === "loadPlans" ? (
-        <LoadPlanTable
-          data={plans}
-          isLoading={isLoading}
-          onOpen={(plan) => handleOpenLoad(plan)}
-          onEdit={(plan) => handleOpenModal(plan)}
-          onDelete={(plan) => handleDeletePlan(plan)}
-        />
-      ) : (
-        <div className="p-4 text-center text-slate-500">
-          Module de déchargement à venir.
-        </div>
-      )}
+      <LoadPlanTable
+        data={visiblePlans}
+        isLoading={isLoading}
+        operationType={activeTab}
+        onOpen={handleOpenPlan}
+        onEdit={(plan) => handleOpenModal(plan)}
+        onDelete={(plan) => handleDeletePlan(plan)}
+      />
 
       <LoadPlanModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         voyages={voyages}
-        selectedLoad={selectedPlan}
-        onLoadCreated={handleSavePlan}
-        onLoadUpdate={handleSavePlan}
-        isLoading={isSaving}
-        error={error}
+        selectedPlan={selectedPlan}
+        operationType={activeTab}
+        onLoadCreated={handleCreatePlan}
+        onPlanUpdated={handleUpdatePlan}
       />
     </div>
   );

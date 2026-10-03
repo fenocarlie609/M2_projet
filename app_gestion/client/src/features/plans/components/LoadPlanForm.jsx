@@ -9,16 +9,18 @@ const emptyForm = {
   status: false,
 };
 
-const planToform = (plan) => ({
+const planToForm = (plan, operationType) => ({
   ...emptyForm,
   ...plan,
-  voyageId: plan.voyageId || plan.voyage.id || "",
-  status: plan.status || false,
+  voyageId: plan.voyageId || plan.voyage?.id || "",
+  operationType: plan.operationType || operationType,
+  status: Boolean(plan.status),
 });
 
 export function LoadPlanForm({
   selectedPlan,
   voyages,
+  operationType = "LOAD",
   onSubmit,
   onClose,
   isSubmitting,
@@ -26,16 +28,21 @@ export function LoadPlanForm({
   submitLabel,
 }) {
   const [formData, setFormData] = useState(() =>
-    selectedPlan ? planToform(selectedPlan) : { ...emptyForm },
+    selectedPlan
+      ? planToForm(selectedPlan, operationType)
+      : { ...emptyForm, operationType },
   );
 
   const [error, setError] = useState("");
-  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
 
   useEffect(() => {
-    setFormData(selectedPlan ? planToform(selectedPlan) : { ...emptyForm });
+    setFormData(
+      selectedPlan
+        ? planToForm(selectedPlan, operationType)
+        : { ...emptyForm, operationType },
+    );
     setError("");
-  }, [selectedPlan]);
+  }, [selectedPlan, operationType]);
 
   useEffect(() => {
     setError(serverError || "");
@@ -53,12 +60,13 @@ export function LoadPlanForm({
 
   const handleSubmit = async () => {
     try {
-      await onSubmit({
-        ...formData,
-        status: formData.status || false,
-      });
+      const payload = {
+        reference: formData.reference.trim(),
+        voyageId: formData.voyageId,
+      };
+      if (!selectedPlan) payload.operationType = operationType;
+      await onSubmit(payload);
     } catch (submitError) {
-      console.log(submitError);
       setError(getApiErrorMessage(submitError));
     }
   };
@@ -75,7 +83,6 @@ export function LoadPlanForm({
         placeholder="Ex: PL-2026-001"
         value={formData.reference}
         onChange={(e) => update("reference", e.target.value)}
-        disabled={isLoadingOptions}
         required
       />
       <Select
@@ -84,7 +91,6 @@ export function LoadPlanForm({
         onChange={(e) => update("voyageId", e.target.value)}
         options={voyageOption}
         placeholder="Sélectionner un voyage"
-        disabled={isLoadingOptions}
         required
       />
       <div className="flex justify-end gap-3 pt-2">

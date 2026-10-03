@@ -3,7 +3,7 @@ const authMiddleware = require("../../common/middlewares/auth.middleware");
 const validate = require("../../common/middlewares/validate.middleware");
 const { APP_ACTIONS } = require("../../common/utils/constants");
 const controller = require("./loading-plan.controller");
-const { LoadValidation, lineValidation } = require("./loading-plan.validation");
+const { LoadValidation, loadValidation } = require("./loading-plan.validation");
 
 const router = express.Router();
 router.use(authMiddleware.protect);
@@ -19,6 +19,12 @@ router
     validate(LoadValidation.create),
     controller.create,
   );
+
+router.get(
+  "/reference/:reference",
+  authMiddleware.authorize("LOADING_PLANS", APP_ACTIONS.READ),
+  controller.getByReference,
+);
 
 router
   .route("/:id")
@@ -37,22 +43,22 @@ router
   );
 
 router.post(
-  "/:id/lines",
+  "/:id/loads",
   authMiddleware.authorize("CARGO", APP_ACTIONS.CREATE),
-  validate(lineValidation.create),
-  controller.createLine,
+  validate(loadValidation.create),
+  controller.createLoad,
 );
 
 router
-  .route("/:id/lines/:lineId")
+  .route("/:id/loads/:loadId")
   .put(
     authMiddleware.authorize("CARGO", APP_ACTIONS.UPDATE),
-    validate(lineValidation.update),
-    controller.updateLine,
+    validate(loadValidation.update),
+    controller.updateLoad,
   )
   .delete(
     authMiddleware.authorize("CARGO", APP_ACTIONS.DELETE),
-    controller.removeLine,
+    controller.removeLoad,
   );
 
 router.post(

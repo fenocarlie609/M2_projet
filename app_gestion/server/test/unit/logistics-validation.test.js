@@ -68,6 +68,16 @@ test("valide un plan de chargement par défaut", () => {
   assert.equal(plan.operationType, "LOAD");
 });
 
+test("accepte un plan de déchargement sans changer le modèle de marchandise", () => {
+  const plan = parse(LoadValidation.create, {
+    reference: "UN-TEST-001",
+    voyageId: "voyage-id",
+    operationType: "UNLOAD",
+  });
+  assert.equal(plan.operationType, "UNLOAD");
+  assert.equal(plan.status, false);
+});
+
 test("valide une ligne de marchandise complète", () => {
   const load = parse(loadValidation.create, {
     clientId: "client-id",
