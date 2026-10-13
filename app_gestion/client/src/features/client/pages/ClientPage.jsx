@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 import {
   clientService,
   ClientTable,
@@ -11,6 +12,7 @@ import {
 } from "@/features/client";
 
 function ClientPage() {
+  const { checkPermission } = useAuth();
   const [clients, setClients] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -117,7 +119,7 @@ function ClientPage() {
         title="Clients"
         subtitle="Gérez le registre des clients (Particuliers & Entreprises)."
       >
-        <Button
+        {checkPermission("CLIENT", "CREATE") && <Button
           variant="primary"
           icon={FiPlus}
           onClick={() => {
@@ -126,7 +128,7 @@ function ClientPage() {
           }}
         >
           Ajouter un client
-        </Button>
+        </Button>}
       </PageHeader>
 
       {/* Vue Table : Écrans Desktop */}

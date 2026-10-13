@@ -18,7 +18,7 @@ export function ClientCard({ client, onEdit, onDelete }) {
   // On construit la liste des actions autorisées en utilisant la fonction globale
   const actionMenuItems = [];
 
-  if (checkPermission("CLIENTS", "UPDATE")) {
+  if (checkPermission("CLIENT", "UPDATE")) {
     actionMenuItems.push({
       label: "Modifier",
       icon: FiEdit3,
@@ -26,7 +26,7 @@ export function ClientCard({ client, onEdit, onDelete }) {
     });
   }
 
-  if (checkPermission("CLIENTS", "DELETE")) {
+  if (checkPermission("CLIENT", "DELETE")) {
     actionMenuItems.push({
       label: "Supprimer",
       icon: FiTrash2,

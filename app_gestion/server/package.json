@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "npm run test:unit",
-    "test:unit": "node --test test/unit/logistics-validation.test.js test/unit/client-validation.test.js",
+    "test:unit": "node --test test/unit/logistics-validation.test.js test/unit/client-validation.test.js test/unit/audit-redaction.test.js test/unit/socket-auth.test.js test/unit/voyage-read-auth.test.js",
     "test:integration": "node --test test/integration/logistics-data.test.js",
     "dev": "npx dotenv -e .env.development -- nodemon server.js",
     "start": "npx dotenv -e .env.production -- node server.js",

@@ -66,6 +66,7 @@ const protect = catchAsync(async (req, res, next) => {
   req.user = {
     id: currentEmployee.id,
     email: currentEmployee.email,
+    matricule: currentEmployee.matricule,
     departmentId: currentEmployee.departmentId,
     positionId: currentEmployee.positionId,
     department: currentEmployee.department, // { id, code, label, ... }

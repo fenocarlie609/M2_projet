@@ -1,7 +1,7 @@
 // src/common/middlewares/upload.middleware.js
 const multer = require("multer");
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
 const AppError = require("../utils/AppError");
 
 // Dossier physique où sont stockées les photos : <projet>/public/uploads/avatars
@@ -16,49 +16,37 @@ const sanitizeForFilename = (value) =>
     .toUpperCase()
     .replace(/[^A-Z0-9_-]/g, "");
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-
-    // IMPORTANT : req.body.matricule n'est disponible ici que si le champ
-    // "matricule" a été ajouté au FormData AVANT le champ "avatar" côté front.
-    const rawMatricule = req.body?.matricule;
-
-    if (rawMatricule) {
-      const safeMatricule = sanitizeForFilename(rawMatricule);
-      // Nom fixe par matricule : un nouvel upload pour le même employé
-      // écrase directement l'ancien fichier au lieu d'en créer un nouveau.
-      return cb(null, `${safeMatricule}${ext}`);
-    }
-
-    // Fallback si aucun matricule n'est fourni (ne devrait pas arriver si le
-    // front est bien câblé, mais on évite de planter l'upload pour autant)
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, uniqueName);
-  },
-});
-
-const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
-
-const fileFilter = (req, file, cb) => {
-  if (!allowedMimeTypes.includes(file.mimetype)) {
-    return cb(
-      new AppError(
-        "Format d'image non supporté (JPEG, PNG ou WEBP uniquement).",
-        400,
-      ),
-    );
+const detectImageExtension = (buffer) => {
+  if (
+    buffer?.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return ".jpg";
   }
-  cb(null, true);
+
+  if (
+    buffer?.length >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  ) {
+    return ".png";
+  }
+
+  if (
+    buffer?.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return ".webp";
+  }
+
+  return null;
 };
 
 const upload = multer({
-  storage,
-  fileFilter,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 Mo max
 });
 
-module.exports = { upload, uploadDir };
+module.exports = { upload, uploadDir, sanitizeForFilename, detectImageExtension };

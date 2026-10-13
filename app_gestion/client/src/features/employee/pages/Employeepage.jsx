@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { socket } from "@/shared/services/socket";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
+import { useAuth } from "@/features/auth";
 import {
   employeeService,
   EmployeeTable,
@@ -10,6 +11,7 @@ import {
 } from "@/features/employee";
 
 function EmployeePage() {
+  const { checkPermission } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -124,7 +126,7 @@ function EmployeePage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Employés" subtitle="Gérez les fiches employés (RH).">
-        <Button
+        {checkPermission("EMPLOYEES", "CREATE") && <Button
           variant="primary"
           icon={FiPlus}
           onClick={() => {
@@ -133,7 +135,7 @@ function EmployeePage() {
           }}
         >
           Ajouter un employé
-        </Button>
+        </Button>}
       </PageHeader>
 
       <div className="hidden md:block">

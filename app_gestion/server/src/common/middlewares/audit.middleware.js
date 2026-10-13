@@ -3,6 +3,22 @@ const { prisma } = require("../../config/database");
 const catchAsync = require("../utils/catchAsync");
 const logger = require("../../config/logger");
 
+const sensitiveKeyPattern = /password|token|secret|authorization|cookie|csrf/i;
+
+const redactSensitiveValues = (value) => {
+  if (Array.isArray(value)) return value.map(redactSensitiveValues);
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nestedValue]) => [
+      key,
+      sensitiveKeyPattern.test(key)
+        ? "[REDACTED]"
+        : redactSensitiveValues(nestedValue),
+    ]),
+  );
+};
+
 /**
  * Middleware global pour enregistrer les actions critiques dans la table AuditLog
  * On cible principalement les méthodes de modification de données
@@ -35,9 +51,9 @@ const auditTrail = () => {
             method: req.method,
             route: req.originalUrl,
             ipAddress,
-            payload: req.body ? req.body : null,
-            oldValues: oldValues,
-            newValues: data ? data : null,
+            payload: req.body ? redactSensitiveValues(req.body) : null,
+            oldValues: oldValues ? redactSensitiveValues(oldValues) : null,
+            newValues: data ? redactSensitiveValues(data) : null,
           },
         })
         .catch((err) => {
@@ -55,3 +71,4 @@ const auditTrail = () => {
 };
 
 module.exports = auditTrail;
+module.exports.redactSensitiveValues = redactSensitiveValues;
