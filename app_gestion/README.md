@@ -1,496 +1,1309 @@
-# ERP maritime et gestion de fret
+# ERP maritime et gestion de fret : `app_gestion`
 
-## Projet
+> **Conception et mise en place d'une architecture modulaire évolutive pour un ERP de suivi logistique et de gestion de fret maritime.**
 
-**Conception et mise en place d'une architecture modulaire evolutive pour un ERP de suivi logistique et de gestion de fret maritime.**
+Application web de back-office (React + Node.js/Express + PostgreSQL/Prisma) pour gérer une compagnie de transport maritime : employés et permissions, clients, navires, ports, voyages, plans de chargement/déchargement et manifestes PDF.
 
-Ce depot contient une application web composee de :
-
-- `client/` : application d'administration React + Vite ;
-- `server/` : API REST Node.js + Express + Prisma ;
-- `vitrine/` : site vitrine separe du back-office.
-
-L'objectif fonctionnel est de faire evoluer l'application vers la gestion complete d'un voyage maritime, de ses clients et chauffeurs, de ses marchandises et de la generation d'un plan de chargement.
-
-> **Etat de reference : 13 septembre 2026**
->
-> Les cases cochees correspondent a des elements identifies dans le code. Les cases non cochees sont des travaux a realiser et ne doivent pas etre consideres comme disponibles.
+- **Contexte académique** : projet de mémoire de fin d'études (Master 2, École Nationale d'Informatique de Fianarantsoa, parcours Génie Logiciel et Base de Données).
+- **Contexte métier** : Madagascar (devise par défaut `MGA`, pays par défaut `Madagascar`, interface et messages en **français**).
+- **État de référence de ce document : 13 octobre 2026**, établi par lecture du code (dernier commit : merge de la PR #8). Les tests n'ont pas été exécutés pour rédiger ce document : une case cochée signifie « présent dans le code », pas « testé en production ».
 
 ## Sommaire
 
-- [Etat global](#etat-global)
-- [Fonctionnalites realisees](#fonctionnalites-realisees)
-- [Limites actuelles](#limites-actuelles)
-- [Architecture](#architecture)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Commandes utiles](#commandes-utiles)
-- [Plan de chargement cible](#plan-de-chargement-cible)
-- [Feuille de route](#feuille-de-route)
-- [Checkpoints](#checkpoints)
-- [Tests et qualite](#tests-et-qualite)
+1. [À lire en premier (assistants IA)](#1-à-lire-en-premier-assistants-ia)
+2. [État global](#2-état-global)
+3. [Stack technique](#3-stack-technique)
+4. [Structure du code](#4-structure-du-code)
+5. [Structure de la base de données](#5-structure-de-la-base-de-données)
+6. [Authentification et sécurité](#6-authentification-et-sécurité)
+7. [Permissions](#7-permissions)
+8. [API REST](#8-api-rest)
+9. [Règles métier des plans de chargement](#9-règles-métier-des-plans-de-chargement)
+10. [Temps réel (Socket.IO)](#10-temps-réel-socketio)
+11. [Frontend : pages et routes](#11-frontend--pages-et-routes)
+12. [Installation, configuration, commandes](#12-installation-configuration-commandes)
+13. [Tests](#13-tests)
+14. [Écarts connus et dette technique](#14-écarts-connus-et-dette-technique)
+15. [Feuille de route](#15-feuille-de-route)
+16. [Documents liés](#16-documents-liés)
 
-## Etat global
+---
 
-| Domaine                  | Etat         | Commentaire                                                    |
-| ------------------------ | ------------ | -------------------------------------------------------------- |
-| Architecture modulaire   | Termine      | Organisation frontend par features et backend par modules      |
-| Authentification         | Termine      | JWT, cookies, refresh tokens et rotation                       |
-| Securite API             | Partiel      | Protection principale en place, sanitation a finaliser         |
-| Administration           | Partiel      | Employes, utilisateurs, permissions et structure interne       |
-| Clients et chauffeurs    | Partiel      | Fiches clients enrichies et clients relies aux marchandises    |
-| Suivi maritime           | Partiel      | Modeles, routes CRUD et premier ecran de reference disponibles |
-| Gestion des marchandises | Partiel      | API et saisie de lignes disponibles, tests metier a completer  |
-| Plan de chargement       | Partiel      | Creation, lignes et total disponibles, export encore a venir   |
-| Export PDF / impression  | Non commence | A concevoir apres stabilisation du manifeste                   |
-| Tests automatises        | Non commence | Aucun script de test applicatif configure                      |
+## 1. À lire en premier (assistants IA)
 
-## Fonctionnalites realisees
+Règles à respecter pour toute modification, sous peine de casser l'application ou de diverger de l'existant.
 
-### Architecture et socle technique
+### Conventions de code
 
-- [x] Frontend React avec Vite.
-- [x] Backend Node.js avec Express.
-- [x] Base PostgreSQL avec Prisma.
-- [x] Organisation frontend par fonctionnalites dans `client/src/features/`.
-- [x] Organisation backend par modules dans `server/src/modules/`.
-- [x] Routes API centralisees sous `/api/v1`.
-- [x] Gestion centralisee des erreurs.
-- [x] Configuration par variables d'environnement.
-- [x] Journalisation Winston.
+| Sujet | Règle |
+| --- | --- |
+| Langue | Interface, messages d'erreur, commentaires et README en **français**. Identifiants de code en anglais. |
+| Backend | **CommonJS** (`require` / `module.exports`), pas d'ES modules. Node.js 18+. |
+| Validation | **Zod** (v4) via `validate()` (`server/src/common/middlewares/validate.middleware.js`). **Pas Joi** : `joi` est dans les dépendances mais n'est pas utilisé. |
+| Prisma | Prisma **7** avec `@prisma/adapter-pg`. Client généré dans `server/src/generated/prisma` (ignoré par git : lancer `npx prisma generate` après clonage). Les accesseurs sont en minuscule : `prisma.employee`, jamais `prisma.Employee`. |
+| Pattern d'un module backend | `module.routes.js` → `module.controller.js` → `module.service.js` + `module.validation.js` + `index.js` (barrel). Voir `server/src/modules/clients/` comme référence. |
+| Erreurs | `throw new AppError(message, statusCode)` ; handlers enveloppés dans `catchAsync`. |
+| Réponses | `sendSuccess` / `sendCreated` / `sendDeleted` (`server/src/common/utils/response.js`), forme `{ status: "success", ... }`. |
+| Autorisation | Permissions **module + action** (`authorize("MODULE", APP_ACTIONS.READ)`), jamais de rôles. Voir [section 7](#7-permissions). |
+| Frontend | Organisation par features (`client/src/features/<feature>/{components,pages,service}` + `index.js`), alias `@/` vers `client/src`. Référence : feature `client`. |
+| Appels API | Toujours via `axiosInstance` ou `createCrudService` (`client/src/shared/services/`), qui gèrent cookies, CSRF et refresh. |
+| Secrets | Jamais de vrais secrets dans le dépôt. Il n'y a **pas de `.env.example`** : le créer si besoin (voir [section 12](#12-installation-configuration-commandes)). |
 
-### Authentification et autorisations
+### Pièges connus
 
-- [x] Connexion et deconnexion.
-- [x] Access token JWT.
-- [x] Refresh token stocke sous forme de hash.
-- [x] Rotation et revocation des refresh tokens.
-- [x] Support du cookie securise et du header Bearer pour les appels API.
-- [x] Permissions par module et action : `CREATE`, `READ`, `UPDATE`, `DELETE`, `*`.
-- [x] Protection frontend avec `RoleGuard`.
-- [x] Gestion des demandes d'acces et des comptes utilisateurs.
+- **Casse d'un nom de fichier (bloque Linux/Docker)** : `server/src/common/middlewares/Restricttodepartment.middleware.js` est importé sous le nom `restrictToDepartment.middleware` dans `users/user.routes.js` et `modules/module.routes.js`. Cela fonctionne sous Windows (insensible à la casse) mais fait planter le démarrage sous Linux (`MODULE_NOT_FOUND`). À corriger avant tout déploiement.
+- **CORS + Socket.IO** : ne jamais mettre `"*"` avec `credentials: true`. L'origine doit être `process.env.CLIENT_URL` (par défaut `http://localhost:5173`).
+- **`express.static("/uploads")`** doit rester déclaré **avant** le catch-all 404 et l'`errorHandler` dans `app.js`.
+- **Corps JSON limité à 10 ko** (`express.json({ limit: "10kb" })`) : tout payload plus gros reçoit une erreur.
+- **Deux APIs Voyage coexistent** (`/api/v1/voyages` et `/api/v1/maritime/voyages`) avec des permissions et des statuts différents. Ne pas en ajouter une troisième ; voir [section 14](#14-écarts-connus-et-dette-technique).
+- **Les tables `drivers` et `vehicles` n'existent plus** (migration `20260915100824_remove_vehicle_driver_tables`). Chauffeur et plaque sont de simples champs texte de `Load` (`driverName`, `vehiclePlate`). Le module `driver` (back et front) et la route `/maritime/vehicles` sont des **vestiges** qui planteraient s'ils étaient appelés.
+- **Migrations** : ne jamais lancer `prisma migrate reset` sur une base contenant des données. La migration `rename_cargo_lines_to_loads` supprime `cargo_lines` sans copier les données.
+- **Seed `seedLoadingPlan.js`** : il supprime puis recrée les marchandises des plans de référence. Ne pas l'exécuter sur une base réelle.
+- **Poids** : stockés en **kilogrammes** (`Decimal`), affichés en **tonnes** (`kg / 1000`).
+- **Login** : le limiteur `authLimiter` est réglé sur **5 tentatives par minute** (valeur « pour les tests » ; la valeur prévue était 15 minutes).
 
-### Administration et donnees existantes
+---
 
-- [x] Gestion des employes.
-- [x] Gestion des departements.
-- [x] Gestion des postes.
-- [x] Gestion des clients.
-- [x] Fiche Client enrichie avec identite, fiscalite, adresses et documents.
-- [x] Gestion des chauffeurs.
-- [x] Gestion des modules applicatifs.
-- [x] Gestion des notifications.
-- [x] Upload des avatars.
-- [x] Soft delete pour plusieurs entites internes.
-- [x] Journal d'audit des requetes mutantes.
+## 2. État global
 
-### Interface utilisateur
+| Domaine | État | Détail vérifié dans le code |
+| --- | --- | --- |
+| Architecture modulaire | Terminé | Frontend par features, backend par modules |
+| Authentification | Terminé | JWT access + refresh avec rotation, cookies signés, CSRF double-submit |
+| Permissions granulaires | Terminé | `EmployeePermission` (module, action), joker `*` |
+| Administration | Partiel | Employés, utilisateurs/accès, modules, structure (départements/postes) |
+| Clients | Partiel | Fiche enrichie (identité, fiscalité, adresses, documents) |
+| Navires, ports, voyages | Partiel | CRUD back + écrans front ; incohérences, voir section 14 |
+| Plans de chargement / déchargement | Partiel | Lignes, capacité, validation, plan de déchargement auto, **export PDF du manifeste côté client** |
+| Sécurité API | Partiel | Constats P1 de l'audit du 3 octobre 2026 corrigés ; P2 restants |
+| Tests automatisés | Partiel | Tests unitaires `node --test` (voir section 13), pas de tests HTTP/permissions |
+| Chauffeurs / véhicules | Abandonné | Tables supprimées, code résiduel |
 
-- [x] Layout de dashboard avec header et sidebar.
-- [x] Routes frontend protegees par permissions.
-- [x] Composants reutilisables : boutons, formulaires, inputs, selects, tableaux, cartes, modales, alertes, calendrier et stepper.
-- [x] Gestion des erreurs API et affichage des erreurs de champs.
-- [x] Notifications temps reel preparees avec Socket.IO.
-- [x] Manifest PWA et integration du service worker cote client.
+## 3. Stack technique
 
-## Limites actuelles
+**Backend** (`server/`) : Node.js 18+, Express 5, Prisma 7 (`@prisma/adapter-pg`, `pg`), PostgreSQL, Zod 4, JWT (`jsonwebtoken`), bcrypt, Helmet, CORS, `express-rate-limit`, `cookie-parser`, Multer (upload en mémoire), Socket.IO 4, Winston (logs fichiers + console), `node --test` pour les tests.
 
-La page `client/src/features/template/pages/TemplatePage.jsx` est actuellement un laboratoire visuel. Elle contient des exemples de formulaire, de calendrier et de manifeste, mais :
+**Frontend** (`client/`) : React 18, Vite 6, Tailwind CSS 4 (`@tailwindcss/vite`), React Router 6, Axios, Socket.IO client, `react-toastify`, `react-icons`, `jspdf` + `jspdf-autotable` (manifeste PDF), `vite-plugin-pwa` (PWA, mise à jour automatique du service worker).
+Installées mais **non utilisées** dans le code : `antd`, `@ant-design/icons`, `zustand`. Les composants UI sont maison (`client/src/shared/components/ui/`).
 
-- [ ] le formulaire n'enregistre pas de donnees dans PostgreSQL ;
-- [ ] cette maquette Template n'enregistre pas de donnees dans PostgreSQL ;
-- [ ] la maquette Template n'est pas encore remplacee par l'ecran metier `/loading-plans` ;
-- [x] les routes API `LoadingPlan` et `Load` sont disponibles dans le module dedie ;
-- [x] le poids total est recalcule cote serveur, la capacite du navire est controlee et les totaux sont affiches en tonnes ;
-- [x] les plans de chargement et de dechargement sont distingues par type d'operation ;
-- [x] la validation verrouille le plan et son manifeste ;
-- [ ] aucun export PDF ou impression du plan n'est disponible ;
-- [ ] aucun workflow de versions du plan ni audit complet n'est disponible.
+## 4. Structure du code
 
-Les marchandises sont stockees dans le modele `Load`; chauffeur et immatriculation sont des champs texte, sans tables `Driver` ou `Vehicle`.
+### 4.1 Vue d'ensemble
 
-Le module `boats` presente dans certains exemples de documentation est egalement un exemple d'architecture : il n'est pas present dans `server/src/modules/`.
+Deux applications indépendantes dans un même dossier, qui communiquent par HTTP (REST, JSON) et par WebSocket (Socket.IO) :
 
-## Architecture
+```text
+Navigateur (client/)                                   Serveur (server/)                          Base
+┌───────────────────────────┐   HTTP /api/v1 (cookies,  ┌───────────────────────────────┐        ┌────────────┐
+│ React 18 + Vite           │   CSRF, JSON)             │ Express 5                     │        │ PostgreSQL │
+│ features/* → service/*    │ ───────────────────────►  │ routes → authorize → validate │ Prisma │            │
+│ axiosInstance (refresh)   │                           │ → controller → service        │ ─────► │ 17 tables  │
+│ socket.io-client          │ ◄───────────────────────  │ Socket.IO (rooms employee_<id>)│        │            │
+└───────────────────────────┘   WebSocket (cookie signé)└───────────────────────────────┘        └────────────┘
+```
+
+Principes d'architecture :
+
+- **Modularité par fonctionnalité** : un dossier par module métier côté serveur (`server/src/modules/<module>/`) et côté client (`client/src/features/<feature>/`). Ajouter une fonctionnalité = ajouter un dossier, sans toucher aux autres.
+- **Couches côté serveur** : `routes` (URL + droits + validation) → `controller` (HTTP) → `service` (logique métier + accès base). Aucune requête Prisma dans les routes ; aucun `req`/`res` dans les services.
+- **Code transverse isolé** : authentification, CSRF, audit, validation, erreurs et upload vivent dans `server/src/common/` et sont réutilisés par tous les modules.
+- **Une seule source de vérité** pour les routes et les permissions du frontend : `client/src/core/routes/routeConfig.jsx`.
+
+### 4.2 Arborescence complète
+
+Relevée sur le dépôt le 13 octobre 2026. Exclus de l'arbre : `node_modules/`, `package-lock.json`, `src/generated/prisma/` (client Prisma généré, ignoré par git), les 17 dossiers de `server/prisma/migrations/` (détaillés en [section 5.7](#57-migrations)), la collection Postman (`server/postman/`, `server/.postman/`) et `server/.vscode/`. Les fichiers sans commentaire suivent la convention de leur dossier.
 
 ```text
 app_gestion/
-├── client/                 # Back-office React + Vite
-│   └── src/
-│       ├── core/           # Application et configuration des routes
-│       ├── features/       # Modules fonctionnels frontend
-│       └── shared/         # UI, services, hooks et utilitaires communs
-├── server/                 # API Node.js + Express
-│   ├── prisma/             # Schema et migrations PostgreSQL
-│   └── src/
-│       ├── common/         # Middlewares et utilitaires communs
-│       ├── config/         # Base de donnees, securite, logs, socket
-│       └── modules/        # Auth, utilisateurs, clients, chauffeurs, etc.
-└── vitrine/                # Site vitrine independant
+├── client/                                                   # Back-office React + Vite (PWA)
+│   ├── public/                                               # Ressources statiques et icônes PWA
+│   │   ├── _redirects                                        # Fallback SPA (/* → /index.html)
+│   │   ├── manifest.webmanifest
+│   │   ├── nano tech logo.ico
+│   │   ├── nano tech logo.svg
+│   │   ├── pwa-192x192.png
+│   │   ├── pwa-512x512.png
+│   │   └── vite.svg
+│   ├── src/
+│   │   ├── core/                                             # Coquille de l’application
+│   │   │   ├── routes/
+│   │   │   │   └── routeConfig.jsx                           # Source unique des routes, du menu et des permissions requises
+│   │   │   └── App.jsx                                       # Routes publiques et protégées (RoleGuard), ToastContainer
+│   │   ├── features/                                         # Un dossier par fonctionnalité (components / pages / service / index.js)
+│   │   │   ├── auth/                                         # Connexion, contexte d’authentification, session
+│   │   │   │   ├── contexts/
+│   │   │   │   │   └── AuthContext.jsx                       # Utilisateur courant, login/logout, /auth/me, connexion Socket.IO
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── LoginPage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── login.service.js                      # Appels /auth/login
+│   │   │   │   └── index.js
+│   │   │   ├── client/                                       # Clients (feature de référence de la convention CRUD)
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── ClientCard.jsx
+│   │   │   │   │   ├── ClientForm.jsx
+│   │   │   │   │   ├── ClientModal.jsx
+│   │   │   │   │   └── ClientTable.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── ClientPage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── client.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── companyStructure/                             # Départements et postes
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── CompanyStructureCard.jsx
+│   │   │   │   │   ├── Departmentaddmodal.jsx
+│   │   │   │   │   ├── DepartmentEditModal.jsx
+│   │   │   │   │   ├── Positionaddmodal.jsx
+│   │   │   │   │   └── PositionEditModal.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── CompanyStructurePage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── companyStructure.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── dashboard/                                    # Layout (Header, Sidebar) et page d’accueil
+│   │   │   │   ├── layouts/
+│   │   │   │   │   ├── DashboardLayout.jsx
+│   │   │   │   │   ├── Header.jsx
+│   │   │   │   │   ├── index.js
+│   │   │   │   │   └── Sidebar.jsx                           # Menu construit depuis sidebarRoutes
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── DashboardPage.jsx
+│   │   │   │   └── index.js
+│   │   │   ├── driver/                                       # VESTIGE : route commentée, API /drivers non montée
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── DriverCard.jsx
+│   │   │   │   │   ├── DriverModal.jsx
+│   │   │   │   │   └── DriverTable.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── DriverPage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── driver.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── employee/                                     # Employés
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── EmployeeCard.jsx
+│   │   │   │   │   ├── EmployeeModal.jsx
+│   │   │   │   │   └── Employeetable.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── Employeepage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── employee.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── maritime/                                     # ORPHELIN : MaritimePage sans route
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── MaritimePage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── maritime.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── module/                                       # Modules de permissions (AppModule)
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── ModuleCard.jsx
+│   │   │   │   │   ├── ModuleModal.jsx
+│   │   │   │   │   └── ModuleTable.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── ModulePage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── modules.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── notifications/                                # Notifications temps réel (contexte + cloche)
+│   │   │   │   ├── components/
+│   │   │   │   │   └── NotificationBell.jsx
+│   │   │   │   ├── contexts/
+│   │   │   │   │   └── NotificationContext.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── notifications.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── plans/                                        # Plans de chargement/déchargement, lignes, manifeste PDF
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── LoadEditorModal.jsx
+│   │   │   │   │   ├── LoadingManifestPdf.jsx                # Génération du manifeste PDF dans le navigateur (jspdf)
+│   │   │   │   │   ├── LoadPlanForm.jsx
+│   │   │   │   │   ├── LoadPlanModal.jsx
+│   │   │   │   │   ├── LoadPlanTable.jsx
+│   │   │   │   │   ├── PlanLoadsSection.jsx
+│   │   │   │   │   └── PlanOverview.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   ├── LoadPage.jsx                          # Saisie des lignes d’un plan (LOAD ou UNLOAD)
+│   │   │   │   │   └── PlansPage.jsx                         # Liste et création des plans
+│   │   │   │   ├── service/
+│   │   │   │   │   └── loadingPlan.service.js                # Appels /loading-plans et lignes
+│   │   │   │   └── index.js
+│   │   │   ├── ports/                                        # Ports
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── PortCard.jsx
+│   │   │   │   │   ├── PortForm.jsx
+│   │   │   │   │   ├── PortModal.jsx
+│   │   │   │   │   └── PortTable.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── PortPage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── port.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── ship/                                         # Navires
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── ShipCard.jsx
+│   │   │   │   │   ├── ShipForm.jsx
+│   │   │   │   │   ├── ShipModal.jsx
+│   │   │   │   │   └── ShipTable.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── ShipPage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── ship.service.js
+│   │   │   │   └── index.js
+│   │   │   ├── template/                                     # Laboratoire visuel sans persistance
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── TemplatePage.jsx
+│   │   │   │   └── index.js
+│   │   │   ├── users/                                        # Accès à l’application et permissions des employés
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── GrantAccessModal.jsx
+│   │   │   │   │   ├── PermissionsModal.jsx
+│   │   │   │   │   ├── ResetPasswordModal.jsx
+│   │   │   │   │   ├── UserPasswordModal.jsx
+│   │   │   │   │   ├── UsersPermissionsTable.jsx
+│   │   │   │   │   └── UsersTable.jsx
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── UsersPage.jsx
+│   │   │   │   ├── service/
+│   │   │   │   │   └── users.service.js
+│   │   │   │   └── index.js
+│   │   │   └── voyages/                                      # Voyages
+│   │   │       ├── components/
+│   │   │       │   ├── VoyageCard.jsx
+│   │   │       │   ├── VoyageForm.jsx
+│   │   │       │   ├── VoyageModal.jsx
+│   │   │       │   └── VoyageTable.jsx
+│   │   │       ├── pages/
+│   │   │       │   └── VoyagePage.jsx
+│   │   │       ├── service/
+│   │   │       │   └── voyage.service.js
+│   │   │       └── index.js
+│   │   ├── shared/                                           # Code réutilisable
+│   │   │   ├── components/
+│   │   │   │   ├── layout/
+│   │   │   │   │   ├── index.js
+│   │   │   │   │   └── RoleGuard.jsx                         # Garde de route : session + permission
+│   │   │   │   └── ui/                                       # Composants UI maison (Button, Input, Table, Modal…)
+│   │   │   │       ├── Alert.jsx
+│   │   │   │       ├── AlertDialog.jsx
+│   │   │   │       ├── Badge.jsx
+│   │   │   │       ├── Button.jsx
+│   │   │   │       ├── Calendar.jsx
+│   │   │   │       ├── Card.jsx
+│   │   │   │       ├── ContextMenu.jsx
+│   │   │   │       ├── DropdownMenu.jsx
+│   │   │   │       ├── Form.jsx
+│   │   │   │       ├── index.js
+│   │   │   │       ├── Input.jsx
+│   │   │   │       ├── Modal.jsx
+│   │   │   │       ├── PageHeader.jsx
+│   │   │   │       ├── Select.jsx
+│   │   │   │       ├── StatsCard.jsx
+│   │   │   │       ├── Stepper.jsx
+│   │   │   │       ├── Table.jsx
+│   │   │   │       └── Tabs.jsx
+│   │   │   ├── services/
+│   │   │   │   ├── api.js                                    # Wrapper get/post/put/patch/delete
+│   │   │   │   ├── axiosInstance.js                          # Axios : cookies, CSRF, refresh automatique sur 401
+│   │   │   │   ├── crudService.js                            # Fabrique de services CRUD (createCrudService)
+│   │   │   │   ├── index.js
+│   │   │   │   └── socket.js                                 # Instance Socket.IO (autoConnect: false)
+│   │   │   └── utils/
+│   │   │       ├── apiErrors.js                              # Erreurs de champs renvoyées par l’API
+│   │   │       ├── formatDate.js                             # Formatage des dates
+│   │   │       ├── getApiErrorMessage.js                     # Message d’erreur lisible
+│   │   │       ├── index.js
+│   │   │       ├── Load.jsx                                  # Indicateur de chargement
+│   │   │       ├── permissions.js                            # hasPermission, normalizePermissions
+│   │   │       └── toast.jsx                                 # Notifications (react-toastify)
+│   │   ├── index.css                                         # Styles globaux (Tailwind)
+│   │   └── main.jsx                                          # BrowserRouter > AuthProvider > NotificationProvider > App ; service worker
+│   ├── index.html                                            # Page HTML racine Vite
+│   ├── package.json                                          # Dépendances et scripts (dev, build, preview)
+│   ├── README.md                                             # Documentation du frontend
+│   ├── tailwind.config.js                                    # Couleurs de marque (navy-*, brand-primary)
+│   └── vite.config.js                                        # Vite : plugins React, Tailwind, PWA ; proxy /api ; alias @/
+├── server/                                                   # API REST Node.js / Express / Prisma
+│   ├── prisma/                                               # Schéma, migrations, seeds
+│   │   ├── migrations/                                       # 17 dossiers de migration SQL (voir « Structure de la base de données »)
+│   │   ├── schema.prisma                                     # Source de vérité du modèle de données
+│   │   ├── seed.js                                           # Départements et postes
+│   │   ├── seedAppModules.js                                 # Modules de permissions (gabarit incomplet)
+│   │   └── seedLoadingPlan.js                                # Navires, voyage, clients et plan de référence (destructif)
+│   ├── src/
+│   │   ├── common/                                           # Code partagé
+│   │   │   ├── middlewares/
+│   │   │   │   ├── audit.middleware.js                       # Journal d’audit (AuditLog) avec masquage des secrets
+│   │   │   │   ├── auth.middleware.js                        # protect (cookie/Bearer) et authorize(module, action)
+│   │   │   │   ├── csrf.middleware.js                        # CSRF double-submit (xsrf-token / X-CSRF-Token)
+│   │   │   │   ├── error.middleware.js                       # errorHandler centralisé (dev/prod, erreurs Prisma)
+│   │   │   │   ├── owner.middleware.js                       # isSelfOrAuthorized (anti auto-élévation)
+│   │   │   │   ├── rateLimiter.middleware.js                 # authLimiter (5 tentatives / minute)
+│   │   │   │   ├── Restricttodepartment.middleware.js        # restrictToDepartment (⚠ casse des imports, voir README)
+│   │   │   │   ├── upload.middleware.js                      # Multer en mémoire, détection de signature d’image
+│   │   │   │   └── validate.middleware.js                    # validate({ body, query, params }) avec Zod
+│   │   │   └── utils/
+│   │   │       ├── AppError.js                               # Erreur opérationnelle (message, statusCode)
+│   │   │       ├── catchAsync.js                             # Enveloppe les handlers async
+│   │   │       ├── constants.js                              # APP_ACTIONS (CREATE, READ, UPDATE, DELETE, *)
+│   │   │       ├── password.utils.js                         # Hachage et comparaison de mots de passe
+│   │   │       ├── response.js                               # sendSuccess, sendCreated, sendDeleted
+│   │   │       ├── socketAuth.js                             # Extraction de l’employé depuis le cookie signé du handshake
+│   │   │       └── validation.schemas.js                     # Schémas de validation partagés
+│   │   ├── config/                                           # Configuration globale
+│   │   │   ├── database.js                                   # Pool pg + PrismaPg + client Prisma unique
+│   │   │   ├── env.js                                        # validateEnv : variables obligatoires
+│   │   │   ├── logger.js                                     # Winston (logs/errors.log, logs/combined.log)
+│   │   │   ├── security.js                                   # appLimiter (rate limit global /api)
+│   │   │   └── socket.js                                     # Socket.IO authentifié (initSocket, getIO)
+│   │   ├── modules/                                          # Un dossier par module métier
+│   │   │   ├── auth/                                         # Login, refresh (rotation), me, logout, csrf-token
+│   │   │   │   ├── auth.controller.js                        # Contrôleur HTTP
+│   │   │   │   ├── auth.routes.js                            # Routes et contrôle d’accès
+│   │   │   │   ├── auth.service.js                           # Logique métier + Prisma
+│   │   │   │   └── auth.validation.js                        # Schémas Zod
+│   │   │   ├── clients/                                      # Clients (module de référence)
+│   │   │   │   ├── client.controller.js                      # Contrôleur HTTP
+│   │   │   │   ├── client.routes.js                          # Routes et contrôle d’accès
+│   │   │   │   ├── client.service.js                         # Logique métier + Prisma
+│   │   │   │   ├── client.validation.js                      # Schémas Zod
+│   │   │   │   └── index.js                                  # Barrel d’exports du module
+│   │   │   ├── company-structure/                            # Départements et postes
+│   │   │   │   ├── company-structure.controller.js           # Contrôleur HTTP
+│   │   │   │   ├── company-structure.routes.js               # Routes et contrôle d’accès
+│   │   │   │   ├── company-structure.service.js              # Logique métier + Prisma
+│   │   │   │   ├── company-structure.validation.js           # Schémas Zod
+│   │   │   │   └── index.js                                  # Barrel d’exports du module
+│   │   │   ├── driver/                                       # VESTIGE : non monté, modèle Prisma supprimé
+│   │   │   │   ├── driver.controller.js                      # Contrôleur HTTP
+│   │   │   │   ├── driver.routes.js                          # Routes et contrôle d’accès
+│   │   │   │   ├── driver.service.js                         # Logique métier + Prisma
+│   │   │   │   ├── driver.validation.js                      # Schémas Zod
+│   │   │   │   └── index.js                                  # Barrel d’exports du module
+│   │   │   ├── employees/                                    # Employés
+│   │   │   │   ├── employee.controller.js                    # Contrôleur HTTP
+│   │   │   │   ├── employee.routes.js                        # Routes et contrôle d’accès
+│   │   │   │   ├── employee.service.js                       # Logique métier + Prisma
+│   │   │   │   ├── employee.validation.js                    # Schémas Zod
+│   │   │   │   └── index.js                                  # Barrel d’exports du module
+│   │   │   ├── loading-plans/                                # Plans de chargement/déchargement et lignes (Load)
+│   │   │   │   ├── index.js                                  # Barrel d’exports du module
+│   │   │   │   ├── load.controller.js                        # Contrôleur HTTP
+│   │   │   │   ├── load.route.js                             # Routes /loads : écrites mais non montées
+│   │   │   │   ├── load.service.js                           # Logique métier + Prisma
+│   │   │   │   ├── load.validation.js                        # Schémas Zod
+│   │   │   │   ├── loading-plan.controller.js                # Contrôleur HTTP
+│   │   │   │   ├── loading-plan.routes.js                    # Routes et contrôle d’accès
+│   │   │   │   ├── loading-plan.service.js                   # Logique métier + Prisma
+│   │   │   │   └── loading-plan.validation.js                # Schémas Zod
+│   │   │   ├── maritime/                                     # Navires, ports, voyages, véhicules (CRUD générique)
+│   │   │   │   ├── index.js                                  # Barrel d’exports du module
+│   │   │   │   ├── maritime.controller.js                    # Contrôleur HTTP
+│   │   │   │   ├── maritime.routes.js                        # Routes et contrôle d’accès
+│   │   │   │   ├── maritime.service.js                       # Logique métier + Prisma
+│   │   │   │   └── maritime.validation.js                    # Schémas Zod
+│   │   │   ├── modules/                                      # Modules de permissions (AppModule)
+│   │   │   │   ├── index.js                                  # Barrel d’exports du module
+│   │   │   │   ├── module.controller.js                      # Contrôleur HTTP
+│   │   │   │   ├── module.routes.js                          # Routes et contrôle d’accès
+│   │   │   │   ├── module.service.js                         # Logique métier + Prisma
+│   │   │   │   └── module.validation.js                      # Schémas Zod
+│   │   │   ├── notifications/                                # Notifications ciblées par permission
+│   │   │   │   ├── index.js                                  # Barrel d’exports du module
+│   │   │   │   ├── notification.controller.js                # Contrôleur HTTP
+│   │   │   │   ├── notification.routes.js                    # Routes et contrôle d’accès
+│   │   │   │   └── notification.service.js                   # Logique métier + Prisma
+│   │   │   ├── ship/                                         # VESTIGE : ni monté ni importé (les navires passent par maritime)
+│   │   │   │   ├── index.js                                  # Barrel d’exports du module
+│   │   │   │   ├── ship.controller.js                        # Contrôleur HTTP
+│   │   │   │   ├── ship.routes.js                            # Routes et contrôle d’accès
+│   │   │   │   └── ship.service.js                           # Logique métier + Prisma
+│   │   │   ├── uploads/                                      # Upload d’avatar
+│   │   │   │   ├── index.js                                  # Barrel d’exports du module
+│   │   │   │   ├── upload.controller.js                      # Contrôleur HTTP
+│   │   │   │   └── upload.routes.js                          # Routes et contrôle d’accès
+│   │   │   ├── users/                                        # Accès à l’application et permissions (département TECH)
+│   │   │   │   ├── index.js                                  # Barrel d’exports du module
+│   │   │   │   ├── user.controller.js                        # Contrôleur HTTP
+│   │   │   │   ├── user.routes.js                            # Routes et contrôle d’accès
+│   │   │   │   ├── user.service.js                           # Logique métier + Prisma
+│   │   │   │   └── User.validation.js                        # Schémas Zod
+│   │   │   ├── voyage/                                       # Voyages (API /voyages)
+│   │   │   │   ├── index.js                                  # Barrel d’exports du module
+│   │   │   │   ├── voyage.controller.js                      # Contrôleur HTTP
+│   │   │   │   ├── voyage.route.js                           # Routes et contrôle d’accès
+│   │   │   │   ├── voyage.service.js                         # Logique métier + Prisma
+│   │   │   │   └── voyage.validation.js                      # Schémas Zod
+│   │   │   └── _routes.js                                    # Agrégation des routes /api/v1 + CSRF + /health
+│   │   └── app.js                                            # Express : helmet, CORS, static /uploads, rate limit, parsers, audit, routes, erreurs
+│   ├── test/                                                 # Tests node --test
+│   │   ├── integration/
+│   │   │   └── logistics-data.test.js                        # Données de démonstration, total 95,444 t
+│   │   └── unit/
+│   │       ├── audit-redaction.test.js                       # Masquage des secrets dans l’audit
+│   │       ├── client-validation.test.js                     # Validation des fiches client
+│   │       ├── logistics-validation.test.js                  # Validation navire, port, voyage, plan, ligne
+│   │       ├── socket-auth.test.js                           # Authentification du handshake Socket.IO
+│   │       ├── upload-signature.test.js                      # Signature d’image (absent du script test:unit)
+│   │       └── voyage-read-auth.test.js                      # VOYAGES:READ sur les lectures
+│   ├── .gitignore                                            # node_modules, .env, src/generated/prisma
+│   ├── package.json                                          # Dépendances et scripts (dev, start, test, seed:loading)
+│   ├── prisma.config.js                                      # Configuration Prisma 7 (schéma, migrations, DATABASE_URL)
+│   ├── README.md                                             # Documentation du backend
+│   └── server.js                                             # Point d’entrée : dotenv, validateEnv, connectDB, listen, initSocket
+├── README.md                                                 # Documentation principale (ce fichier)
+└── README_AUDIT_2026-10-03.md                                # Audit de sécurité et de cohérence du 3 octobre 2026
 ```
 
-### Convention frontend des features
+Des dossiers générés à l'exécution ne sont pas versionnés : `server/logs/` (Winston), `server/public/uploads/avatars/` (avatars téléversés), `server/src/generated/prisma/` (client Prisma).
 
-Les modules CRUD simples suivent la structure de reference du module Client :
+### 4.3 Rôle des dossiers du backend (`server/`)
+
+| Dossier / fichier | Responsabilité | Règle à respecter |
+| --- | --- | --- |
+| `server.js` | Charge les variables d'environnement, valide l'environnement, connecte la base, démarre HTTP puis Socket.IO | Ne contient aucune logique métier |
+| `src/app.js` | Assemble Express : `helmet`, CORS, fichiers statiques `/uploads`, rate limit, parseurs (JSON limité à 10 ko), cookies signés, journal de requêtes, audit, routes `/api/v1`, 404, gestionnaire d'erreurs | L'ordre des middlewares est significatif (voir README serveur) |
+| `src/config/` | Connexion Prisma (une seule instance), validation des variables d'environnement, Winston, limiteur global, Socket.IO | Importer `prisma` depuis `config/database.js`, jamais `new PrismaClient()` ailleurs |
+| `src/common/middlewares/` | Transversal : `protect`/`authorize`, CSRF, validation Zod, audit, upload, anti auto-élévation, limiteur de login, gestion d'erreurs, restriction par département | Déclarés dans les fichiers `routes` des modules |
+| `src/common/utils/` | `AppError`, `catchAsync`, formats de réponse, constantes d'actions, utilitaires de mot de passe et d'authentification Socket.IO | `AppError` pour toute erreur métier |
+| `src/modules/<module>/` | Un module métier : `*.routes.js`, `*.controller.js`, `*.service.js`, `*.validation.js`, `index.js` | Module de référence : `clients/` |
+| `src/modules/_routes.js` | Monte tous les routeurs sous `/api/v1`, applique le CSRF aux mutations, expose `/health` | Tout nouveau module doit être monté ici |
+| `prisma/` | `schema.prisma`, migrations versionnées, seeds | Ne jamais modifier une migration déjà appliquée ; en créer une nouvelle |
+| `test/` | `unit/` (validations, middlewares, sécurité) et `integration/` (données de démonstration) | Runner natif `node --test` |
+
+### 4.4 Rôle des dossiers du frontend (`client/`)
+
+| Dossier / fichier | Responsabilité | Règle à respecter |
+| --- | --- | --- |
+| `src/main.jsx` | Providers (`BrowserRouter`, `AuthProvider`, `NotificationProvider`), service worker PWA | — |
+| `src/core/` | `App.jsx` (routage) et `routes/routeConfig.jsx` (routes, menu, permissions) | Toute page doit être déclarée dans `routeConfig.jsx` |
+| `src/features/<feature>/` | Une fonctionnalité : `components/`, `pages/`, `service/`, `index.js` | Feature de référence : `client/` |
+| `src/features/<feature>/service/` | Appels API de la fonctionnalité (`createCrudService` + méthodes spécifiques) | Aucun appel Axios direct dans les composants |
+| `src/shared/components/ui/` | Composants UI génériques maison | Réutiliser avant de créer un nouveau composant |
+| `src/shared/components/layout/` | `RoleGuard` (session + permission) | — |
+| `src/shared/services/` | `axiosInstance` (cookies, CSRF, refresh), `crudService`, `api`, `socket` | Passer par ces services pour tout appel réseau |
+| `src/shared/utils/` | Permissions, notifications toast, erreurs d'API, formats de date | — |
+| `public/` | Icônes PWA, manifeste, `_redirects` | — |
+
+### 4.5 Parcours d'une fonctionnalité de bout en bout (exemple : ajouter une ligne de marchandise)
+
+1. **Page** `features/plans/pages/LoadPage.jsx` → modale `LoadEditorModal.jsx`.
+2. **Service** `features/plans/service/loadingPlan.service.js` : `addLoad(planId, data)` → `POST /loading-plans/:id/loads` via `axiosInstance` (ajoute `X-CSRF-Token`, renvoie les cookies, rejoue la requête après un refresh si 401).
+3. **Serveur** `modules/_routes.js` : contrôle CSRF → `loading-plan.routes.js` : `protect` → `authorize("CARGO", CREATE)` → `validate(loadValidation.create)` (Zod).
+4. **Contrôleur** `loading-plan.controller.js` → **service** `loading-plan.service.js` : vérifie que le plan n'est pas validé, calcule le total, contrôle la capacité du navire, écrit via Prisma dans `loads` et met à jour `loading_plans.totalWeightKg` (transaction).
+5. **Audit** : `audit.middleware.js` enregistre la mutation dans `audit_logs` (secrets masqués).
+6. **Réponse** `{ status: "success", ... }` → la page se recharge et affiche le nouveau total.
+
+### 4.6 Où ajouter quoi
+
+| Besoin | Étapes |
+| --- | --- |
+| Nouvelle table | 1) modifier `server/prisma/schema.prisma` ; 2) `npx prisma migrate dev --name <nom>` ; 3) `npx prisma generate` ; 4) mettre à jour la [section 5](#5-structure-de-la-base-de-données) de ce README |
+| Nouveau module backend | Créer `server/src/modules/<module>/` sur le modèle de `clients/` (routes, contrôleur, service, validation Zod, `index.js`) ; monter dans `modules/_routes.js` ; ajouter le module de permission dans `prisma/seedAppModules.js` |
+| Nouvelle page frontend | Créer `client/src/features/<feature>/` sur le modèle de `client/` ; ajouter une entrée dans `core/routes/routeConfig.jsx` avec sa `requiredPermission` |
+| Nouvelle permission | Choisir un code de module, protéger les routes avec `authorize("CODE", action)`, ajouter le code dans `seedAppModules.js`, utiliser le même code dans `routeConfig.jsx` |
+| Nouvel événement temps réel | Émettre via `getIO().emit("<ressource>:changed", ...)` côté serveur et écouter le **même nom exact** dans la page concernée (voir [section 10](#10-temps-réel-socketio)) |
+
+## 5. Structure de la base de données
+
+Source de vérité : `server/prisma/schema.prisma`. SGBD **PostgreSQL**, accédé par **Prisma 7** (`@prisma/adapter-pg`). Base de développement : `lct_premium`. **17 tables**, **3 enums**, **17 migrations**. Diagramme UML complémentaire à la racine du dépôt : `../prisma-uml.png` (peut être en retard sur le schéma).
+
+### 5.1 Conventions
+
+- **Noms** : tables en `snake_case` pluriel (via `@@map`), colonnes en `camelCase` (donc entre guillemets doubles dans le SQL brut : `"departmentId"`).
+- **Clés primaires** : `id` de type `text` contenant un UUID, **généré par Prisma** (`@default(uuid())`, pas de défaut SQL).
+- **Horodatage** : `createdAt` (défaut SQL `now()`) et `updatedAt` (géré par Prisma, `@updatedAt`), en `timestamp(3)`.
+- **Soft delete** (`deletedAt` nullable) sur 11 tables : `departments`, `positions`, `employees`, `clients`, `client_addresses`, `client_documents`, `vessels`, `ports`, `voyages`, `loading_plans`, `loads`. Les requêtes doivent filtrer `deletedAt: null`.
+- **Poids et capacités** : `decimal(65,30)` (type `Decimal` de Prisma), poids en **kilogrammes**, capacité des navires en **tonnes**.
+- **Suppression en cascade** : seules les relations indiquées `ON DELETE Cascade` ou `SetNull` ci-dessous sont explicites ; sinon Prisma applique son comportement par défaut (`RESTRICT` pour une relation obligatoire, `SET NULL` pour une relation facultative).
+- **Statuts** : `Voyage.status`, `Vessel.status` et `Load.status` sont des **chaînes libres** (pas d'enum SQL) ; leurs valeurs sont contrôlées par les schémas Zod des modules.
+
+### 5.2 Vue d'ensemble des tables
+
+| Domaine | Table | Rôle | Soft delete |
+| --- | --- | --- | --- |
+| Structure interne | `departments` | Départements de l'entreprise (`code` unique) | oui |
+| | `positions` | Postes, rattachés à un département | oui |
+| | `employees` | Employés, avec ou sans accès à l'application (`hasAppAccess`) | oui |
+| Accès et sécurité | `app_modules` | Catalogue des codes de module de permission (joker `*`) | non |
+| | `employee_permissions` | Permissions `(module, action)` par employé | non |
+| | `refresh_tokens` | Refresh tokens (hash, famille, rotation, révocation) | non |
+| | `audit_logs` | Journal d'audit des requêtes mutantes | non |
+| Clients | `clients` | Clients particuliers ou entreprises | oui |
+| | `client_addresses` | Adresses de facturation/livraison | oui |
+| | `client_documents` | Documents d'un client (type, numéro, validité) | oui |
+| Maritime | `vessels` | Navires (capacité en tonnes) | oui |
+| | `ports` | Ports (`code` unique) | oui |
+| | `voyages` | Voyages : navire + port de départ + port d'arrivée | oui |
+| Plans | `loading_plans` | Plans de chargement et de déchargement d'un voyage | oui |
+| | `loads` | Lignes de marchandises d'un plan | oui |
+| Notifications | `notifications` | Notifications ciblées par permission | non |
+| | `notification_reads` | Lecture d'une notification par un employé | non |
+
+### 5.3 Diagramme des relations
+
+```mermaid
+erDiagram
+    departments ||--o{ positions : "contient"
+    departments ||--o{ employees : "emploie"
+    positions ||--o{ employees : "occupé par"
+    employees ||--o{ employee_permissions : "possède"
+    employees |o--o{ audit_logs : "agit"
+    employees ||--o{ refresh_tokens : "session"
+    employees ||--o{ notification_reads : "lit"
+    notifications ||--o{ notification_reads : "lue par"
+    clients ||--o{ client_addresses : "adresses"
+    clients ||--o{ client_documents : "documents"
+    clients ||--o{ loads : "marchandises"
+    vessels ||--o{ voyages : "effectue"
+    ports ||--o{ voyages : "départ"
+    ports ||--o{ voyages : "arrivée"
+    voyages ||--o{ loading_plans : "planifie"
+    loading_plans ||--o{ loads : "contient"
+    employees |o--o{ loading_plans : "valide"
+    employees |o--o{ loads : "charge"
+    loading_plans |o--o| loading_plans : "déchargement issu de"
+```
+
+`app_modules` n'a aucune clé étrangère : `employee_permissions.module` est une chaîne qui référence un code de module **par convention**, pas par contrainte SQL.
+
+### 5.4 Chaîne logistique
 
 ```text
-feature/
-├── components/
-├── pages/
-├── service/
-└── index.js
+vessels ─┬─ voyages ── loading_plans ── loads ── clients
+ports  ──┘  (départ, arrivée)  │          └── loadedBy → employees
+                               ├── validatedBy → employees
+                               └── sourceLoadingPlan ↔ unloadPlan (plan LOAD → plan UNLOAD, relation 1-1)
 ```
 
-- [x] `client` sert de module de reference avec un formulaire et une modale partages.
-- [x] `driver` utilise une modale unique pour la creation et la modification.
-- [x] `module` utilise maintenant `ModuleModal` et un service dans `service/`.
-- [x] `employee` utilise maintenant `EmployeeModal`, un service dans `service/` et une page `EmployeePage.jsx`.
-- [x] `companyStructure` utilise maintenant un service dans `service/`.
-- [x] `maritime` et `loadingPlans` suivent deja cette convention.
-- [ ] `users` reste organise par operations specialisees : acces, permissions et mot de passe.
-- [ ] `companyStructure` peut encore fusionner ses formulaires par sous-entite si le besoin apparait, mais departements et postes restent volontairement distincts.
+- `loading_plans.status` est un **booléen** (`false` = ouvert, `true` = validé), accompagné de `validatedAt` et `validatedById`. Ce n'est pas l'enum `DRAFT/SUBMITTED/VALIDATED/CLOSED` envisagé dans l'ancienne feuille de route.
+- `loading_plans.operationType` distingue `LOAD` et `UNLOAD`. Un plan `UNLOAD` est **créé automatiquement** à la validation d'un plan `LOAD` (référence `DECH-<référence>`, lié par `sourceLoadingPlanId`, unique).
+- `loads.status` : `PENDING` (défaut), `LOADED`, `CANCELLED` (valeurs utilisées par le service).
+- `voyages.status` : défaut `DRAFT` dans le schéma, alors que l'API `/voyages` n'accepte que `SCHEDULED | IN_TRANSIT | ARRIVED | CANCELLED` (voir section 14).
+- `employees.password` est nullable : un employé peut exister sans accès à l'application.
+- `loads.driverName` et `loads.vehiclePlate` sont de simples **textes** : il n'existe plus de tables chauffeur ni véhicule.
 
-### Modules backend actuellement enregistres
+### 5.5 Détail des enums, tables, colonnes, relations et index
 
-- `auth`
-- `users`
-- `employees`
-- `company-structure`
-- `modules`
-- `uploads`
-- `clients`
-- `drivers`
-- `notifications`
-- `maritime`
+Section générée à partir de `schema.prisma` (état du 13 octobre 2026). « Type SQL » est le type PostgreSQL produit par Prisma pour le type du schéma.
 
-### Modeles Prisma actuellement disponibles
+#### Enums PostgreSQL
 
-- `Department`
-- `Position`
-- `Employee`
-- `AppModule`
-- `EmployeePermission`
-- `AuditLog`
-- `Client`
-- `ClientAddress`
-- `ClientDocument`
-- `Driver`
-- `Notification`
-- `NotificationRead`
-- `RefreshToken`
-- `Vessel`
-- `Port`
-- `Voyage`
-- `Vehicle`
+| Enum | Valeurs |
+| --- | --- |
+| `EntityType` | `COMPANY`, `INDIVIDUAL` |
+| `ClientAddressType` | `BILLING`, `DELIVERY`, `BOTH` |
+| `LoadingPlanOperation` | `LOAD`, `UNLOAD` |
 
-## Installation
+#### Table `departments` (modèle Prisma `Department`)
 
-### Prerequis
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `code` | text | non |  | unique; Ex: "LOGISTICS", "ADMIN", "FINANCE", "TECH", "COMMERCIAL" (correspond à companyStructure.js) |
+| `label` | text | non |  | Ex: "Logistique & Opérations Maritimes" |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  | Soft delete pour le département |
 
-- Node.js 18 ou plus recent ;
-- npm ;
-- PostgreSQL ;
-- une base de donnees accessible par `DATABASE_URL`.
+Relations :
 
-### Installation des dependances
+- `positions` → plusieurs `positions` (côté inverse)
+- `employees` → plusieurs `employees` (côté inverse)
 
-```bash
-cd client
-npm install
+Index et contraintes de table :
 
-cd ../server
-npm install
-```
+- `index([deletedAt])`
 
-### Initialisation de la base
+#### Table `positions` (modèle Prisma `Position`)
 
-```bash
-cd server
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `code` | text | non |  | unique; Ex: "QUAY_AGENT", "HR_MGR" (unique globalement, comme dans companyStructure.js) |
+| `label` | text | non |  | Ex: "Agent de quai" |
+| `departmentId` | text | non |  |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  | Soft delete pour le poste |
+
+Relations :
+
+- `department` → un `departments` (clé étrangère `departmentId` → `id`, `ON DELETE Cascade`)
+- `employees` → plusieurs `employees` (côté inverse)
+
+Index et contraintes de table :
+
+- `unique([id, departmentId])`
+- `index([deletedAt])`
+
+#### Table `employees` (modèle Prisma `Employee`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `name` | text | non |  |  |
+| `cin` | text | oui |  | unique |
+| `matricule` | text | non |  | unique |
+| `phone` | text | oui |  |  |
+| `avatarUrl` | text | oui |  |  |
+| `departmentId` | text | non |  |  |
+| `positionId` | text | non |  |  |
+| `hasAppAccess` | boolean | non | `false` |  |
+| `email` | text | oui |  | unique |
+| `password` | text | oui |  |  |
+| `isActive` | boolean | non | `false` |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `department` → un `departments` (clé étrangère `departmentId` → `id`)
+- `position` → un `positions` (clé étrangère `positionId, departmentId` → `id, departmentId`)
+- `permissions` → plusieurs `employee_permissions` (côté inverse)
+- `auditLogs` → plusieurs `audit_logs` (côté inverse)
+- `notificationRead` → plusieurs `notification_reads` (côté inverse)
+- `refreshTokens` → plusieurs `refresh_tokens` (côté inverse)
+- `validatedLoadingPlans` → plusieurs `loading_plans` (côté inverse de la relation) — relation nommée `LoadingPlanValidator`
+- `loadedLoads` → plusieurs `loads` (côté inverse de la relation) — relation nommée `LoadLoader`
+
+#### Table `app_modules` (modèle Prisma `AppModule`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `code` | text | non |  | unique; Ex: "EMPLOYEES", "USERS", "DEPARTMENTS", "*" (tous modules) |
+| `label` | text | non |  | Ex: "Employés", "Utilisateurs & Accès" |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+
+#### Table `employee_permissions` (modèle Prisma `EmployeePermission`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `employeeId` | text | non |  |  |
+| `module` | text | non |  | Le module visé (Ex: "CHARGEMENT", "AUDIT", "EMPLOYEES") |
+| `action` | text | non |  | L'action autorisée (Ex: "CREATE", "READ", "UPDATE", "DELETE") |
+
+Relations :
+
+- `employee` → un `employees` (clé étrangère `employeeId` → `id`, `ON DELETE Cascade`)
+
+Index et contraintes de table :
+
+- `unique([employeeId, module, action])`
+
+#### Table `audit_logs` (modèle Prisma `AuditLog`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `employeeId` | text | oui |  | Remplacé userId par employeeId |
+| `action` | text | non |  | Ex: "LOADING_PLAN_CREATE" |
+| `method` | text | non |  | GET, POST, PUT, DELETE |
+| `route` | text | non |  |  |
+| `ipAddress` | text | non |  |  |
+| `payload` | jsonb | oui |  |  |
+| `oldValues` | jsonb | oui |  |  |
+| `newValues` | jsonb | oui |  |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+
+Relations :
+
+- `employee` → un `employees` (clé étrangère `employeeId` → `id`)
+
+#### Table `clients` (modèle Prisma `Client`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `reference` | text | oui |  | unique |
+| `name` | text | non |  |  |
+| `type` | enum `EntityType` | non | `INDIVIDUAL` |  |
+| `firstName` | text | oui |  |  |
+| `lastName` | text | oui |  |  |
+| `cin` | text | oui |  | unique |
+| `cinIssuedAt` | timestamp(3) | oui |  |  |
+| `cinIssuedPlace` | text | oui |  |  |
+| `legalName` | text | oui |  |  |
+| `tradeName` | text | oui |  |  |
+| `nif` | text | oui |  | unique |
+| `stat` | text | oui |  | unique |
+| `rcs` | text | oui |  |  |
+| `legalForm` | text | oui |  |  |
+| `activity` | text | oui |  |  |
+| `email` | text | oui |  |  |
+| `phone` | text | oui |  |  |
+| `secondaryPhone` | text | oui |  |  |
+| `paymentTerms` | text | oui |  |  |
+| `currency` | text | non | `"MGA"` |  |
+| `taxExempt` | boolean | non | `false` |  |
+| `taxExemptionReason` | text | oui |  |  |
+| `contractNumber` | text | oui |  |  |
+| `habitualCargoType` | text | oui |  |  |
+| `receptionContactName` | text | oui |  |  |
+| `receptionContactPhone` | text | oui |  |  |
+| `receptionContactEmail` | text | oui |  |  |
+| `isActive` | boolean | non | `true` |  |
+| `notes` | text | oui |  |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `loads` → plusieurs `loads` (côté inverse)
+- `addresses` → plusieurs `client_addresses` (côté inverse)
+- `documents` → plusieurs `client_documents` (côté inverse)
+
+Index et contraintes de table :
+
+- `index([type])`
+- `index([name])`
+- `index([deletedAt])`
+
+#### Table `client_addresses` (modèle Prisma `ClientAddress`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `clientId` | text | non |  |  |
+| `type` | enum `ClientAddressType` | non |  |  |
+| `label` | text | oui |  |  |
+| `addressLine1` | text | non |  |  |
+| `addressLine2` | text | oui |  |  |
+| `city` | text | oui |  |  |
+| `region` | text | oui |  |  |
+| `postalCode` | text | oui |  |  |
+| `country` | text | non | `"Madagascar"` |  |
+| `isDefault` | boolean | non | `false` |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `client` → un `clients` (clé étrangère `clientId` → `id`, `ON DELETE Cascade`)
+
+Index et contraintes de table :
+
+- `index([clientId, type])`
+- `index([deletedAt])`
+
+#### Table `client_documents` (modèle Prisma `ClientDocument`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `clientId` | text | non |  |  |
+| `documentType` | text | non |  |  |
+| `documentNumber` | text | oui |  |  |
+| `fileName` | text | oui |  |  |
+| `fileUrl` | text | oui |  |  |
+| `issuedAt` | timestamp(3) | oui |  |  |
+| `expiresAt` | timestamp(3) | oui |  |  |
+| `verifiedAt` | timestamp(3) | oui |  |  |
+| `notes` | text | oui |  |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `client` → un `clients` (clé étrangère `clientId` → `id`, `ON DELETE Cascade`)
+
+Index et contraintes de table :
+
+- `index([clientId, documentType])`
+- `index([expiresAt])`
+- `index([deletedAt])`
+
+#### Table `vessels` (modèle Prisma `Vessel`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `name` | text | non |  |  |
+| `operatorName` | text | oui |  |  |
+| `registrationNumber` | text | oui |  | unique |
+| `capacityTons` | decimal(65,30) | oui |  |  |
+| `status` | text | non | `"ACTIVE"` |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `voyages` → plusieurs `voyages` (côté inverse)
+
+Index et contraintes de table :
+
+- `index([status])`
+- `index([deletedAt])`
+
+#### Table `ports` (modèle Prisma `Port`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `code` | text | non |  | unique |
+| `name` | text | non |  |  |
+| `country` | text | oui |  |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `departureVoyages` → plusieurs `voyages` (côté inverse de la relation) — relation nommée `DeparturePort`
+- `arrivalVoyages` → plusieurs `voyages` (côté inverse de la relation) — relation nommée `ArrivalPort`
+
+Index et contraintes de table :
+
+- `index([deletedAt])`
+
+#### Table `voyages` (modèle Prisma `Voyage`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `vesselId` | text | non |  |  |
+| `departurePortId` | text | non |  |  |
+| `arrivalPortId` | text | non |  |  |
+| `voyageNumber` | text | non |  |  |
+| `departureDate` | timestamp(3) | oui |  |  |
+| `arrivalDate` | timestamp(3) | oui |  |  |
+| `status` | text | non | `"DRAFT"` |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `vessel` → un `vessels` (clé étrangère `vesselId` → `id`)
+- `departurePort` → un `ports` (clé étrangère `departurePortId` → `id`) — relation nommée `DeparturePort`
+- `arrivalPort` → un `ports` (clé étrangère `arrivalPortId` → `id`) — relation nommée `ArrivalPort`
+- `loadingPlans` → plusieurs `loading_plans` (côté inverse)
+
+Index et contraintes de table :
+
+- `unique([vesselId, voyageNumber])`
+- `index([departurePortId])`
+- `index([arrivalPortId])`
+- `index([status])`
+- `index([deletedAt])`
+
+#### Table `loading_plans` (modèle Prisma `LoadingPlan`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `reference` | text | non |  | unique |
+| `voyageId` | text | non |  |  |
+| `status` | boolean | non | `false` |  |
+| `operationType` | enum `LoadingPlanOperation` | non | `LOAD` |  |
+| `totalWeightKg` | decimal(65,30) | non | `0` |  |
+| `validatedAt` | timestamp(3) | oui |  |  |
+| `validatedById` | text | oui |  |  |
+| `sourceLoadingPlanId` | text | oui |  | unique |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `voyage` → un `voyages` (clé étrangère `voyageId` → `id`)
+- `validatedBy` → un `employees` (clé étrangère `validatedById` → `id`) — relation nommée `LoadingPlanValidator`
+- `sourceLoadingPlan` → un `loading_plans` (clé étrangère `sourceLoadingPlanId` → `id`, `ON DELETE SetNull`) — relation nommée `LoadingPlanUnload`
+- `unloadPlan` → un `loading_plans` (côté inverse de la relation) — relation nommée `LoadingPlanUnload`
+- `loads` → plusieurs `loads` (côté inverse)
+
+Index et contraintes de table :
+
+- `index([voyageId])`
+- `index([status])`
+- `index([deletedAt])`
+
+#### Table `loads` (modèle Prisma `Load`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `loadingPlanId` | text | non |  |  |
+| `clientId` | text | non |  |  |
+| `driverName` | text | oui |  |  |
+| `vehiclePlate` | text | oui |  |  |
+| `loadedById` | text | oui |  |  |
+| `loadingDate` | timestamp(3) | oui |  |  |
+| `packageCount` | integer | non |  |  |
+| `description` | text | non |  |  |
+| `weightKg` | decimal(65,30) | non |  |  |
+| `anomaly` | text | oui |  |  |
+| `loadingPosition` | text | oui |  |  |
+| `isHazardous` | boolean | non | `false` |  |
+| `status` | text | non | `"PENDING"` |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+| `deletedAt` | timestamp(3) | oui |  |  |
+
+Relations :
+
+- `loadingPlan` → un `loading_plans` (clé étrangère `loadingPlanId` → `id`, `ON DELETE Cascade`)
+- `client` → un `clients` (clé étrangère `clientId` → `id`)
+- `loadedBy` → un `employees` (clé étrangère `loadedById` → `id`) — relation nommée `LoadLoader`
+
+Index et contraintes de table :
+
+- `index([loadingPlanId])`
+- `index([clientId])`
+- `index([loadingDate])`
+- `index([status])`
+- `index([deletedAt])`
+
+#### Table `notifications` (modèle Prisma `Notification`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `type` | text | non |  | Ex: "ACCESS_REQUEST" |
+| `message` | text | non |  |  |
+| `payload` | jsonb | oui |  | Contexte structuré, ex: { "employeeId": "..." } |
+| `targetModule` | text | oui |  |  |
+| `targetAction` | text | oui |  |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+
+Relations :
+
+- `reads` → plusieurs `notification_reads` (côté inverse)
+
+#### Table `notification_reads` (modèle Prisma `NotificationRead`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `notificationId` | text | non |  |  |
+| `employeeId` | text | non |  |  |
+| `readAt` | timestamp(3) | non | `now()` |  |
+
+Relations :
+
+- `notification` → un `notifications` (clé étrangère `notificationId` → `id`, `ON DELETE Cascade`)
+- `employee` → un `employees` (clé étrangère `employeeId` → `id`, `ON DELETE Cascade`)
+
+Index et contraintes de table :
+
+- `unique([notificationId, employeeId])`
+
+#### Table `refresh_tokens` (modèle Prisma `RefreshToken`)
+
+| Colonne | Type SQL | Null | Défaut | Contraintes / remarques |
+| --- | --- | --- | --- | --- |
+| `id` | text | non | `uuid()` | **PK** |
+| `employeeId` | text | non |  |  |
+| `tokenHash` | text | non |  | unique |
+| `familyId` | text | non |  |  |
+| `jti` | text | non |  | unique |
+| `expiresAt` | timestamp(3) | non |  |  |
+| `revokedAt` | timestamp(3) | oui |  |  |
+| `revokedReason` | text | oui |  |  |
+| `replacedByTokenId` | text | oui |  |  |
+| `lastUsedAt` | timestamp(3) | oui |  |  |
+| `createdAt` | timestamp(3) | non | `now()` |  |
+| `updatedAt` | timestamp(3) | non |  | géré par Prisma (`@updatedAt`) |
+
+Relations :
+
+- `employee` → un `employees` (clé étrangère `employeeId` → `id`, `ON DELETE Cascade`)
+
+Index et contraintes de table :
+
+- `index([employeeId, revokedAt])`
+- `index([expiresAt])`
+
+### 5.6 Intégrité gérée par le code (non exprimée en SQL)
+
+Ces règles sont appliquées par les services et la validation Zod, pas par des contraintes de base :
+
+- poids d'une ligne strictement positif, nombre de colis entier positif ;
+- total d'un plan inférieur ou égal à la capacité du navire (`vessels.capacityTons × 1000` kg) ;
+- plan validé non modifiable ;
+- l'arrivée d'un voyage ne précède pas son départ (à la création ; **non garanti** pour une mise à jour partielle, voir section 14) ;
+- unicité du numéro de voyage **par navire** en base (`@@unique([vesselId, voyageNumber])`), mais le service vérifie le numéro seul (section 14) ;
+- codes de module de permission valides (`employee_permissions.module` n'est pas une clé étrangère).
+
+### 5.7 Migrations
+
+Dossier `server/prisma/migrations/` (verrou : `migration_lock.toml`, fournisseur PostgreSQL). Ordre chronologique :
+
+| # | Migration | Effet |
+| --- | --- | --- |
+| 1 | `20260721085445_add_employees_clients_drivers` | Crée l'enum `EntityType` et notamment `employees`, `employee_permissions`, `audit_logs`, `clients`, `drivers` |
+| 2 | `20260721203045_make_cin_optional` | Ajoute `employees.matricule` (obligatoire, unique) ; le nom de la migration évoque la rendre `cin` facultative |
+| 3 | `20260722135433_add_departments_positions` | Supprime la colonne texte `employees.department` ; crée `departments` et `positions` (codes uniques, unicité `(id, departmentId)`) |
+| 4 | `20260725091703_add_modules_table` | Crée `app_modules` |
+| 5 | `20260727125351_add_softdelet_on_companie_structure` | Ajoute `deletedAt` (+ index) sur `departments` et `positions` |
+| 6 | `20260819101011_add_notifications` | Crée `notifications` et `notification_reads` |
+| 7 | `20260823105930_add_refresh_token` | Crée `refresh_tokens` (hash et `jti` uniques, index sur `(employeeId, revokedAt)` et `expiresAt`) |
+| 8 | `20260913070313_add_maritime_models` | Crée `vessels`, `ports`, `voyages`, `vehicles` |
+| 9 | `20260913072402_add_loading_plans_and_cargo_lines` | Crée `loading_plans` et `cargo_lines` |
+| 10 | `20260914090000_enrich_client_identity_and_documents` | Crée l'enum `ClientAddressType`, enrichit `clients`, crée `client_addresses` et `client_documents` |
+| 11 | `20260915100824_remove_vehicle_driver_tables` | Supprime `cargo_lines.driverId` et `vehicleId`, puis les tables `drivers` et `vehicles` |
+| 12 | `20260915180025_change_status_on_loading_plan_to_boolean` | Supprime puis recrée `loading_plans.status` en booléen (défaut `false`) |
+| 13 | `20261003132651_rename_cargo_lines_to_loads` | Supprime `cargo_lines` et crée `loads` **sans copier les données** |
+| 14 | `20261003143000_add_loading_plan_operation_type` | Crée l'enum `LoadingPlanOperation` et la colonne `loading_plans.operationType` (défaut `LOAD`) |
+| 15 | `20261003183000_link_unload_plans` | Ajoute `loading_plans.sourceLoadingPlanId` (unique, clé étrangère auto-référente) |
+| 16 | `20261003190000_backfill_unload_plans` | Migration de données : crée les plans `UNLOAD` manquants (`DECH-…`) pour les plans `LOAD` déjà validés dont toutes les lignes actives sont chargées |
+| 17 | `20261003200000_reset_inherited_unload_transport` | Migration de données : remet à `NULL` chauffeur et plaque des lignes de déchargement identiques à leur ligne source |
+
+À retenir : ne jamais appliquer ces migrations à une base peuplée sans sauvegarde (les n° 12 et 13 détruisent des données) ; ne jamais lancer `prisma migrate reset` sur une base contenant de vraies données.
+
+### 5.8 Données de démonstration (seeds)
+
+| Fichier | Contenu | Précaution |
+| --- | --- | --- |
+| `prisma/seed.js` | Structure de l'entreprise : départements (`LOGISTICS`, `ADMIN`, `FINANCE`, …) et leurs postes (`QUAY_AGENT`, `HR_MGR`, `ACCOUNTANT`, …) | — |
+| `prisma/seedAppModules.js` | Modules de permission (`*`, `EMPLOYEES`, `USERS`, `DEPARTMENTS`, `VESSELS`, `PORTS`, `VOYAGES`, `VEHICLES`, `LOADING_PLANS`, `CARGO`) | Incomplet : ne contient pas `CLIENT`, `COMPANY_STRUCTURE`, `MODULE` |
+| `prisma/seedLoadingPlan.js` (`npm run seed:loading`) | Navires, voyage, clients et plan de référence (total attendu 95,444 t) | **Destructif** : supprime puis recrée les marchandises des plans de référence ; deux lignes créées avec `weightKg: 0` contournent la validation de l'API |
+
+## 6. Authentification et sécurité
+
+**Connexion** : `POST /api/v1/auth/login` avec `{ identifier, password }` ; l'identifiant est l'**email ou le matricule**. Le compte doit être actif, non supprimé et avoir `hasAppAccess`.
+
+**Jetons et cookies** :
+
+- Access token JWT (type `access`, durée `JWT_EXPIRES_IN`, 15 min par défaut) dans le cookie **signé** `token` (httpOnly). Le header `Authorization: Bearer` est accepté en secours (Postman).
+- Refresh token JWT (type `refresh`, 7 jours par défaut) dans le cookie `refreshToken` ; seul son hash SHA-256 est stocké en base. `POST /auth/refresh` effectue une **rotation** (l'ancien jeton est révoqué avec la raison `rotated`).
+- Cookie `xsrf-token` (lisible par le JavaScript, 15 min) pour la protection CSRF.
+- Cookies en `sameSite: "lax"`, `secure` uniquement en production.
+
+**CSRF (double-submit)** : toute requête `POST/PUT/PATCH/DELETE` doit envoyer le header `X-CSRF-Token` égal au cookie `xsrf-token`. Exemptés : `/auth/login`, `/auth/csrf-token`, `/health`. Le frontend l'ajoute automatiquement (`axiosInstance`) et obtient un token via `GET /auth/csrf-token` si nécessaire.
+
+**Autres protections** :
+
+- `helmet`, CORS restreint à `CLIENT_URL` (credentials activés, headers `Content-Type`, `Authorization`, `X-CSRF-Token`).
+- Rate limit global sur `/api` (100 requêtes / 15 min en production, 500 en développement) et limiteur de login (5 / minute).
+- **Journal d'audit** (`audit.middleware.js`) : chaque `POST/PUT/PATCH/DELETE` écrit une ligne `AuditLog` (employé, action, route, IP, payload, anciennes/nouvelles valeurs). Les clés dont le nom contient `password`, `token`, `secret`, `authorization`, `cookie` ou `csrf` sont remplacées par `[REDACTED]` récursivement. Les valeurs éventuellement journalisées **avant** ce correctif n'ont pas été purgées automatiquement.
+- **Upload d'avatar** (`POST /uploads/avatar`) : fichier gardé en mémoire (5 Mo max), type détecté par **signature binaire** (JPEG, PNG, WEBP) et extension imposée ; un utilisateur ne peut écrire que son propre avatar sauf permission `EMPLOYEES` adéquate. Fichiers servis sous `/uploads` (dossier `server/public/uploads/avatars`).
+- **Socket.IO authentifié** : le handshake lit le cookie signé `token`, vérifie le JWT puis l'employé (actif, non supprimé, accès app) ; la room `employee_<id>` est déduite de l'identité authentifiée.
+- **Anti auto-élévation** (`owner.middleware.js`, `isSelfOrAuthorized`) : un employé peut agir sur sa propre fiche mais ne peut pas modifier ses `permissions`, `hasAppAccess` ou `isActive` sans `EMPLOYEES:UPDATE` (ou le joker `*:*`).
+
+## 7. Permissions
+
+Chaque employé possède une liste de paires `{ module, action }`. Actions : `CREATE`, `READ`, `UPDATE`, `DELETE`, et le joker `*`. La paire `{ "*", "*" }` donne tous les droits (équivalent super-administrateur). Le frontend charge les permissions au login (`/auth/me`) et les met à jour par Socket.IO (`profile-updated`).
+
+Les codes de module sont libres côté base (`AppModule`), mais ceux **réellement vérifiés par le code** sont :
+
+| Module | Utilisé par | Fichier d'entrée |
+| --- | --- | --- |
+| `EMPLOYEES` | `/employees`, sous-routes de permissions, création de poste, upload d'avatar | `employee.routes.js` |
+| `COMPANY_STRUCTURE` | `/company-structure` (départements, postes) | `company-structure.routes.js` |
+| `CLIENT` (singulier) | `/clients` | `client.routes.js` |
+| `VESSELS`, `PORTS`, `VEHICLES` | `/maritime/vessels`, `/maritime/ports`, `/maritime/vehicles` | `maritime.routes.js` |
+| `LOADING_PLANS` | `/loading-plans`, validation, **et** `/maritime/voyages` | `loading-plan.routes.js`, `maritime.routes.js` |
+| `VOYAGES` | `/voyages` | `voyage.route.js` |
+| `CARGO` | lignes de marchandises `/loading-plans/:id/loads` | `loading-plan.routes.js` |
+| `USERS`, `MODULE` | écrans front ; **côté API** les routes `/users` et `/modules` (mutations) sont réservées au **département `TECH`** via `restrictToDepartment("TECH")` | `user.routes.js`, `module.routes.js` |
+
+Le seed `server/prisma/seedAppModules.js` ne liste pas tous ces codes (par exemple `CLIENT`, `COMPANY_STRUCTURE`, `MODULE` y manquent) : à compléter.
+
+## 8. API REST
+
+Préfixe : `/api/v1`. Toutes les routes ci-dessous exigent l'authentification (`protect`) sauf mention contraire, et les mutations exigent le header CSRF.
+
+| Ressource | Routes | Contrôle d'accès |
+| --- | --- | --- |
+| Santé | `GET /health` | public |
+| Auth | `GET /auth/csrf-token`, `POST /auth/login` (limiteur + validation), `POST /auth/refresh`, `GET /auth/me`, `POST /auth/logout`, `GET /auth/test` | login/csrf/refresh publics |
+| Utilisateurs (accès) | `GET /users`, `/users/pending`, `/users/permissions`, `/users/:id` ; attribution, mise à jour et révocation d'accès ; ajout/retrait de permissions | département `TECH` |
+| Employés | `GET/POST /employees` ; `GET/PUT /employees/:id` ; `DELETE /employees/:id` ; sous-routes de permissions | `EMPLOYEES` (`READ/CREATE/DELETE`, `UPDATE` pour les permissions) ; `GET/PUT :id` via `isSelfOrAuthorized` |
+| Structure | `GET /company-structure` ; départements et postes en CRUD | `COMPANY_STRUCTURE` (la **création de poste** exige `EMPLOYEES:CREATE`) |
+| Modules | `GET /modules`, `GET /modules/:id` ; `POST/PUT/DELETE` | lecture authentifiée, mutations `TECH` |
+| Uploads | `POST /uploads/avatar` (champ multipart `avatar`) | identité ou `EMPLOYEES` |
+| Clients | CRUD `/clients` | `CLIENT` |
+| Notifications | `GET /notifications`, `PATCH /notifications/:id/read` | authentifié |
+| Maritime | CRUD `/maritime/vessels`, `/maritime/ports`, `/maritime/voyages`, `/maritime/vehicles` | `VESSELS`, `PORTS`, `LOADING_PLANS`, `VEHICLES` |
+| Voyages | CRUD `/voyages` | `VOYAGES` |
+| Plans | `GET/POST /loading-plans` ; `GET /loading-plans/reference/:reference` ; `GET/PUT/DELETE /loading-plans/:id` ; `POST /loading-plans/:id/validate` | `LOADING_PLANS` |
+| Marchandises | `POST /loading-plans/:id/loads` ; `PUT/DELETE /loading-plans/:id/loads/:loadId` | `CARGO` |
+
+**Non exposé** : `/drivers` (monté en commentaire dans `server/src/modules/_routes.js`). **Écrit mais non monté** : `load.route.js` (routes `/loads` globales).
+
+Cette liste a été relevée dans les fichiers de routes ; les chemins exacts des sous-routes de permissions/accès sont dans `user.routes.js` et `employee.routes.js`.
+
+## 9. Règles métier des plans de chargement
+
+Implémentées dans `server/src/modules/loading-plans/` :
+
+- Un **plan** est rattaché à un **voyage** et identifié par une `reference` unique. À la création, seul le type `LOAD` est accepté : un plan `UNLOAD` ne se crée pas à la main.
+- Chaque **ligne** (`Load`) exige un client, un nombre de colis entier positif, un poids strictement positif (kg) et une description. Chauffeur, plaque, position, anomalie, danger et chargeur (`loadedBy`) sont optionnels.
+- Le **poids total** est **recalculé côté serveur** à chaque ajout, modification ou suppression ; les lignes `CANCELLED` sont exclues du total.
+- La **capacité du navire** (`capacityTons`) est contrôlée : dépasser `capacité × 1000` kg est refusé.
+- Un plan **validé** (`validatedAt` renseigné) n'est plus modifiable (erreur 409).
+- **Validation** (`POST /:id/validate`) : toutes les lignes actives doivent être `LOADED` ; le plan passe à `status = true` avec la date et l'employé validateur.
+- La validation d'un plan `LOAD` **génère automatiquement un plan de déchargement** de référence `DECH-<référence>` (`operationType = UNLOAD`, lié par `sourceLoadingPlanId`, lignes recopiées en `PENDING`). Les lignes d'un plan de déchargement ne s'ajoutent pas à la main.
+- Pour le jeu de démonstration de référence, le total attendu est de **95,444 tonnes** (test d'intégration `logistics-data.test.js`).
+
+## 10. Temps réel (Socket.IO)
+
+Le client ne se connecte qu'après authentification (`autoConnect: false`, géré par `AuthContext`). Événements émis par le serveur (noms exacts relevés dans le code) :
+
+| Événement | Émis par | Écouté par le frontend |
+| --- | --- | --- |
+| `profile-updated`, `account-disabled` (room `employee_<id>`) | auth, users, employees | `AuthContext` |
+| `users:changed` | users | `UsersPage` |
+| `employees:changed` | employees | `Employeepage` |
+| `clients:changed` | clients | `ClientPage` |
+| `modules:changed` | modules | `ModulePage` |
+| `company-structure:changed` | company-structure | `CompanyStructurePage` |
+| `notification:new`, `notification:removed` | notifications | `NotificationContext` |
+| `drivers:changed` | driver (non monté) | `DriverPage` (vestige) |
+| `voyage:changed` | `voyage.service.js` | **personne** |
+| `load:changed` | `load.service.js` (ses routes `/loads` ne sont pas montées) | **personne** |
+| `ships:changed`, `ports:changed`, `voyages:changed` | **personne** | `ShipPage`, `PortPage`, `VoyagePage` |
+
+Conséquence : la synchronisation temps réel des navires, ports et voyages **ne fonctionne pas de bout en bout** (noms d'événements non alignés, aucun émetteur pour navires/ports). À corriger en alignant les noms et en émettant depuis les contrôleurs/services concernés.
+
+## 11. Frontend : pages et routes
+
+Routes déclarées dans `client/src/core/routes/routeConfig.jsx`, toutes protégées par `RoleGuard` (redirige vers `/login` sans session, vers `/dashboard` sans permission).
+
+| Route | Page | Permission requise (frontend) |
+| --- | --- | --- |
+| `/login` | `LoginPage` | publique |
+| `/dashboard` | `DashboardPage` | aucune |
+| `/employees` | `Employeepage` | `EMPLOYEES:READ` |
+| `/client` | `ClientPage` | `CLIENT:READ` |
+| `/ship` | `ShipPage` | `VESSELS:READ` |
+| `/ports` | `PortPage` | `PORTS:READ` |
+| `/voyages` | `VoyagePage` | `VOYAGES:READ` |
+| `/plans` | `PlansPage` | `LOADING_PLANS:READ` |
+| `/plans/load/:reference`, `/plans/unload/:reference` | `LoadPage` (chargement / déchargement) | `LOADING_PLANS:READ` |
+| `/users` | `UsersPage` | `USERS:READ` |
+| `/module` | `ModulePage` | `MODULE:READ` |
+| `/company-structure` | `CompanyStructurePage` | `COMPANY_STRUCTURE:READ` |
+| `/template` | `TemplatePage` (laboratoire visuel, masqué du menu) | aucune |
+| `/driver` | `DriverPage` : **commentée**, inaccessible | — |
+
+Le **manifeste PDF** d'un plan est généré côté client (`features/plans/components/LoadingManifestPdf.jsx`, `jspdf` + `jspdf-autotable`, A4 portrait, lignes groupées par date). Il n'existe pas de route d'export côté serveur.
+
+Détails du frontend : [`client/README.md`](client/README.md).
+
+## 12. Installation, configuration, commandes
+
+**Prérequis** : Node.js 18+, npm, PostgreSQL.
+
+```powershell
+# Dépendances
+cd client;  npm install
+cd ..\server; npm install
+
+# Base de données (depuis server/)
 npx prisma generate
 npx prisma migrate dev
 ```
 
-Les migrations existantes doivent etre conservees. Ne pas utiliser `prisma migrate reset` sur une base contenant des donnees importantes.
-
-### Demarrage en developpement
-
-Terminal 1 :
-
-```bash
-cd server
-npm run dev
-```
-
-Terminal 2 :
-
-```bash
-cd client
-npm run dev
-```
-
-Le frontend est normalement disponible sur `http://localhost:5173` et l'API sur le port configure dans le serveur, generalement `5000`.
-
-## Configuration
-
-Le serveur utilise notamment les variables suivantes dans `.env.development` ou `.env.production` :
+**Variables d'environnement serveur** (`server/.env.development` en développement, `server/.env` sinon ; `server.js` choisit le fichier selon `NODE_ENV`). Variables **obligatoires** vérifiées au démarrage : `JWT_SECRET`, `JWT_REFRESH_SECRET`, `COOKIE_SECRET`, `DATABASE_URL`.
 
 ```env
 NODE_ENV=development
 PORT=5000
 CLIENT_URL=http://localhost:5173
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME
 COOKIE_SECRET=remplacer-par-un-secret-fort
 JWT_SECRET=remplacer-par-un-secret-fort
 JWT_REFRESH_SECRET=remplacer-par-un-secret-fort
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
+LOG_LEVEL=info
 ```
 
-Ne jamais versionner de vrais secrets. Utiliser `.env.example` comme modele et un gestionnaire de secrets en production.
+> `server/.gitignore` n'ignore que le fichier `.env` exact : **`.env.development` et `.env.production` ne sont pas ignorés**. Ajouter `.env.*` au `.gitignore` avant de créer ces fichiers.
 
-## Commandes utiles
+**Frontend** : variable optionnelle `VITE_API_URL` (par défaut `/api/v1`, avec proxy Vite `/api` → `http://localhost:5000`).
 
-### Client
+**Démarrage en développement** (deux terminaux) :
 
-```bash
-cd client
-npm run dev
-npm run build
-npm run preview
+```powershell
+cd server; npm run dev      # nodemon + .env.development, port 5000
+cd client; npm run dev      # Vite, http://localhost:5173
 ```
 
-### Serveur
+**Commandes utiles**
 
-```bash
-cd server
-npm run dev
-npm start
-```
+| Où | Commande | Rôle |
+| --- | --- | --- |
+| `server/` | `npm test` | tests unitaires (`node --test`) |
+| `server/` | `npm run test:integration` | test d'intégration (nécessite une base seedée) |
+| `server/` | `npm run seed:loading` | seed du plan de chargement de référence (**destructif** pour les plans de référence) |
+| `server/` | `npm start` | production (`.env.production`) |
+| `server/` | `npx prisma migrate status` / `studio` | état des migrations / interface de données |
+| `client/` | `npm run build` / `preview` | build / prévisualisation |
 
-### Prisma
+Seeds : `prisma/seed.js` (structure : départements et postes), `prisma/seedAppModules.js` (modules de permissions, gabarit à compléter), `prisma/seedLoadingPlan.js` (navires, voyage, clients, plan de référence). Logs Winston dans `server/logs/` (`errors.log`, `combined.log`).
 
-```bash
-cd server
-npx prisma generate
-npx prisma migrate status
-npx prisma migrate dev --name nom_de_la_migration
-npx prisma studio
-```
+## 13. Tests
 
-## Plan de chargement cible
+Serveur, runner natif `node --test` :
 
-Le document cible doit permettre de produire un plan similaire au fichier de reference :
+| Fichier | Couvre |
+| --- | --- |
+| `test/unit/logistics-validation.test.js` | navire, port, voyage (dates), plan, ligne de marchandise |
+| `test/unit/client-validation.test.js` | validation des fiches client |
+| `test/unit/audit-redaction.test.js` | masquage des secrets dans l'audit |
+| `test/unit/socket-auth.test.js` | authentification du handshake Socket.IO |
+| `test/unit/voyage-read-auth.test.js` | `VOYAGES:READ` sur les lectures de voyages |
+| `test/unit/upload-signature.test.js` | détection de signature d'image — **absent du script `test:unit`**, donc non exécuté par `npm test` |
+| `test/integration/logistics-data.test.js` | données de démonstration, total 95,444 t, seed rejouable |
 
-- navire et transporteur maritime ;
-- date d'arrivee ;
-- rang ou numero de voyage ;
-- port d'arrivee ;
-- client ;
-- camion et chauffeur ;
-- nombre de colis ;
-- description de la marchandise ;
-- poids ;
-- anomalie ;
-- personne chargee ;
-- position ou zone de chargement ;
-- poids total.
+Aucun test frontend, aucun test HTTP de bout en bout, aucun test de permissions par route.
 
-### Modele metier cible
+## 14. Écarts connus et dette technique
 
-```text
-Vessel
-└── Voyage
-    └── LoadingPlan
-        └── Load
-            └── Client
-```
+Statut établi par lecture du code le 13 octobre 2026. Les constats P1 de l'audit du 3 octobre sont **corrigés** (secrets masqués dans l'audit, Socket.IO authentifié, upload d'avatar sécurisé, `VOYAGES:READ` ajouté). Reste :
 
-### Donnees a ajouter
+| # | Sujet | Détail |
+| --- | --- | --- |
+| 1 | Casse du fichier middleware | `Restricttodepartment.middleware.js` importé en `restrictToDepartment.middleware` : plante sous Linux |
+| 2 | Deux APIs Voyage | `/voyages` (`VOYAGES`, statuts `SCHEDULED/IN_TRANSIT/ARRIVED/CANCELLED`) et `/maritime/voyages` (`LOADING_PLANS`) sur la même table ; défaut de schéma `DRAFT` ; **le frontend n'utilise que `/voyages`** |
+| 3 | Dates de voyage partielles | une mise à jour d'une seule date n'est pas comparée à l'autre date déjà stockée (la règle Zod ne voit que les champs reçus) |
+| 4 | Permission Client | back et route front utilisent `CLIENT`, mais les boutons Modifier/Supprimer vérifient `CLIENTS` |
+| 5 | Boutons « Ajouter » | non conditionnés à `CREATE` (Client, Employé, Port, Navire, Voyage) |
+| 6 | Unicité du numéro de voyage | le service refuse un doublon sur le numéro seul ; le schéma l'autorise par navire |
+| 7 | Poids du seed | deux marchandises à `weightKg: 0` créées par le seed, refusées par l'API |
+| 8 | Migration `cargo_lines` → `loads` | supprime les données sans copie ; dangereuse sur une base peuplée |
+| 9 | Vestiges chauffeur/véhicule | module `driver`, feature front `driver`, route `/maritime/vehicles`, module `VEHICLES` : tables supprimées |
+| 10 | Temps réel navires/ports/voyages | noms d'événements non alignés, pas d'émetteur (section 10) |
+| 11 | `upload-signature.test.js` | non référencé dans `test:unit` |
+| 12 | `.gitignore` serveur | n'ignore pas `.env.development` / `.env.production` ; pas de `.env.example` |
+| 13 | Dépendances | `cookie` et `cookie-signature` importés par `socketAuth.js` mais absents de `package.json` (dépendances transitives) ; `joi`, `bcrypt` **et** `bcryptjs` listés ; `antd`, `@ant-design/icons`, `zustand` inutilisés côté client |
+| 14 | Création de poste | `POST` d'un poste exige `EMPLOYEES:CREATE` au lieu de `COMPANY_STRUCTURE:CREATE` |
+| 15 | `express-mongo-sanitize` | importé en commentaire, sanitation non active |
+| 16 | `MaritimePage` | feature front orpheline (aucune route) |
+| 17 | Seed des modules | `seedAppModules.js` incomplet par rapport aux modules réellement vérifiés |
 
-- [x] `Vessel` : nom, armateur, numero d'immatriculation et capacite.
-- [x] `Port` : code, nom et pays.
-- [x] `Voyage` : navire, ports, dates, numero et statut.
-- [x] `Vehicle` : immatriculation, type et capacite.
-- [x] `LoadingPlan` : reference, voyage, statut, total et validation.
-- [x] `Load` : client, chauffeur et vehicule en texte, colis, description, poids, anomalie, position et etat.
-- [ ] Historique des changements et versions du plan.
+## 15. Feuille de route
 
-Les poids doivent etre stockes en kilogrammes, puis affiches en tonnes :
+Reste à faire (d'après l'ancienne feuille de route, corrigée de ce qui est déjà livré) :
 
-```text
-poidsEnTonnes = poidsEnKilogrammes / 1000
-```
+- [ ] Corriger les écarts de la section 14, en priorité 1, 2, 3, 4, 10 et 12.
+- [ ] Tests HTTP des permissions par route et des transitions de plans (validation, déchargement).
+- [ ] Remplacer ou supprimer la maquette `TemplatePage`.
+- [ ] Totaux par date, client et voyage dans l'interface des plans.
+- [ ] Prévisualisation et impression du manifeste (le PDF client existe déjà), historique des exports.
+- [ ] Versions/historique des changements d'un plan, audit détaillé des validations.
+- [ ] Optimisation du chargement : dimensions et volumes, zones du navire, marchandises dangereuses (`Load.isHazardous` existe déjà), ordre des escales, équilibrage.
+- [ ] Décider du contrat métier pour un poids inconnu (`null` ou état dédié).
+- [ ] Dockeriser et documenter le déploiement (en vérifiant d'abord le point 1 de la section 14).
 
-Pour le document de reference, le total attendu est de `95,444 tonnes`.
+## 16. Documents liés
 
-### Routes API a implementer
+- [`server/README.md`](server/README.md) : détail du backend.
+- [`client/README.md`](client/README.md) : détail du frontend.
+- [`README_AUDIT_2026-10-03.md`](README_AUDIT_2026-10-03.md) : audit de sécurité et de cohérence (3 octobre 2026), à actualiser au regard de la section 14.
+- [`../prisma-uml.png`](../prisma-uml.png) : diagramme UML du schéma (racine du dépôt).
+- Collection Postman : `server/postman/` et `server/.postman/`.
 
-- [x] `GET/POST /api/v1/maritime/vessels`
-- [x] `GET/POST/PUT/DELETE /api/v1/maritime/vessels/:id`
-- [x] `GET/POST /api/v1/maritime/ports`
-- [x] `GET/POST/PUT/DELETE /api/v1/maritime/ports/:id`
-- [x] `GET/POST /api/v1/maritime/voyages`
-- [x] `GET/POST/PUT/DELETE /api/v1/maritime/voyages/:id`
-- [x] `GET/POST /api/v1/maritime/vehicles`
-- [x] `GET/POST/PUT/DELETE /api/v1/maritime/vehicles/:id`
-- [x] `GET/POST /api/v1/loading-plans`
-- [x] `GET/PUT/DELETE /api/v1/loading-plans/:id`
-- [x] `GET /api/v1/loading-plans/reference/:reference`
-- [x] `POST /api/v1/loading-plans/:id/loads`
-- [x] `PUT/DELETE /api/v1/loading-plans/:id/loads/:loadId`
-- [x] `POST /api/v1/loading-plans/:id/validate`
-- [ ] `GET /api/v1/loading-plans/:id/export`
-
-### Regles metier a implementer
-
-- [x] poids strictement positif et colis entier et positif ;
-- [x] total recalcule cote serveur et inferieur ou egal a la capacite du navire ;
-- [x] client obligatoire pour chaque marchandise ;
-- [x] plan valide non modifiable ;
-- [x] permissions distinctes pour consulter, modifier, supprimer et valider ;
-- [ ] audit des creations, modifications, validations et exports.
-
-## Feuille de route
-
-### Phase 1 - Fondations logistiques
-
-- [x] Ajouter les modeles Prisma `Vessel`, `Port`, `Voyage` et `Vehicle`.
-- [x] Ajouter les modeles Prisma `LoadingPlan` et `Load`.
-- [x] Creer et verifier la migration `add_maritime_models`.
-- [x] Creer et verifier la migration `add_loading_plans_and_cargo_lines`.
-- [ ] Ajouter les permissions `VESSELS`, `VOYAGES`, `LOADING_PLANS` et `CARGO`.
-- [x] Ajouter le module backend `maritime` selon le pattern controller/service/routes/validation.
-- [x] Ajouter le module backend `loading-plans` selon le pattern controller/service/routes/validation.
-- [ ] Ajouter des donnees de demonstration coherentes avec le document de reference.
-- [x] Ajouter un seed rejouable avec plusieurs navires, voyages, clients et plans de chargement.
-
-### Phase 2 - Saisie et suivi
-
-- [x] Creer l'ecran de gestion des navires, ports et vehicules.
-- [x] Creer l'ecran de creation et de modification d'un voyage.
-- [x] Connecter le referentiel maritime aux routes CRUD de l'API.
-- [x] Mettre a jour le formulaire Client avec les donnees d'identite, facturation et livraison.
-- [ ] Remplacer la maquette Template par un formulaire connecte a l'API.
-- [x] Ajouter une saisie dynamique de plusieurs lignes de marchandises.
-- [x] Afficher le poids total du plan et la capacite du navire.
-- [ ] Afficher les totaux par date, client et voyage.
-- [ ] Ajouter les statuts `DRAFT`, `SUBMITTED`, `VALIDATED`, `CLOSED`.
-
-### Phase 3 - Generation du document
-
-- [ ] Creer la previsualisation du plan de chargement.
-- [ ] Reproduire l'en-tete du navire, du voyage et du port.
-- [ ] Afficher les lignes groupees par date de chargement.
-- [ ] Afficher le poids total en tonnes.
-- [ ] Ajouter l'impression.
-- [ ] Ajouter l'export PDF.
-- [ ] Conserver la version generee et sa date d'export.
-
-### Phase 4 - Optimisation du chargement
-
-- [ ] Ajouter dimensions et volume des marchandises.
-- [ ] Ajouter zones et capacites physiques du navire.
-- [ ] Gerer les marchandises dangereuses et les incompatibilites.
-- [ ] Gerer l'ordre des escales et dechargements.
-- [ ] Implementer un calcul d'affectation par zone.
-- [ ] Ajouter les controles d'equilibrage du navire.
-
-## Checkpoints de suivi
-
-Mettre a jour cette section a chaque etape importante. Une case ne doit etre cochee qu'apres verification dans le code et un test de fonctionnement.
-
-### Checkpoint 0 - Socle existant
-
-- [x] Architecture client/serveur identifiee.
-- [x] Authentification et autorisations de base disponibles.
-- [x] Entites administratives existantes.
-- [x] Migrations Prisma existantes verifiees.
-- [ ] Tests automatises du socle ajoutes.
-
-### Checkpoint 1 - Modele maritime
-
-- [x] Navire persiste en base.
-- [x] Port persiste en base.
-- [x] Voyage persiste en base.
-- [x] Vehicule persiste en base.
-- [ ] Capacite du navire controlee.
-- [ ] CRUD et validations testes.
-
-### Checkpoint 2 - Marchandises
-
-- [x] Vehicule distingue du chauffeur.
-- [x] Ligne de marchandise persistee.
-- [x] Client relie a la marchandise.
-- [ ] Poids et nombre de colis valides.
-- [ ] Totaux recalcules cote serveur.
-
-### Checkpoint 3 - Plan de chargement
-
-- [x] API de creation du plan reliee a un voyage.
-- [x] API d'ajout, modification et suppression des lignes disponible.
-- [x] API de validation et controle de capacite disponible.
-- [ ] Audit de la validation disponible.
-- [ ] Tests HTTP des parcours complets realises.
-- [ ] Permissions metier attribuees et testees.
-
-### Checkpoint 4 - Document final
-
-- [ ] Previsualisation conforme au modele fourni.
-- [ ] Poids total affiche correctement.
-- [ ] Impression disponible.
-- [ ] PDF genere.
-- [ ] Historique des exports conserve.
-
-## Tests et qualite
-
-Le serveur declare actuellement un script de test placeholder. La couverture applicative reste donc a construire.
-
-- [x] Ajouter des tests unitaires des validations metier.
-- [x] Tester les identites Client, adresses, documents et exonération fiscale.
-- [x] Tester les validations des poids, colis et dates.
-- [x] Ajouter un test d'integration des donnees logistiques seedees.
-- [ ] Tester les permissions par role et par action.
-- [ ] Tester la generation du document avec le cas des `95,444 tonnes`.
-- [ ] Ajouter un controle de build frontend dans chaque checkpoint.
-- [ ] Ajouter une verification Prisma apres chaque migration.
-
-Commandes de verification minimales :
-
-```bash
-cd client
-npm run build
-
-cd ../server
-npx prisma validate
-npx prisma migrate status
-```
-
-Tests du module logistique :
-
-```bash
-cd server
-npm test
-npm run test:integration
-```
-
-Le test d'integration suppose que les donnees de demonstration ont ete chargees avec `npm run seed:loading`.
-
-## Documentation associee
-
-- [Documentation client](./client/README.md)
-- [Documentation serveur](./server/README.md)
-- [Schema Prisma](./server/prisma/schema.prisma)
-- [Routes API](./server/src/modules/_routes.js)
-- [Configuration des routes frontend](./client/src/core/routes/routeConfig.jsx)
-
-## Regles de mise a jour du README
-
-Lorsqu'une fonctionnalite est terminee :
-
-1. Cocher la fonctionnalite correspondante.
-2. Ajouter la migration, la route ou l'ecran concerne dans la section appropriee.
-3. Decrire la verification effectuee dans le checkpoint.
-4. Deplacer les elements termines hors de la feuille de route.
-5. Mettre a jour la date de reference en haut du document.
-
-Ce README est le tableau de bord documentaire du projet : il doit decrire l'etat du code, pas seulement l'architecture souhaitee.
+*Règle de maintenance : mettre à jour la date de référence et les cases cochées à chaque étape importante ; ne cocher qu'après vérification dans le code.*
