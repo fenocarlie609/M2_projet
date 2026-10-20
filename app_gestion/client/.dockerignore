@@ -1,0 +1,10 @@
+# Fichiers exclus du contexte de construction de l'image de l'interface.
+node_modules
+.git
+.gitignore
+dist
+.env
+.env.*
+!.env.example
+*.log
+README.md

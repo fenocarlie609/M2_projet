@@ -1,7 +1,11 @@
 // prisma/seedAppModules.js
-// ⚠️ Complète cette liste avec les vraies valeurs de ton
-// src/common/utils/constants.js (APP_MODULES). Ce fichier n'est qu'un
-// gabarit avec quelques exemples devinés depuis le reste du code.
+// Catalogue des modules de permissions.
+//
+// La liste ci-dessous reprend exactement les codes de modules verifies par
+// l'interface de programmation (middleware authorize) et par l'interface
+// (routeConfig). Ajouter un module ici a pour effet de le rendre
+// attribuable aux employes ; un code absent ici ne peut pas etre coche
+// dans l'ecran de gestion des permissions.
 require("dotenv").config({ path: ".env.development" });
 const { PrismaClient } = require("../src/generated/prisma");
 const { PrismaPg } = require("@prisma/adapter-pg");
@@ -14,14 +18,14 @@ async function main() {
     { code: "*", label: "Tous les modules (super-accès)" },
     { code: "EMPLOYEES", label: "Employés" },
     { code: "USERS", label: "Utilisateurs & Accès" },
-    { code: "DEPARTMENTS", label: "Départements & Postes" },
+    { code: "COMPANY_STRUCTURE", label: "Structure de l'entreprise" },
+    { code: "MODULE", label: "Modules de permissions" },
+    { code: "CLIENT", label: "Clients" },
     { code: "VESSELS", label: "Navires" },
     { code: "PORTS", label: "Ports" },
     { code: "VOYAGES", label: "Voyages maritimes" },
-    { code: "VEHICLES", label: "Véhicules" },
-    { code: "LOADING_PLANS", label: "Plans de chargement" },
+    { code: "LOADING_PLANS", label: "Plans de manutention" },
     { code: "CARGO", label: "Marchandises" },
-    // TODO: ajouter les autres modules réels (ex: "CHARGEMENT", "AUDIT", ...)
   ];
 
   for (const m of modules) {
@@ -32,7 +36,15 @@ async function main() {
     });
   }
 
-  console.log("✅ Modules applicatifs insérés.");
+  // Les modules devenus inutiles sont retires du catalogue.
+  const obsolete = await prisma.appModule.findMany({
+    where: { code: { notIn: modules.map((m) => m.code) } },
+  });
+  for (const module of obsolete) {
+    await prisma.appModule.delete({ where: { id: module.id } });
+  }
+
+  console.log(`✅ ${modules.length} modules applicatifs insérés.`);
 }
 
 main()

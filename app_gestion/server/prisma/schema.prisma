@@ -301,7 +301,7 @@ model Voyage {
   voyageNumber         String
   departureDate        DateTime?
   arrivalDate          DateTime?
-  status               String   @default("DRAFT")
+  status               String   @default("SCHEDULED")
 
   vessel               Vessel   @relation(fields: [vesselId], references: [id])
   departurePort        Port     @relation("DeparturePort", fields: [departurePortId], references: [id])

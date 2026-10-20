@@ -51,12 +51,12 @@ Règles à respecter pour toute modification, sous peine de casser l'application
 
 ### Pièges connus
 
-- **Casse d'un nom de fichier (bloque Linux/Docker)** : `server/src/common/middlewares/Restricttodepartment.middleware.js` est importé sous le nom `restrictToDepartment.middleware` dans `users/user.routes.js` et `modules/module.routes.js`. Cela fonctionne sous Windows (insensible à la casse) mais fait planter le démarrage sous Linux (`MODULE_NOT_FOUND`). À corriger avant tout déploiement.
+- **Casse d'un nom de fichier** : corrigé. Le middleware est désormais `server/src/common/middlewares/restrictToDepartment.middleware.js`, avec le même nom dans les imports ; le démarrage sous Linux ne dépend plus de la insensibilité à la casse du système de fichiers.
 - **CORS + Socket.IO** : ne jamais mettre `"*"` avec `credentials: true`. L'origine doit être `process.env.CLIENT_URL` (par défaut `http://localhost:5173`).
 - **`express.static("/uploads")`** doit rester déclaré **avant** le catch-all 404 et l'`errorHandler` dans `app.js`.
 - **Corps JSON limité à 10 ko** (`express.json({ limit: "10kb" })`) : tout payload plus gros reçoit une erreur.
-- **Deux APIs Voyage coexistent** (`/api/v1/voyages` et `/api/v1/maritime/voyages`) avec des permissions et des statuts différents. Ne pas en ajouter une troisième ; voir [section 14](#14-écarts-connus-et-dette-technique).
-- **Les tables `drivers` et `vehicles` n'existent plus** (migration `20260915100824_remove_vehicle_driver_tables`). Chauffeur et plaque sont de simples champs texte de `Load` (`driverName`, `vehiclePlate`). Le module `driver` (back et front) et la route `/maritime/vehicles` sont des **vestiges** qui planteraient s'ils étaient appelés.
+- **Une seule API Voyage** : `/api/v1/voyages` (module `voyage`, permission `VOYAGES`). La route `/maritime/voyages` a été retirée ; les statuts sont `SCHEDULED`, `IN_TRANSIT`, `ARRIVED` et `CANCELLED`, la valeur par défaut du schéma ayant été alignée sur `SCHEDULED`.
+- **Les tables `drivers` et `vehicles` n'existent plus** (migration `20260915100824_remove_vehicle_driver_tables`). Chauffeur et plaque sont de simples champs texte de `Load` (`driverName`, `vehiclePlate`). Le module `driver` (back et front), la route `/maritime/vehicles` et l'écrans `driver` et `maritime` du client ont été retirés.
 - **Migrations** : ne jamais lancer `prisma migrate reset` sur une base contenant des données. La migration `rename_cargo_lines_to_loads` supprime `cargo_lines` sans copier les données.
 - **Seed `seedLoadingPlan.js`** : il supprime puis recrée les marchandises des plans de référence. Ne pas l'exécuter sur une base réelle.
 - **Poids** : stockés en **kilogrammes** (`Decimal`), affichés en **tonnes** (`kg / 1000`).
@@ -170,7 +170,7 @@ app_gestion/
 │   │   │   │   ├── pages/
 │   │   │   │   │   └── DashboardPage.jsx
 │   │   │   │   └── index.js
-│   │   │   ├── driver/                                       # VESTIGE : route commentée, API /drivers non montée
+
 │   │   │   │   ├── components/
 │   │   │   │   │   ├── DriverCard.jsx
 │   │   │   │   │   ├── DriverModal.jsx
@@ -190,7 +190,7 @@ app_gestion/
 │   │   │   │   ├── service/
 │   │   │   │   │   └── employee.service.js
 │   │   │   │   └── index.js
-│   │   │   ├── maritime/                                     # ORPHELIN : MaritimePage sans route
+
 │   │   │   │   ├── pages/
 │   │   │   │   │   └── MaritimePage.jsx
 │   │   │   │   ├── service/
@@ -329,7 +329,7 @@ app_gestion/
 │   │   ├── migrations/                                       # 17 dossiers de migration SQL (voir « Structure de la base de données »)
 │   │   ├── schema.prisma                                     # Source de vérité du modèle de données
 │   │   ├── seed.js                                           # Départements et postes
-│   │   ├── seedAppModules.js                                 # Modules de permissions (gabarit incomplet)
+│   │   ├── seedAppModules.js                                 # Catalogue des modules de permissions
 │   │   └── seedLoadingPlan.js                                # Navires, voyage, clients et plan de référence (destructif)
 │   ├── src/
 │   │   ├── common/                                           # Code partagé
@@ -340,7 +340,7 @@ app_gestion/
 │   │   │   │   ├── error.middleware.js                       # errorHandler centralisé (dev/prod, erreurs Prisma)
 │   │   │   │   ├── owner.middleware.js                       # isSelfOrAuthorized (anti auto-élévation)
 │   │   │   │   ├── rateLimiter.middleware.js                 # authLimiter (5 tentatives / minute)
-│   │   │   │   ├── Restricttodepartment.middleware.js        # restrictToDepartment (⚠ casse des imports, voir README)
+│   │   │   │   ├── restrictToDepartment.middleware.js        # restrictToDepartment (département technique)
 │   │   │   │   ├── upload.middleware.js                      # Multer en mémoire, détection de signature d’image
 │   │   │   │   └── validate.middleware.js                    # validate({ body, query, params }) avec Zod
 │   │   │   └── utils/
@@ -375,7 +375,7 @@ app_gestion/
 │   │   │   │   ├── company-structure.service.js              # Logique métier + Prisma
 │   │   │   │   ├── company-structure.validation.js           # Schémas Zod
 │   │   │   │   └── index.js                                  # Barrel d’exports du module
-│   │   │   ├── driver/                                       # VESTIGE : non monté, modèle Prisma supprimé
+
 │   │   │   │   ├── driver.controller.js                      # Contrôleur HTTP
 │   │   │   │   ├── driver.routes.js                          # Routes et contrôle d’accès
 │   │   │   │   ├── driver.service.js                         # Logique métier + Prisma
@@ -390,14 +390,14 @@ app_gestion/
 │   │   │   ├── loading-plans/                                # Plans de chargement/déchargement et lignes (Load)
 │   │   │   │   ├── index.js                                  # Barrel d’exports du module
 │   │   │   │   ├── load.controller.js                        # Contrôleur HTTP
-│   │   │   │   ├── load.route.js                             # Routes /loads : écrites mais non montées
+
 │   │   │   │   ├── load.service.js                           # Logique métier + Prisma
 │   │   │   │   ├── load.validation.js                        # Schémas Zod
 │   │   │   │   ├── loading-plan.controller.js                # Contrôleur HTTP
 │   │   │   │   ├── loading-plan.routes.js                    # Routes et contrôle d’accès
 │   │   │   │   ├── loading-plan.service.js                   # Logique métier + Prisma
 │   │   │   │   └── loading-plan.validation.js                # Schémas Zod
-│   │   │   ├── maritime/                                     # Navires, ports, voyages, véhicules (CRUD générique)
+│   │   │   ├── maritime/                                     # Navires et ports (CRUD générique, diffusion temps réel)
 │   │   │   │   ├── index.js                                  # Barrel d’exports du module
 │   │   │   │   ├── maritime.controller.js                    # Contrôleur HTTP
 │   │   │   │   ├── maritime.routes.js                        # Routes et contrôle d’accès
@@ -414,7 +414,7 @@ app_gestion/
 │   │   │   │   ├── notification.controller.js                # Contrôleur HTTP
 │   │   │   │   ├── notification.routes.js                    # Routes et contrôle d’accès
 │   │   │   │   └── notification.service.js                   # Logique métier + Prisma
-│   │   │   ├── ship/                                         # VESTIGE : ni monté ni importé (les navires passent par maritime)
+
 │   │   │   │   ├── index.js                                  # Barrel d’exports du module
 │   │   │   │   ├── ship.controller.js                        # Contrôleur HTTP
 │   │   │   │   ├── ship.routes.js                            # Routes et contrôle d’accès
@@ -1065,7 +1065,7 @@ Dossier `server/prisma/migrations/` (verrou : `migration_lock.toml`, fournisseur
 | Fichier | Contenu | Précaution |
 | --- | --- | --- |
 | `prisma/seed.js` | Structure de l'entreprise : départements (`LOGISTICS`, `ADMIN`, `FINANCE`, …) et leurs postes (`QUAY_AGENT`, `HR_MGR`, `ACCOUNTANT`, …) | — |
-| `prisma/seedAppModules.js` | Modules de permission (`*`, `EMPLOYEES`, `USERS`, `DEPARTMENTS`, `VESSELS`, `PORTS`, `VOYAGES`, `VEHICLES`, `LOADING_PLANS`, `CARGO`) | Incomplet : ne contient pas `CLIENT`, `COMPANY_STRUCTURE`, `MODULE` |
+| `prisma/seedAppModules.js` | Modules de permission (`*`, `EMPLOYEES`, `USERS`, `COMPANY_STRUCTURE`, `MODULE`, `CLIENT`, `VESSELS`, `PORTS`, `VOYAGES`, `LOADING_PLANS`, `CARGO`) | Complet : la liste reprend exactement les codes vérifiés par le serveur et par le client |
 | `prisma/seedLoadingPlan.js` (`npm run seed:loading`) | Navires, voyage, clients et plan de référence (total attendu 95,444 t) | **Destructif** : supprime puis recrée les marchandises des plans de référence ; deux lignes créées avec `weightKg: 0` contournent la validation de l'API |
 
 ## 6. Authentification et sécurité
@@ -1101,13 +1101,13 @@ Les codes de module sont libres côté base (`AppModule`), mais ceux **réelleme
 | `EMPLOYEES` | `/employees`, sous-routes de permissions, création de poste, upload d'avatar | `employee.routes.js` |
 | `COMPANY_STRUCTURE` | `/company-structure` (départements, postes) | `company-structure.routes.js` |
 | `CLIENT` (singulier) | `/clients` | `client.routes.js` |
-| `VESSELS`, `PORTS`, `VEHICLES` | `/maritime/vessels`, `/maritime/ports`, `/maritime/vehicles` | `maritime.routes.js` |
-| `LOADING_PLANS` | `/loading-plans`, validation, **et** `/maritime/voyages` | `loading-plan.routes.js`, `maritime.routes.js` |
+| `VESSELS`, `PORTS` | `/maritime/vessels`, `/maritime/ports` | `maritime.routes.js` |
+| `LOADING_PLANS` | `/loading-plans`, validation des lignes | `loading-plan.routes.js` |
 | `VOYAGES` | `/voyages` | `voyage.route.js` |
 | `CARGO` | lignes de marchandises `/loading-plans/:id/loads` | `loading-plan.routes.js` |
 | `USERS`, `MODULE` | écrans front ; **côté API** les routes `/users` et `/modules` (mutations) sont réservées au **département `TECH`** via `restrictToDepartment("TECH")` | `user.routes.js`, `module.routes.js` |
 
-Le seed `server/prisma/seedAppModules.js` ne liste pas tous ces codes (par exemple `CLIENT`, `COMPANY_STRUCTURE`, `MODULE` y manquent) : à compléter.
+Le seed `server/prisma/seedAppModules.js` liste exactement ces codes ; les modules devenus inutiles sont retirés du catalogue lors de son exécution.
 
 ## 8. API REST
 
@@ -1124,12 +1124,12 @@ Préfixe : `/api/v1`. Toutes les routes ci-dessous exigent l'authentification (`
 | Uploads | `POST /uploads/avatar` (champ multipart `avatar`) | identité ou `EMPLOYEES` |
 | Clients | CRUD `/clients` | `CLIENT` |
 | Notifications | `GET /notifications`, `PATCH /notifications/:id/read` | authentifié |
-| Maritime | CRUD `/maritime/vessels`, `/maritime/ports`, `/maritime/voyages`, `/maritime/vehicles` | `VESSELS`, `PORTS`, `LOADING_PLANS`, `VEHICLES` |
+| Maritime | CRUD `/maritime/vessels` et `/maritime/ports` | `VESSELS`, `PORTS` |
 | Voyages | CRUD `/voyages` | `VOYAGES` |
 | Plans | `GET/POST /loading-plans` ; `GET /loading-plans/reference/:reference` ; `GET/PUT/DELETE /loading-plans/:id` ; `POST /loading-plans/:id/validate` | `LOADING_PLANS` |
 | Marchandises | `POST /loading-plans/:id/loads` ; `PUT/DELETE /loading-plans/:id/loads/:loadId` | `CARGO` |
 
-**Non exposé** : `/drivers` (monté en commentaire dans `server/src/modules/_routes.js`). **Écrit mais non monté** : `load.route.js` (routes `/loads` globales).
+**Non exposé** : `/drivers`, `/maritime/vehicles` et `/maritime/voyages` (retirés). Les lignes de marchandises sont accessibles par `/loading-plans/:id/loads`.
 
 Cette liste a été relevée dans les fichiers de routes ; les chemins exacts des sous-routes de permissions/accès sont dans `user.routes.js` et `employee.routes.js`.
 
@@ -1159,10 +1159,10 @@ Le client ne se connecte qu'après authentification (`autoConnect: false`, gér�
 | `modules:changed` | modules | `ModulePage` |
 | `company-structure:changed` | company-structure | `CompanyStructurePage` |
 | `notification:new`, `notification:removed` | notifications | `NotificationContext` |
-| `drivers:changed` | driver (non monté) | `DriverPage` (vestige) |
+
 | `voyage:changed` | `voyage.service.js` | **personne** |
 | `load:changed` | `load.service.js` (ses routes `/loads` ne sont pas montées) | **personne** |
-| `ships:changed`, `ports:changed`, `voyages:changed` | **personne** | `ShipPage`, `PortPage`, `VoyagePage` |
+| `ships:changed`, `ports:changed` | `maritime.service.js` | `ShipPage`, `PortPage` |
 
 Conséquence : la synchronisation temps réel des navires, ports et voyages **ne fonctionne pas de bout en bout** (noms d'événements non alignés, aucun émetteur pour navires/ports). À corriger en alignant les noms et en émettant depuis les contrôleurs/services concernés.
 
@@ -1185,7 +1185,7 @@ Routes déclarées dans `client/src/core/routes/routeConfig.jsx`, toutes protég
 | `/module` | `ModulePage` | `MODULE:READ` |
 | `/company-structure` | `CompanyStructurePage` | `COMPANY_STRUCTURE:READ` |
 | `/template` | `TemplatePage` (laboratoire visuel, masqué du menu) | aucune |
-| `/driver` | `DriverPage` : **commentée**, inaccessible | — |
+
 
 Le **manifeste PDF** d'un plan est généré côté client (`features/plans/components/LoadingManifestPdf.jsx`, `jspdf` + `jspdf-autotable`, A4 portrait, lignes groupées par date). Il n'existe pas de route d'export côté serveur.
 
@@ -1220,7 +1220,7 @@ JWT_REFRESH_EXPIRES_IN=7d
 LOG_LEVEL=info
 ```
 
-> `server/.gitignore` n'ignore que le fichier `.env` exact : **`.env.development` et `.env.production` ne sont pas ignorés**. Ajouter `.env.*` au `.gitignore` avant de créer ces fichiers.
+> `server/.gitignore` ignore `.env` et toutes ses variantes (`.env.development`, `.env.production`), à l'exception de `.env.example`, qui ne contient aucune valeur réelle et sert de modèle.
 
 **Frontend** : variable optionnelle `VITE_API_URL` (par défaut `/api/v1`, avec proxy Vite `/api` → `http://localhost:5000`).
 
@@ -1242,11 +1242,52 @@ cd client; npm run dev      # Vite, http://localhost:5173
 | `server/` | `npx prisma migrate status` / `studio` | état des migrations / interface de données |
 | `client/` | `npm run build` / `preview` | build / prévisualisation |
 
-Seeds : `prisma/seed.js` (structure : départements et postes), `prisma/seedAppModules.js` (modules de permissions, gabarit à compléter), `prisma/seedLoadingPlan.js` (navires, voyage, clients, plan de référence). Logs Winston dans `server/logs/` (`errors.log`, `combined.log`).
+Seeds : `prisma/seed.js` (structure : départements et postes), `prisma/seedAppModules.js` (catalogue des modules de permissions), `prisma/seedLoadingPlan.js` (navires, voyage, clients, plan de référence). Logs Winston dans `server/logs/` (`errors.log`, `combined.log`).
+
+### 12.1. Déploiement avec Docker
+
+Le projet se déploie intégralement avec Docker : une commande suffit à démarrer la base,
+appliquer les migrations, lancer l'interface de programmation et servir l'interface web.
+
+```powershell
+cd app_gestion
+docker compose up --build
+```
+
+| Service | Rôle | Accès |
+| --- | --- | --- |
+| `db` | PostgreSQL 16, volume persistant `donnees-postgres` | port interne 5432 |
+| `migrate` | applique les migrations (`prisma migrate deploy`) puis s'arrête | — |
+| `server` | API Node.js/Express, utilisateur non privilégié, sonde de santé | http://localhost:5000 |
+| `client` | interface web compilée par Vite, servie par nginx, relais de `/api` vers le serveur | http://localhost:8080 |
+
+Points notables :
+
+- le serveur est construit en trois étapes (dépendances de développement, dépendances de
+  production, image finale) et s'exécute avec l'utilisateur `nodejs` ;
+- la sonde de santé du conteneur serveur interroge `GET /api/v1/health` ;
+- nginx sert le bundle de l'interface, met en cache les ressources versionnées et renvoie
+  toute route inconnue vers `index.html`, le routeur de l'application prenant le relais ;
+- les secrets sont lus dans l'environnement ; un fichier `.env` placé à la racine de
+  `app_gestion` permet de les surcharger (`POSTGRES_USER`, `POSTGRES_PASSWORD`,
+  `POSTGRES_DB`, `COOKIE_SECRET`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `SERVER_PORT`,
+  `CLIENT_PORT`) ;
+- les fichiers téléversés et les données de la base sont conservés dans des volumes nommés.
+
+Commandes courantes :
+
+```powershell
+docker compose up --build -d      # démarrage en arrière-plan
+docker compose ps                 # état des services
+docker compose logs -f server     # journaux du serveur
+docker compose down               # arrêt (les volumes sont conservés)
+docker compose down -v            # arrêt et suppression des volumes
+```
 
 ## 13. Tests
 
-Serveur, runner natif `node --test` :
+Serveur, runner natif `node --test`. La commande `npm test` exécute l'ensemble des tests du dossier `test/unit` ;
+les 20 tests passent.
 
 | Fichier | Couvre |
 | --- | --- |
@@ -1255,34 +1296,46 @@ Serveur, runner natif `node --test` :
 | `test/unit/audit-redaction.test.js` | masquage des secrets dans l'audit |
 | `test/unit/socket-auth.test.js` | authentification du handshake Socket.IO |
 | `test/unit/voyage-read-auth.test.js` | `VOYAGES:READ` sur les lectures de voyages |
-| `test/unit/upload-signature.test.js` | détection de signature d'image — **absent du script `test:unit`**, donc non exécuté par `npm test` |
+| `test/unit/upload-signature.test.js` | détection de signature d'image |
 | `test/integration/logistics-data.test.js` | données de démonstration, total 95,444 t, seed rejouable |
 
 Aucun test frontend, aucun test HTTP de bout en bout, aucun test de permissions par route.
 
-## 14. Écarts connus et dette technique
+## 14. État du projet après correctifs
 
-Statut établi par lecture du code le 13 octobre 2026. Les constats P1 de l'audit du 3 octobre sont **corrigés** (secrets masqués dans l'audit, Socket.IO authentifié, upload d'avatar sécurisé, `VOYAGES:READ` ajouté). Reste :
+État établi par lecture du code et exécution des tests le 20 octobre 2026, sur la branche
+`feature/corrections-p0-p1-docker`.
 
-| # | Sujet | Détail |
+### 14.1. Points corrigés
+
+| # | Sujet | Correction |
 | --- | --- | --- |
-| 1 | Casse du fichier middleware | `Restricttodepartment.middleware.js` importé en `restrictToDepartment.middleware` : plante sous Linux |
-| 2 | Deux APIs Voyage | `/voyages` (`VOYAGES`, statuts `SCHEDULED/IN_TRANSIT/ARRIVED/CANCELLED`) et `/maritime/voyages` (`LOADING_PLANS`) sur la même table ; défaut de schéma `DRAFT` ; **le frontend n'utilise que `/voyages`** |
-| 3 | Dates de voyage partielles | une mise à jour d'une seule date n'est pas comparée à l'autre date déjà stockée (la règle Zod ne voit que les champs reçus) |
-| 4 | Permission Client | back et route front utilisent `CLIENT`, mais les boutons Modifier/Supprimer vérifient `CLIENTS` |
-| 5 | Boutons « Ajouter » | non conditionnés à `CREATE` (Client, Employé, Port, Navire, Voyage) |
-| 6 | Unicité du numéro de voyage | le service refuse un doublon sur le numéro seul ; le schéma l'autorise par navire |
-| 7 | Poids du seed | deux marchandises à `weightKg: 0` créées par le seed, refusées par l'API |
-| 8 | Migration `cargo_lines` → `loads` | supprime les données sans copie ; dangereuse sur une base peuplée |
-| 9 | Vestiges chauffeur/véhicule | module `driver`, feature front `driver`, route `/maritime/vehicles`, module `VEHICLES` : tables supprimées |
-| 10 | Temps réel navires/ports/voyages | noms d'événements non alignés, pas d'émetteur (section 10) |
-| 11 | `upload-signature.test.js` | non référencé dans `test:unit` |
-| 12 | `.gitignore` serveur | n'ignore pas `.env.development` / `.env.production` ; pas de `.env.example` |
-| 13 | Dépendances | `cookie` et `cookie-signature` importés par `socketAuth.js` mais absents de `package.json` (dépendances transitives) ; `joi`, `bcrypt` **et** `bcryptjs` listés ; `antd`, `@ant-design/icons`, `zustand` inutilisés côté client |
-| 14 | Création de poste | `POST` d'un poste exige `EMPLOYEES:CREATE` au lieu de `COMPANY_STRUCTURE:CREATE` |
-| 15 | `express-mongo-sanitize` | importé en commentaire, sanitation non active |
-| 16 | `MaritimePage` | feature front orpheline (aucune route) |
-| 17 | Seed des modules | `seedAppModules.js` incomplet par rapport aux modules réellement vérifiés |
+| 1 | Casse du nom de fichier du middleware | `Restricttodepartment.middleware.js` renommé `restrictToDepartment.middleware.js` : le démarrage sous Linux ne dépend plus de la casse du système de fichiers |
+| 2 | Double API Voyage | Route `/maritime/voyages` retirée ; l'API unique `/voyages` (permission `VOYAGES`) est conservée |
+| 3 | Statut par défaut des voyages | La valeur par défaut du schéma passe de `DRAFT` à `SCHEDULED` (migration `20261020120000_aligner_statut_voyage`), alignée sur les statuts réellement utilisés |
+| 4 | Unicité du numéro de voyage | Le service contrôle désormais le couple `(voyageNumber, vesselId)`, conformément à la contrainte du schéma |
+| 5 | Mise à jour partielle des dates | La date reçue est comparée à la date déjà enregistrée lorsqu'une seule des deux est transmise : un voyage ne peut plus se terminer avant son départ |
+| 6 | Vestiges chauffeur et véhicule | Modules serveur `driver` et `ship`, route `/maritime/vehicles`, fonctionnalités `driver` et `maritime` du client supprimés |
+| 7 | Route `/loads` non montée | `load.route.js` supprimé ; les lignes de marchandises restent accessibles par `/loading-plans/:id/loads` |
+| 8 | Diffusion temps réel des référentiels | `maritime.service.js` diffuse `ships:changed` et `ports:changed` ; l'événement des voyages est harmonisé en `voyages:changed`, le nom entendu par le client |
+| 9 | Suppression des navires et des ports | Passage en suppression logique, cohérente avec le reste de l'application |
+| 10 | Création d'un poste | La permission exigée est `COMPANY_STRUCTURE:CREATE` et non `EMPLOYEES:CREATE` |
+| 11 | Bouton d'ajout d'un département | Le bouton n'est affiché que si l'utilisateur possède `COMPANY_STRUCTURE:CREATE` |
+| 12 | Exclusions du suivi de version | `.gitignore` ignore `.env`, `.env.*` (hors `.env.example`), `logs` et `public/uploads` ; `.env.example` est fourni |
+| 13 | Dépendances déclarées | `joi`, `bcrypt`, `express-mongo-sanitize` (serveur) et `antd`, `@ant-design/icons`, `zustand` (client) retirés ; `cookie` et `cookie-signature` déclarés |
+| 14 | Test d'authentification des voyages | Le test inspecte la pile de routes d'Express 5 (`layer.handle`) et non celle d'Express 4 : les 20 tests unitaires passent |
+| 15 | Test de signature des fichiers téléversés | Ajouté au script `test:unit` (`node --test test/unit/`) |
+| 16 | Catalogue des modules de permissions | `seedAppModules.js` reprend exactement les codes vérifiés par le serveur et par le client, et retire les modules devenus inutiles |
+| 17 | Conteneurisation | `Dockerfile` pour le serveur et pour le client, `nginx.conf`, `docker-compose.yml` (base, migration, serveur, interface) et `.dockerignore` |
+
+### 14.2. Points assumés
+
+| # | Sujet | Explication |
+| --- | --- | --- |
+| 1 | Table `client_documents` | La table existe dans le schéma mais n'est exploitée par aucune fonctionnalité : elle est conservée comme extension prévue |
+| 2 | Marchandises à peser dans le jeu de démonstration | Le script de démonstration crée deux lignes au poids nul, au statut `PENDING` et porteuses d'une anomalie : elles représentent des marchandises dont le poids reste à confirmer. L'interface de programmation refuse en revanche toute création d'un poids nul |
+| 3 | Filtrage des notifications côté client | La diffusion part de tous les clients connectés et le filtrage par permission est réalisé dans le navigateur, choix assumé pour une application de cette taille |
+| 4 | Absence de tests d'interface | Les tests couvrent les validations, la sécurité et les middlewares du serveur ; l'interface ne dispose pas encore de tests automatisés |
 
 ## 15. Feuille de route
 

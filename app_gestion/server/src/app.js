@@ -4,7 +4,6 @@ const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const path = require("path");
-// const mongoSanitize = require("express-mongo-sanitize");
 
 const { errorHandler } = require("./common/middlewares/error.middleware");
 const auditTrail = require("./common/middlewares/audit.middleware");
@@ -45,9 +44,6 @@ app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
 // Parseur de cookies indispensable pour la gestion sécurisée du JWT (avec clé de signature)
 app.use(cookieParser(process.env.COOKIE_SECRET));
-
-// Assainissement des données entrantes (Sanitization) contre les injections de caractères suspects
-// app.use(mongoSanitize());
 
 // 3. LOG TRACEUR DES REQUÊTES ENTRANTES (Winston)
 app.use((req, res, next) => {

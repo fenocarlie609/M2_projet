@@ -1,0 +1,13 @@
+# Fichiers exclus du contexte de construction de l'image du serveur.
+node_modules
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+logs
+public/uploads
+src/generated
+test
+*.log
+README.md

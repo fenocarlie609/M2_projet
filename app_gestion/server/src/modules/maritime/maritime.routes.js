@@ -6,8 +6,6 @@ const controller = require("./maritime.controller");
 const {
   vesselValidation,
   portValidation,
-  voyageValidation,
-  vehicleValidation,
 } = require("./maritime.validation");
 
 const router = express.Router();
@@ -56,20 +54,6 @@ registerCrudRoutes({
   label: "Port",
   module: "PORTS",
   validation: portValidation,
-});
-registerCrudRoutes({
-  path: "/voyages",
-  resource: "voyage",
-  label: "Voyage",
-  module: "LOADING_PLANS",
-  validation: voyageValidation,
-});
-registerCrudRoutes({
-  path: "/vehicles",
-  resource: "vehicle",
-  label: "Véhicule",
-  module: "VEHICLES",
-  validation: vehicleValidation,
 });
 
 module.exports = router;

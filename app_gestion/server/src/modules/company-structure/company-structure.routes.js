@@ -47,7 +47,7 @@ router
 router
   .route("/positions")
   .post(
-    authMiddleware.authorize("EMPLOYEES", APP_ACTIONS.CREATE),
+    authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.CREATE),
     validate(companyStructureValidation.createPosition),
     companyStructureController.createPosition,
   );

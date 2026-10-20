@@ -11,11 +11,17 @@ const findRouteLayer = (router, method, path) =>
   );
 
 const hasReadPermissionGuard = (routeLayer) =>
-  routeLayer.route.stack.some((middleware) =>
-    middleware.toString().includes(
-      "Vous n'avez pas la permission d'effectuer cette action.",
-    ),
-  );
+  routeLayer.route.stack.some((layer) => {
+    // Express 5 encapsule chaque middleware dans un objet Layer : la
+    // fonction a examiner est portee par la propriete handle.
+    const middleware = layer.handle || layer;
+    return (
+      typeof middleware.toString === "function" &&
+      middleware.toString().includes(
+        "Vous n'avez pas la permission d'effectuer cette action.",
+      )
+    );
+  });
 
 test("protège les lectures de voyage par VOYAGES:READ", () => {
   const listRoute = findRouteLayer(voyageRouter, "get", "/");

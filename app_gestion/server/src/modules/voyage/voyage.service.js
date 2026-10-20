@@ -8,7 +8,7 @@ const logger = require("../../config/logger");
  */
 const broadcastVoyageChange = (action, payload = null) => {
   try {
-    getIO().emit("voyage:changed", { action, payload });
+    getIO().emit("voyages:changed", { action, payload });
   } catch (err) {
     logger.warn(
       "Socket.IO indisponible, changement de voyage non diffusé en direct.",

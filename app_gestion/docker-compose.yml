@@ -1,0 +1,90 @@
+# Déploiement de l'application de gestion logistique et de fret maritime.
+# Trois services : la base de donnees, l'interface de programmation et
+# l'interface web. Un service de migration prepare la base avant le demarrage
+# du serveur.
+#
+#   docker compose up --build
+#   interface web      : http://localhost:8080
+#   interface de prog. : http://localhost:5000/api/v1/health
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gestion-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gestion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gestion}
+      POSTGRES_DB: ${POSTGRES_DB:-gestion}
+    volumes:
+      - donnees-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gestion} -d ${POSTGRES_DB:-gestion}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gestion
+
+  migrate:
+    build:
+      context: ./server
+      target: build
+    container_name: gestion-migrate
+    command: npx prisma migrate deploy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gestion}:${POSTGRES_PASSWORD:-gestion}@db:5432/${POSTGRES_DB:-gestion}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - gestion
+
+  server:
+    build:
+      context: ./server
+    container_name: gestion-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:8080}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gestion}:${POSTGRES_PASSWORD:-gestion}@db:5432/${POSTGRES_DB:-gestion}
+      COOKIE_SECRET: ${COOKIE_SECRET:-a-remplacer-en-production}
+      JWT_SECRET: ${JWT_SECRET:-a-remplacer-en-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-a-remplacer-en-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${SERVER_PORT:-5000}:5000"
+    volumes:
+      - fichiers-televerses:/app/public/uploads
+    networks:
+      - gestion
+
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_API_URL: /api/v1
+    container_name: gestion-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "${CLIENT_PORT:-8080}:80"
+    networks:
+      - gestion
+
+volumes:
+  donnees-postgres:
+  fichiers-televerses:
+
+networks:
+  gestion:
+    driver: bridge

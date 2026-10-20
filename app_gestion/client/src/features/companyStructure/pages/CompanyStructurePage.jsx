@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { PageHeader, Button, AlertDialog } from "@/shared/components/ui";
 import { FiPlus } from "react-icons/fi";
 import { socket } from "@/shared/services/";
+import { useAuth } from "@/features/auth";
 import {
   companyStructureService,
   CompanyStructureCard,
@@ -13,6 +14,7 @@ import {
 } from "@/features/companyStructure";
 
 function CompanyStructurePage() {
+  const { checkPermission } = useAuth();
   const [departments, setDepartments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -105,13 +107,15 @@ function CompanyStructurePage() {
         title="Structure de l'entreprise"
         subtitle="Gérez les départements et les postes associés."
       >
-        <Button
-          variant="primary"
-          icon={FiPlus}
-          onClick={() => setIsAddDeptOpen(true)}
-        >
-          Ajouter un département
-        </Button>
+        {checkPermission("COMPANY_STRUCTURE", "CREATE") && (
+          <Button
+            variant="primary"
+            icon={FiPlus}
+            onClick={() => setIsAddDeptOpen(true)}
+          >
+            Ajouter un département
+          </Button>
+        )}
       </PageHeader>
 
       {isLoading ? (

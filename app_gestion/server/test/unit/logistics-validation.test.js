@@ -4,9 +4,10 @@ const assert = require("node:assert/strict");
 const {
   vesselValidation,
   portValidation,
-  voyageValidation,
-  vehicleValidation,
 } = require("../../src/modules/maritime/maritime.validation");
+const {
+  voyageValidation,
+} = require("../../src/modules/voyage/voyage.validation");
 const {
   LoadValidation,
   loadValidation,
@@ -51,12 +52,14 @@ test("refuse un voyage dont l'arrivée précède le départ", () => {
   );
 });
 
-test("accepte un véhicule et normalise son immatriculation", () => {
-  const vehicle = parse(vehicleValidation.create, {
-    licensePlate: "1234 ab",
-    capacityTons: 20,
+test("accepte un voyage dont le statut par défaut est planifié", () => {
+  const voyage = parse(voyageValidation.create, {
+    vesselId: "vessel-id",
+    departurePortId: "departure-id",
+    arrivalPortId: "arrival-id",
+    voyageNumber: "TEST-02",
   });
-  assert.equal(vehicle.licensePlate, "1234 AB");
+  assert.equal(voyage.status, "SCHEDULED");
 });
 
 test("valide un plan de chargement par défaut", () => {

@@ -5,7 +5,7 @@ import {
   MdSpaceDashboard,
   MdViewModule,
 } from "react-icons/md";
-import { FaUserTie, FaTruck, FaUserLock } from "react-icons/fa";
+import { FaUserTie, FaUserLock } from "react-icons/fa";
 import { IoIosSettings } from "react-icons/io";
 import { FaUsers } from "react-icons/fa6";
 import * as dashboard from "@/features/dashboard";
@@ -15,7 +15,6 @@ import { UsersPage } from "@/features/users";
 import { CompanyStructurePage } from "@/features/companyStructure";
 import { TemplatePage } from "@/features/template";
 import { ClientPage } from "@/features/client";
-import { DriverPage } from "@/features/driver";
 import { ModulePage } from "@/features/module";
 import { PlansPage } from "@/features/plans";
 import { ShipPage } from "@/features/ship";
@@ -64,15 +63,6 @@ export const appRoutes = [
     icon: FaUserTie,
     showInSidebar: true,
   },
-  // {
-  //   path: "/driver",
-  //   label: "Transporteurs",
-  //   section: "Logistique",
-  //   element: withDashboardLayout(<DriverPage />),
-  //   requiredPermission: { module: "DRIVER", action: "READ" },
-  //   icon: FaTruck,
-  //   showInSidebar: true,
-  // },
   {
     path: "/ship",
     label: "Navires",

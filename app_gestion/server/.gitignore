@@ -1,9 +1,17 @@
+# Dépendances installées
 node_modules
-# Keep environment variables out of version control
+
+# Variables d'environnement : elles contiennent des secrets et ne doivent
+# jamais être versionnées. Le fichier d'exemple est conservé.
 .env
+.env.*
+!.env.example
 
+# Client Prisma généré
 /src/generated/prisma
 
-/src/generated/prisma
+# Journaux applicatifs
+logs
 
-/src/generated/prisma
+# Fichiers téléversés par les utilisateurs
+public/uploads
