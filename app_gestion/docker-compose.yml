@@ -94,6 +94,13 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-a-remplacer-en-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      # Limiteur global de l'interface de programmation : 600 requetes par
+      # quart d'heure et par adresse, valeur reglagee pour que la
+      # consultation des ecrans (plusieurs appels par page) ne soit jamais
+      # interrompue. Le forcage brutal reste couvert par le limiteur de
+      # connexion.
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-600}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       seed:

@@ -1120,7 +1120,7 @@ docker compose --profile demo run --rm seed-demo
 **Autres protections** :
 
 - `helmet`, CORS restreint à `CLIENT_URL` (credentials activés, headers `Content-Type`, `Authorization`, `X-CSRF-Token`).
-- Rate limit global sur `/api` (100 requêtes / 15 min en production, 500 en développement) et limiteur de login (5 / minute).
+- Rate limit global sur `/api` (600 requêtes / 15 min en production, 500 en développement ; réglable par `RATE_LIMIT_MAX` et `RATE_LIMIT_WINDOW_MS`) et limiteur de login (5 / minute, seules les tentatives infructueuses sont comptées).
 - **Journal d'audit** (`audit.middleware.js`) : chaque `POST/PUT/PATCH/DELETE` écrit une ligne `AuditLog` (employé, action, route, IP, payload, anciennes/nouvelles valeurs). Les clés dont le nom contient `password`, `token`, `secret`, `authorization`, `cookie` ou `csrf` sont remplacées par `[REDACTED]` récursivement. Les valeurs éventuellement journalisées **avant** ce correctif n'ont pas été purgées automatiquement.
 - **Upload d'avatar** (`POST /uploads/avatar`) : fichier gardé en mémoire (5 Mo max), type détecté par **signature binaire** (JPEG, PNG, WEBP) et extension imposée ; un utilisateur ne peut écrire que son propre avatar sauf permission `EMPLOYEES` adéquate. Fichiers servis sous `/uploads` (dossier `server/public/uploads/avatars`).
 - **Socket.IO authentifié** : le handshake lit le cookie signé `token`, vérifie le JWT puis l'employé (actif, non supprimé, accès app) ; la room `employee_<id>` est déduite de l'identité authentifiée.
