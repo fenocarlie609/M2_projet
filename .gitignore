@@ -17,6 +17,7 @@
 *.local
 *.env
 *.env.*
+.vite
 
 # Wrangler / Cloudflare
 *.wrangler/
