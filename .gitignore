@@ -35,3 +35,6 @@
 *.sw?
 
 app_gestion/server/public/uploads/
+
+# Captures du parcours d'interface : elles sont regenerees a chaque execution
+app_gestion/client/e2e/captures/

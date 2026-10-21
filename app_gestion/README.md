@@ -1271,7 +1271,7 @@ cd client; npm run dev      # Vite, http://localhost:5173
 
 | Où | Commande | Rôle |
 | --- | --- | --- |
-| `server/` | `npm test` | tests unitaires (`node --test test/unit/`) |
+| `server/` | `npm test` | tests unitaires (`node --test test/unit/*.test.js`) |
 | `server/` | `npm run test:integration` | test d'intégration (nécessite une base seedée) |
 | `server/` | `npm run seed` | jeu de démonstration complet : dix-huit mois d'exploitation, toutes les tables |
 | `server/` | `npm run seed:base` | socle minimal : structure, modules de permissions, administrateur universel |
@@ -1279,6 +1279,9 @@ cd client; npm run dev      # Vite, http://localhost:5173
 | `server/` | `npm start` | production (`.env.production`) |
 | `server/` | `npx prisma migrate status` / `studio` | état des migrations / interface de données |
 | `client/` | `npm run build` / `preview` | build / prévisualisation |
+| `client/` | `npm run test:e2e` | parcours d'interface : chaque écran est parcouru en format téléphone et en format bureau, les captures sont déposées dans `client/e2e/captures/` |
+
+**Parcours d'interface** (`client/e2e/parcours.mjs`) : le script pilote le Chrome installé sur la machine (aucun navigateur n'est téléchargé), se connecte avec un compte de démonstration, puis visite chaque écran dans les deux formats. Pour les écrans de liste, il compare le total annoncé par la pagination du tableau au nombre de cartes affichées sur téléphone : les tableaux laissent la place à des cartes sur petit écran, mais aucune donnée ne doit disparaître au passage. Le parcours échoue si la console du navigateur signale une erreur ou si un appel de l'interface de programmation répond en 4xx ou 5xx. Les identifiants peuvent être fournis par `APP_IDENTIFIANT` et `APP_MOT_DE_PASSE`, l'adresse de l'application par `APP_URL`.
 
 Seeds : `prisma/seed.js` (structure : départements et postes), `prisma/seedAppModules.js` (catalogue des modules de permissions), `prisma/seedAdmin.js` (administrateur universel), `prisma/seedLoadingPlan.js` (navires, voyages, clients, plans de référence). Les trois premiers sont enchaînés par `npm run seed` et exécutés automatiquement par le service `seed` de l'orchestrateur ; le dernier reste une commande manuelle, car il écrase les plans de référence. Logs Winston dans `server/logs/` (`errors.log`, `combined.log`).
 
