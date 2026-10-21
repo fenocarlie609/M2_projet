@@ -1250,6 +1250,51 @@ cd client; npm run dev      # Vite, http://localhost:5173
 
 Seeds : `prisma/seed.js` (structure : départements et postes), `prisma/seedAppModules.js` (catalogue des modules de permissions), `prisma/seedAdmin.js` (administrateur universel), `prisma/seedLoadingPlan.js` (navires, voyages, clients, plans de référence). Les trois premiers sont enchaînés par `npm run seed` et exécutés automatiquement par le service `seed` de l'orchestrateur ; le dernier reste une commande manuelle, car il écrase les plans de référence. Logs Winston dans `server/logs/` (`errors.log`, `combined.log`).
 
+### 12.0. Deux modes de fonctionnement
+
+L'application se lance de deux façons, qui ne s'utilisent pas en même temps car
+elles occupent le même port.
+
+**Mode développement — le plus courant, sans reconstruction**
+
+La base de données seule est conteneurisée ; le serveur et l'interface sont
+exécutés sur le poste, avec rechargement automatique à chaque modification.
+
+```powershell
+# 1. la base de donnees (seul conteneur necessaire)
+docker compose up -d db
+
+# 2. l'interface de programmation, dans une fenetre de terminal
+cd app_gestion\server
+npm run dev            # nodemon + .env.development, port 5000
+
+# 3. l'interface web, dans une autre fenetre de terminal
+cd app_gestion\client
+npm run dev            # Vite, http://localhost:5173
+```
+
+Vite recharge l'interface à chaud : une modification du code est visible
+immédiatement dans le navigateur, sans reconstruction. Le serveur est
+redémarré par nodemon dès qu'un de ses fichiers change. Les requêtes
+`/api` sont relayées par Vite vers le serveur local, comme en production
+où nginx joue ce rôle.
+
+**Mode démonstration — la pile entièrement conteneurisée**
+
+```powershell
+docker compose up --build
+```
+
+Les quatre services sont alors construits et démarrés, l'interface est servie
+sur le port 8080. Ce mode suppose que le serveur local des deux fenêtres
+précédentes est arrêté, sous peine de conflit sur le port 5000.
+
+Le premier lancement peut afficher une page’ancienne : l'application étant une
+application web progressive, un agent de service reste enregistré dans le
+navigateur et sert le bundle précédent. Un rechargement forcé
+(`Ctrl+Maj+R`) ou la désinscription de l'agent de service dans les
+paramètres du navigateur suffit à retrouver la version courante.
+
 ### 12.1. Déploiement avec Docker
 
 Le projet se déploie intégralement avec Docker : une commande suffit à démarrer la base,
