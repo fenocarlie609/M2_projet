@@ -329,7 +329,7 @@ app_gestion/
 │   │   ├── migrations/                                       # 17 dossiers de migration SQL (voir « Structure de la base de données »)
 │   │   ├── schema.prisma                                     # Source de vérité du modèle de données
 │   │   ├── seed.js                                           # Départements et postes
-│   │   ├── seedAppModules.js                                 # Catalogue des modules de permissions
+│   │   ├── seedAppModules.js                                 # Catalogue des modules de permissions (dont ENTREPOTS)
 │   │   ├── seedAdmin.js                                      # Administrateur universel (droit *,*)
 │   │   ├── seedDemo.js                                       # Jeu de demonstration complet (toutes tables)
 │   │   ├── structure.js                                     # Structure de l'entreprise partagee par les seeds
@@ -368,6 +368,7 @@ app_gestion/
 │   │   │   │   └── auth.validation.js                        # Schémas Zod
 │   │   │   ├── clients/                                      # Clients (module de référence)
 │   │   │   ├── dashboard/                                   # Tableau de bord : indicateurs filtres par permission
+│   │   │   ├── warehouse/                                   # Entrepots, marchandises en stock et mouvements
 │   │   │   │   ├── client.controller.js                      # Contrôleur HTTP
 │   │   │   │   ├── client.routes.js                          # Routes et contrôle d’accès
 │   │   │   │   ├── client.service.js                         # Logique métier + Prisma
@@ -1391,6 +1392,33 @@ Le script `prisma/seedAdmin.js` est idempotent : le relancer met à jour le mot 
 les droits du compte existant au lieu d'en créer un second. Le mot de passe doit être changé
 dès la première connexion ; il est par ailleurs lisible dans la configuration de
 l'environnement, ce qui doit être traité comme une information provisoire.
+
+## 12ter. Module d'entreposage
+
+Les marchandises dechargees d'un navire sont conservees en entrepot, dans l'attente
+soit du retrait par le client, soit du reembarquement sur un prochain voyage. Le
+module est protege par le droit `ENTREPOTS`.
+
+| Route | Effet | Droit |
+| --- | --- | --- |
+| `GET /api/v1/warehouse` | Liste des entrepots, avec le nombre d'articles et le tonnage stocke | `ENTREPOTS:READ` |
+| `POST /api/v1/warehouse` | Creation d'un entrepot | `ENTREPOTS:CREATE` |
+| `PUT /api/v1/warehouse/:id` | Modification d'un entrepot | `ENTREPOTS:UPDATE` |
+| `DELETE /api/v1/warehouse/:id` | Suppression logique, refusee si l'entrepot contient encore du stock | `ENTREPOTS:DELETE` |
+| `GET /api/v1/warehouse/items` | Marchandises en entrepot, filtrables par entrepot, client et statut | `ENTREPOTS:READ` |
+| `POST /api/v1/warehouse/items` | Entree en entrepot, avec controle de la capacite | `ENTREPOTS:CREATE` |
+| `POST /api/v1/warehouse/items/:id/pickup` | Retrait par le client : la marchandise quitte l'entrepot | `ENTREPOTS:UPDATE` |
+| `POST /api/v1/warehouse/items/:id/embark` | Reembarquement : la marchandise rejoint un plan de chargement | `ENTREPOTS:UPDATE` |
+| `GET /api/v1/warehouse/items/movements` | Journal des entrees et des sorties | `ENTREPOTS:READ` |
+
+Le cycle de vie d'une marchandise est decrit par son statut : `IN_STOCK` (en
+attente), `EMBARKED` (reembarquee) ou `PICKED_UP` (retiree). Chaque changement
+de statut ecrit un mouvement, qui porte la date, l'agent et l'entrepot.
+
+Une marchandise n'entre en entrepot qu'a partir d'une ligne de plan de
+dechargement **valide** : le navire doit etre arrive. La reembarquement, elle,
+s'appuie sur le service des plans : la capacite du navire est controlee et le
+total du plan est recalcule.
 
 ## 12bis. Tableau de bord
 

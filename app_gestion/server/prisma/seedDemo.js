@@ -23,7 +23,7 @@ const path = require("path");
 require("dotenv").config({ path: ".env.development" });
 require("dotenv").config();
 
-const { PrismaClient } = require("../src/generated/prisma");
+const { PrismaClient, Prisma } = require("../src/generated/prisma");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { hashPassword } = require("../src/common/utils/password.utils");
 const { structure } = require("./structure");
@@ -49,6 +49,7 @@ const employes = [
       ["CARGO", "CREATE"],
       ["CARGO", "READ"],
       ["CARGO", "UPDATE"],
+      ["ENTREPOTS", "READ"],
     ],
   },
   {
@@ -73,6 +74,8 @@ const employes = [
       ["CARGO", "READ"],
       ["CARGO", "CREATE"],
       ["CARGO", "UPDATE"],
+      ["ENTREPOTS", "READ"],
+      ["ENTREPOTS", "UPDATE"],
     ],
   },
   {
@@ -427,6 +430,9 @@ const TABLES = [
   ["notifications", "notification"],
   ["notification_reads", "notificationRead"],
   ["refresh_tokens", "refreshToken"],
+  ["warehouses", "warehouse"],
+  ["warehouse_items", "warehouseItem"],
+  ["warehouse_movements", "warehouseMovement"],
 ];
 
 function lancer(script) {
@@ -817,6 +823,141 @@ async function main() {
           expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
           revokedAt: new Date(),
           revokedReason: "Rotation",
+        },
+      });
+    }
+  }
+
+  console.log("8. Entrepot et marchandises en stock");
+  const entrepots = [
+    {
+      code: "ANT-01",
+      name: "Dépôt d'Antananarivo",
+      address: "Zone Industrielle Vondrozo, Lot 118",
+      city: "Antananarivo",
+      capacityTons: 500,
+    },
+    {
+      code: "TMM-01",
+      name: "Dépôt portuaire de Toamasina",
+      address: "Quai 3, Entrepôt C",
+      city: "Toamasina",
+      capacityTons: 2000,
+    },
+  ];
+
+  for (const entrepot of entrepots) {
+    await prisma.warehouse.upsert({
+      where: { code: entrepot.code },
+      update: {
+        name: entrepot.name,
+        address: entrepot.address,
+        city: entrepot.city,
+        capacityTons: new Prisma.Decimal(String(entrepot.capacityTons)),
+      },
+      create: {
+        code: entrepot.code,
+        name: entrepot.name,
+        address: entrepot.address,
+        city: entrepot.city,
+        capacityTons: new Prisma.Decimal(String(entrepot.capacityTons)),
+      },
+    });
+  }
+
+  const stock = [
+    {
+      reference: "STK-2026-0001",
+      warehouse: "ANT-01",
+      client: "ETS RAKOTOVOINTSAKA",
+      description: "Café vert en sacs de 60 kg",
+      packageCount: 250,
+      weightKg: 15000,
+      statut: "IN_STOCK",
+      motif: null,
+    },
+    {
+      reference: "STK-2026-0002",
+      warehouse: "ANT-01",
+      client: "COOPÉRATIVE DES PRODUCTEURS DE VANILLE",
+      description: "Vanille gousses, caisses de 5 kg",
+      packageCount: 180,
+      weightKg: 900,
+      statut: "IN_STOCK",
+      motif: null,
+    },
+    {
+      reference: "STK-2026-0003",
+      warehouse: "TMM-01",
+      client: "SOCIETE GENERALE DE TRANSPORT MARITIME",
+      description: "Conteneurs de marchandises diverses",
+      packageCount: 40,
+      weightKg: 32000,
+      statut: "IN_STOCK",
+      motif: null,
+    },
+    {
+      reference: "STK-2026-0004",
+      warehouse: "ANT-01",
+      client: "RAZAFIMAHATRATRA Sophie",
+      description: "Riz paddy, sacs de 50 kg",
+      packageCount: 60,
+      weightKg: 3000,
+      statut: "PICKED_UP",
+      motif: "PICKUP",
+    },
+  ];
+
+  for (const article of stock) {
+    const existante = await prisma.warehouseItem.findUnique({
+      where: { reference: article.reference },
+    });
+    if (existante) continue;
+
+    const entrepot = await prisma.warehouse.findUnique({
+      where: { code: article.warehouse },
+    });
+    const client = await prisma.client.findFirst({
+      where: { name: article.client },
+    });
+    if (!entrepot || !client) continue;
+
+    const arrivalDate = new Date("2026-10-18T08:00:00.000Z");
+    const item = await prisma.warehouseItem.create({
+      data: {
+        reference: article.reference,
+        warehouseId: entrepot.id,
+        clientId: client.id,
+        description: article.description,
+        packageCount: article.packageCount,
+        weightKg: new Prisma.Decimal(String(article.weightKg)),
+        status: article.statut,
+        arrivalDate,
+        departureDate: article.statut === "PICKED_UP" ? new Date("2026-10-20T09:30:00.000Z") : null,
+        departureReason: article.motif,
+      },
+    });
+
+    await prisma.warehouseMovement.create({
+      data: {
+        itemId: item.id,
+        warehouseId: entrepot.id,
+        employeeId: null,
+        type: "ENTRY",
+        note: "Déchargement du navire 14E VOYAGE",
+        createdAt: arrivalDate,
+      },
+    });
+
+    if (article.statut === "PICKED_UP") {
+      await prisma.warehouseMovement.create({
+        data: {
+          itemId: item.id,
+          warehouseId: entrepot.id,
+          employeeId: null,
+          type: "PICKUP",
+          note: "Retrait par le client",
+          createdAt: new Date("2026-10-20T09:30:00.000Z"),
         },
       });
     }

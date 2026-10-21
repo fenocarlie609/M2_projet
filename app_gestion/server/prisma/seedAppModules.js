@@ -29,6 +29,7 @@ async function main() {
     { code: "VOYAGES", label: "Voyages maritimes" },
     { code: "LOADING_PLANS", label: "Plans de manutention" },
     { code: "CARGO", label: "Marchandises" },
+    { code: "ENTREPOTS", label: "Entrepôts & stock" },
   ];
 
   for (const m of modules) {

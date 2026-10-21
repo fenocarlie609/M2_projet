@@ -267,17 +267,71 @@ const blocNotifications = async (utilisateur) => {
 /**
  * Resume du tableau de bord, limite aux blocs accessibles a l utilisateur.
  */
+/**
+ * Stock entrepose : marchandises en attente de sortie.
+ */
+const blocStock = async (utilisateur) => {
+  if (!possede(utilisateur, "ENTREPOTS")) return null;
+
+  const articles = await prisma.warehouseItem.findMany({
+    where: { deletedAt: null },
+    select: {
+      status: true,
+      weightKg: true,
+      packageCount: true,
+      arrivalDate: true,
+    },
+  });
+
+  const enStock = articles.filter((article) => article.status === "IN_STOCK");
+  const tonnage = enStock.reduce(
+    (total, article) => total + Number(article.weightKg || 0),
+    0,
+  );
+
+  const plusAnciens = enStock
+    .slice()
+    .sort((a, b) => new Date(a.arrivalDate) - new Date(b.arrivalDate))
+    .slice(0, 5)
+    .map((article) => ({
+      arrivalDate: article.arrivalDate,
+      weightKg: article.weightKg,
+    }));
+
+  return {
+    articles: enStock.length,
+    tonnage: arrondi(tonnage / 1000),
+    colis: enStock.reduce(
+      (total, article) => total + (article.packageCount || 0),
+      0,
+    ),
+    plusAnciens,
+  };
+};
+
+/**
+ * Resume du tableau de bord, limite aux blocs accessibles a l'utilisateur.
+ */
 const getSummary = async (utilisateur) => {
-  const [plans, clients, voyages, acces, employes, audit, notifications] =
-    await Promise.all([
-      blocPlans(utilisateur),
-      blocClients(utilisateur),
-      blocVoyages(utilisateur),
-      blocAcces(utilisateur),
-      blocEmployes(utilisateur),
-      blocAudit(utilisateur),
-      blocNotifications(utilisateur),
-    ]);
+  const [
+    plans,
+    clients,
+    voyages,
+    acces,
+    employes,
+    stock,
+    audit,
+    notifications,
+  ] = await Promise.all([
+    blocPlans(utilisateur),
+    blocClients(utilisateur),
+    blocVoyages(utilisateur),
+    blocAcces(utilisateur),
+    blocEmployes(utilisateur),
+    blocStock(utilisateur),
+    blocAudit(utilisateur),
+    blocNotifications(utilisateur),
+  ]);
 
   const resume = { notifications };
   if (plans) resume.plans = plans;
@@ -285,6 +339,7 @@ const getSummary = async (utilisateur) => {
   if (voyages) resume.voyages = voyages;
   if (acces) resume.acces = acces;
   if (employes) resume.employes = employes;
+  if (stock) resume.stock = stock;
   if (audit) resume.audit = audit;
 
   return resume;

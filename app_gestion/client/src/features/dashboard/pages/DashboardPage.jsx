@@ -34,6 +34,7 @@ import {
   FiFileText,
   FiRefreshCw,
   FiCheckCircle,
+  FiClock,
 } from "react-icons/fi";
 
 const VARIANT_STATUT = {
@@ -198,6 +199,17 @@ function DashboardPage() {
       });
     }
 
+    if (resume?.stock && resume.stock.articles > 0) {
+      liste.push({
+        icone: FiPackage,
+        titre: `${resume.stock.articles} marchandise(s) en entrepôt`,
+        detail:
+          "Marchandises déchargées, en attente de retrait par le client ou de réembarquement sur un prochain voyage.",
+        action: "Ouvrir l'entrepôt",
+        onClick: () => navigate("/warehouse"),
+      });
+    }
+
     if (resume?.clients && resume.clients.documentsExpires?.length > 0) {
       liste.push({
         icone: FiFileText,
@@ -355,6 +367,34 @@ function DashboardPage() {
             value={resume.employes.sansAcces}
             subtext="Demandes en attente"
             icon={FiAlertTriangle}
+          />
+        </div>
+      )}
+
+      {resume?.stock && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatsCard
+            title="Marchandises en entrepôt"
+            value={resume.stock.articles}
+            subtext={`${resume.stock.colis} colis`}
+            icon={FiPackage}
+            variant="brand"
+          />
+          <StatsCard
+            title="Tonnage stocké"
+            value={`${resume.stock.tonnage} t`}
+            subtext="En attente de sortie"
+            icon={FiTruck}
+          />
+          <StatsCard
+            title="Ancienneté du stock"
+            value={
+              resume.stock.plusAnciens?.length
+                ? formatDate(resume.stock.plusAnciens[0].arrivalDate)
+                : "—"
+            }
+            subtext="Marchandise entrée la plus ancienne"
+            icon={FiClock}
           />
         </div>
       )}

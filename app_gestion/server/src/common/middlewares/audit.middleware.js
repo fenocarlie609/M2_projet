@@ -5,10 +5,25 @@ const logger = require("../../config/logger");
 
 const sensitiveKeyPattern = /password|token|secret|authorization|cookie|csrf/i;
 
+// Les reponses de l'interface de programmation contiennent des types qui
+// ne se serialisent pas directement en JSON : valeurs decimales, dates.
+// Ils sont convertis avant l'ecriture, faute de quoi l'enregistrement de
+// l'audit echoue et la requete repond une erreur 500.
+const toSerializable = (value) => {
+  if (value === null || value === undefined) return value;
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value !== "object") return value;
+  if (typeof value.toJSON === "function") return value.toJSON();
+  if (value instanceof Date) return value.toISOString();
+  return value;
+};
+
 const redactSensitiveValues = (value) => {
   if (Array.isArray(value)) return value.map(redactSensitiveValues);
-  if (!value || typeof value !== "object") return value;
-
+  if (value === null || value === undefined) return value;
+  if (typeof value !== "object") return toSerializable(value);
+  // Valeurs decimales et dates : elles possedent leur propre representation.
+  if (typeof value.toJSON === "function") return toSerializable(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, nestedValue]) => [
       key,

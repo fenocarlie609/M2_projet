@@ -1,4 +1,4 @@
-import { FiAnchor, FiClipboard, FiTruck } from "react-icons/fi";
+import { FiAnchor, FiClipboard, FiTruck, FiArchive } from "react-icons/fi";
 import {
   MdDirectionsBoat,
   MdLocationOn,
@@ -21,6 +21,7 @@ import { ShipPage } from "@/features/ship";
 import { PortPage } from "@/features/ports";
 import { VoyagePage } from "@/features/voyages";
 import { LoadPage } from "@/features/plans";
+import { WarehousePage } from "@/features/warehouse";
 
 const withDashboardLayout = (page) => (
   <dashboard.DashboardLayout>{page}</dashboard.DashboardLayout>
@@ -116,6 +117,15 @@ export const appRoutes = [
     requiredPermission: { module: "LOADING_PLANS", action: "READ" },
     icon: FiTruck,
     showInSidebar: false,
+  },
+  {
+    path: "/warehouse",
+    label: "Entrepôt",
+    section: "Logistique",
+    element: withDashboardLayout(<WarehousePage />),
+    requiredPermission: { module: "ENTREPOTS", action: "READ" },
+    icon: FiArchive,
+    showInSidebar: true,
   },
   {
     path: "/users",

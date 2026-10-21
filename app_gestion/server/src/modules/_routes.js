@@ -40,6 +40,7 @@ const { maritimeRoutes } = require("./maritime");
 const { loadingPlanRoutes } = require("./loading-plans");
 const { voyageRoutes } = require("./voyage");
 const { dashboardRoutes } = require("./dashboard");
+const { warehouseRoutes } = require("./warehouse");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -53,5 +54,6 @@ router.use("/maritime", maritimeRoutes);
 router.use("/loading-plans", loadingPlanRoutes);
 router.use("/voyages", voyageRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/warehouse", warehouseRoutes);
 
 module.exports = router;
