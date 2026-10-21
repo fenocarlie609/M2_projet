@@ -39,6 +39,7 @@ const { notificationRoutes } = require("./notifications");
 const { maritimeRoutes } = require("./maritime");
 const { loadingPlanRoutes } = require("./loading-plans");
 const { voyageRoutes } = require("./voyage");
+const { dashboardRoutes } = require("./dashboard");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -51,5 +52,6 @@ router.use("/notifications", notificationRoutes);
 router.use("/maritime", maritimeRoutes);
 router.use("/loading-plans", loadingPlanRoutes);
 router.use("/voyages", voyageRoutes);
+router.use("/dashboard", dashboardRoutes);
 
 module.exports = router;

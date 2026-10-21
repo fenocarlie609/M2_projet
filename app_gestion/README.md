@@ -367,6 +367,7 @@ app_gestion/
 │   │   │   │   ├── auth.service.js                           # Logique métier + Prisma
 │   │   │   │   └── auth.validation.js                        # Schémas Zod
 │   │   │   ├── clients/                                      # Clients (module de référence)
+│   │   │   ├── dashboard/                                   # Tableau de bord : indicateurs filtres par permission
 │   │   │   │   ├── client.controller.js                      # Contrôleur HTTP
 │   │   │   │   ├── client.routes.js                          # Routes et contrôle d’accès
 │   │   │   │   ├── client.service.js                         # Logique métier + Prisma
@@ -1345,6 +1346,33 @@ Le script `prisma/seedAdmin.js` est idempotent : le relancer met à jour le mot 
 les droits du compte existant au lieu d'en créer un second. Le mot de passe doit être changé
 dès la première connexion ; il est par ailleurs lisible dans la configuration de
 l'environnement, ce qui doit être traité comme une information provisoire.
+
+## 12bis. Tableau de bord
+
+Le tableau de bord est la premiere ecran de l'application. Une seule route,
+`GET /api/v1/dashboard/summary`, renvoie l'ensemble des indicateurs dans une
+reponse unique.
+
+Le contenu est **filtre cote serveur**, bloc par bloc, d'apres les droits de
+l'utilisateur connecte : un bloc absent de la reponse n'est pas calcule et ne
+transite pas sur le reseau. C'est ce qui permet a un meme ecran de servir des
+profils tres differents.
+
+| Bloc | Condition d'affichage | Contenu |
+| --- | --- | --- |
+| `plans` | `LOADING_PLANS:READ` | Plans actifs, tonnage embarque, marchandises a peser, taux de remplissage des navires, tonnage par client, repartition des lignes |
+| `clients` | `CLIENT:READ` | Clients actifs, nouveaux clients sur trente jours, documents arrivant a echeance |
+| `voyages` | `VOYAGES:READ` | Nombre de voyages, repartition par statut, prochains departs |
+| `acces` | `USERS:READ` | Demandes d'acces en attente de traitement |
+| `employes` | `EMPLOYEES:READ` | Effectifs actifs et employes sans acces |
+| `audit` | Departement technique | Dix dernieres entrees du journal d'audit |
+| `notifications` | Tout employe connecte | Cinq dernieres notifications |
+
+Concretement, un agent de quai ne recoit ni le journal d'audit ni les effectifs,
+un developpeur du departement technique ne recoit ni les plans de chargement ni
+les clients, et un charge de clientele ne recoit ni les employes ni les demandes
+d'acces. Les tests unitaires `test/unit/dashboard-permissions.test.js`
+verifient cette regle de filtrage.
 
 ## 13. Tests
 

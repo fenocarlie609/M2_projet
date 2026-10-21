@@ -379,9 +379,9 @@ const documentsParClient = {
       documentNumber: "AGR-2026-118",
       fileName: "agrement-temporaire-2026.pdf",
       issuedAt: new Date("2026-02-01T00:00:00.000Z"),
-      expiresAt: new Date("2026-11-30T00:00:00.000Z"),
+      expiresAt: new Date("2026-11-05T00:00:00.000Z"),
       verifiedAt: new Date("2026-02-11T00:00:00.000Z"),
-      notes: "Agrément temporaire à renouveler avant le 30 novembre.",
+      notes: "Agrément temporaire à renouveler avant le 5 novembre.",
     },
   ],
   "COOPÉRATIVE DES PRODUCTEURS DE VANILLE": [
@@ -571,18 +571,28 @@ async function main() {
           documentNumber: document.documentNumber,
         },
       });
-      if (!existant) {
+      const donnees = {
+        fileName: document.fileName,
+        fileUrl: `/uploads/clients/${client.reference}/${document.fileName}`,
+        issuedAt: document.issuedAt,
+        expiresAt: document.expiresAt,
+        verifiedAt: document.verifiedAt,
+        notes: document.notes,
+      };
+      if (existant) {
+        // Les dates sont actualisees : le bloc « documents a renouveler »
+        // du tableau de bord reste alimente.
+        await prisma.clientDocument.update({
+          where: { id: existant.id },
+          data: donnees,
+        });
+      } else {
         await prisma.clientDocument.create({
           data: {
             clientId: client.id,
             documentType: document.documentType,
             documentNumber: document.documentNumber,
-            fileName: document.fileName,
-            fileUrl: `/uploads/clients/${client.reference}/${document.fileName}`,
-            issuedAt: document.issuedAt,
-            expiresAt: document.expiresAt,
-            verifiedAt: document.verifiedAt,
-            notes: document.notes,
+            ...donnees,
           },
         });
       }
@@ -697,26 +707,26 @@ async function main() {
   console.log("6. Journal d'audit");
   const journal = [
     {
-      action: "POST /auth/login",
+      action: "POST_AUTH",
       method: "POST",
       route: "/api/v1/auth/login",
       payload: { identifier: "admin@lct.mg" },
     },
     {
-      action: "POST /employees",
+      action: "POST_EMPLOYEES",
       method: "POST",
       route: "/api/v1/employees",
       payload: { name: "RABEMANANARISOA Toky", email: "t.rabemananarisoa@lct.mg" },
       newValues: { hasAppAccess: true, isActive: true },
     },
     {
-      action: "POST /clients",
+      action: "POST_CLIENTS",
       method: "POST",
       route: "/api/v1/clients",
       payload: { reference: "CLI-2026-0001", name: "ETS RAKOTOVOINTSAKA" },
     },
     {
-      action: "PUT /clients",
+      action: "PUT_CLIENTS",
       method: "PUT",
       route: "/api/v1/clients",
       payload: { reference: "CLI-2026-0004" },
@@ -724,13 +734,13 @@ async function main() {
       newValues: { paymentTerms: "30 jours fin de mois" },
     },
     {
-      action: "POST /loading-plans",
+      action: "POST_LOADING-PLANS",
       method: "POST",
       route: "/api/v1/loading-plans",
       payload: { reference: "PL-14E-2026" },
     },
     {
-      action: "PUT /loading-plans",
+      action: "PUT_LOADING-PLANS",
       method: "PUT",
       route: "/api/v1/loading-plans",
       payload: { reference: "PL-13E-2026" },
@@ -738,13 +748,13 @@ async function main() {
       newValues: { status: true, totalWeightKg: "95444" },
     },
     {
-      action: "DELETE /loading-plans",
+      action: "DELETE_LOADING-PLANS",
       method: "DELETE",
       route: "/api/v1/loading-plans",
       payload: { reference: "PL-21E-2026" },
     },
     {
-      action: "POST /users/permissions",
+      action: "POST_USERS",
       method: "POST",
       route: "/api/v1/users/permissions",
       payload: { module: "LOADING_PLANS", action: "UPDATE" },
@@ -753,9 +763,14 @@ async function main() {
 
   for (const entree of journal) {
     const existante = await prisma.auditLog.findFirst({
-      where: { action: entree.action, route: entree.route },
+      where: { method: entree.method, route: entree.route },
     });
-    if (!existante) {
+    if (existante) {
+      await prisma.auditLog.update({
+        where: { id: existante.id },
+        data: { action: entree.action },
+      });
+    } else {
       await prisma.auditLog.create({
         data: {
           employeeId: lecteur ? lecteur.employe.id : null,
