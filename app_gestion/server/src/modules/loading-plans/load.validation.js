@@ -1,6 +1,17 @@
 const { z } = require("zod");
+const { QUAIS_TOAMASINA } = require("../../common/utils/constants");
 
 const nonEmptyString = (message) => z.string().trim().min(1, message);
+
+// La position est le quai de chargement au port de Toamasina.
+const quai = z
+  .enum(QUAIS_TOAMASINA, {
+    errorMap: () => ({
+      message: `Le quai doit être l'un des suivants : ${QUAIS_TOAMASINA.join(", ")}`,
+    }),
+  })
+  .optional()
+  .nullable();
 
 const loadFields = z.object({
   loadingPlanId: nonEmptyString("Le plan de chargement est requis"),
@@ -16,7 +27,7 @@ const loadFields = z.object({
   loadedById: z.string().trim().optional().nullable(),
   loadingDate: z.coerce.date().optional().nullable(),
   anomaly: z.string().trim().optional().nullable(),
-  loadingPosition: z.string().trim().optional().nullable(),
+  loadingPosition: quai,
   isHazardous: z.coerce.boolean().default(false),
   status: z.enum(["PENDING", "LOADED", "CANCELLED"]).default("PENDING"),
 });

@@ -120,12 +120,8 @@ function WarehousePage() {
           loadingPlanService.getPlans(),
         ]);
         setClients(reponseClients.data?.clients || reponseClients.data || []);
-        const donnees = reponsePlans.data;
-        setPlans(
-          Array.isArray(donnees)
-            ? donnees
-            : donnees?.plans || donnees?.loadingPlans || [],
-        );
+        // Le service des plans renvoie directement le tableau des plans.
+        setPlans(Array.isArray(reponsePlans) ? reponsePlans : []);
       } catch (error) {
         // Les listes de reference ne sont pas bloquantes pour l'affichage.
       }

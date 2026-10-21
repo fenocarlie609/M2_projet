@@ -115,3 +115,26 @@ test("refuse un plan ou une ligne sans identifiant obligatoire", () => {
     }),
   );
 });
+
+test("n'accepte que les quais de Toamasina comme position", () => {
+  const ligne = {
+    clientId: "client-id",
+    packageCount: 4,
+    description: "Cafe vert",
+    weightKg: 600,
+    loadingPosition: "QUAI 2",
+  };
+
+  assert.equal(parse(loadValidation.create, ligne).loadingPosition, "QUAI 2");
+  // Une position libre n'est pas un quai : elle est refusee.
+  assert.throws(() =>
+    parse(loadValidation.create, { ...ligne, loadingPosition: "Quai 4" }),
+  );
+  // Une ligne sans position reste acceptee : le quai est renseigne a la
+  // confirmation du pesage.
+  assert.equal(
+    parse(loadValidation.create, { ...ligne, loadingPosition: null })
+      .loadingPosition,
+    null,
+  );
+});

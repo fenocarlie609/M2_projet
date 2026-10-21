@@ -61,6 +61,12 @@ export function StockItemCard({ item, onPickup, onEmbark }) {
               {item.load?.loadingPlan?.reference || "—"}
             </dd>
           </div>
+          <div>
+            <dt className="text-slate-400">Quai de chargement</dt>
+            <dd className="font-medium truncate">
+              {item.load?.loadingPosition || "—"}
+            </dd>
+          </div>
         </dl>
 
         {canUpdate && item.status === "IN_STOCK" && (

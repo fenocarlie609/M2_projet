@@ -139,10 +139,16 @@ export function LoadEditorModal({
             value={formData.loadingDate}
             onChange={(event) => updateField("loadingDate", event.target.value)}
           />
-          <Input
-            label="Position"
+          <Select
+            label="Quai de chargement"
             value={formData.loadingPosition}
             onChange={(event) => updateField("loadingPosition", event.target.value)}
+            options={[
+              { value: "", label: "Non renseigné" },
+              { value: "QUAI 1", label: "QUAI 1" },
+              { value: "QUAI 2", label: "QUAI 2" },
+              { value: "QUAI 3", label: "QUAI 3" },
+            ]}
           />
           <Input
             label="Anomalie"

@@ -61,6 +61,11 @@ export function StockItemTable({
       ),
     },
     {
+      key: "loadingPosition",
+      header: "Quai",
+      render: (ligne) => ligne.load?.loadingPosition || "—",
+    },
+    {
       key: "arrivalDate",
       header: "Entrée",
       render: (ligne) => formatDate(ligne.arrivalDate),

@@ -42,6 +42,8 @@ const itemInclude = {
   load: {
     select: {
       id: true,
+      // Position de la marchandise : le quai de chargement d'origine.
+      loadingPosition: true,
       loadingPlan: { select: { id: true, reference: true } },
     },
   },
@@ -292,6 +294,7 @@ const pickupItem = async (id, employeeId, data = {}) => {
 const embarkItem = async (id, employeeId, data) => {
   const item = await prisma.warehouseItem.findFirst({
     where: { id, deletedAt: null },
+    include: { load: { select: { loadingPosition: true } } },
   });
   if (!item) throw new AppError("Marchandise en entrepôt non trouvée.", 404);
 
@@ -324,6 +327,9 @@ const embarkItem = async (id, employeeId, data) => {
       weightKg: item.weightKg,
       status: "PENDING",
       loadingDate: new Date(),
+      // La marchandise conserve son quai de chargement : la position
+      // d'une marchandise designe toujours un quai de Toamasina.
+      loadingPosition: item.load?.loadingPosition || null,
     },
     employeeId,
   );

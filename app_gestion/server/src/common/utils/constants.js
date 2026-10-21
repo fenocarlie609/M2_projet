@@ -8,4 +8,8 @@ const APP_ACTIONS = {
   ALL: "*", // Ton joker / wildcard
 };
 
-module.exports = { APP_ACTIONS };
+// La position d'une marchandise designe le quai de chargement au port de
+// Toamasina. Ces trois quais sont les seules positions possibles.
+const QUAIS_TOAMASINA = ["QUAI 1", "QUAI 2", "QUAI 3"];
+
+module.exports = { APP_ACTIONS, QUAIS_TOAMASINA };

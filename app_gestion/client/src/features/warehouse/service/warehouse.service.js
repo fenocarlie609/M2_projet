@@ -1,21 +1,33 @@
 // src/features/warehouse/service/warehouse.service.js
-import { api } from "@/shared/services";
+// Le service renvoie le corps de la reponse ({ status, data: { ... } }),
+// comme les autres services de l'application : la page lit ensuite
+// reponse.data.items, reponse.data.warehouses, etc.
+import axiosInstance from "@/shared/services/axiosInstance";
+
+const lire = async (url, config) => {
+  const response = await axiosInstance.get(url, config);
+  return response.data;
+};
 
 export const warehouseService = {
   // Entrepots
-  getWarehouses: () => api.get("/warehouse"),
-  createWarehouse: (data) => api.post("/warehouse", data),
-  updateWarehouse: (id, data) => api.put(`/warehouse/${id}`, data),
-  deleteWarehouse: (id) => api.delete(`/warehouse/${id}`),
+  getWarehouses: () => lire("/warehouse"),
+  createWarehouse: (data) => axiosInstance.post("/warehouse", data),
+  updateWarehouse: (id, data) =>
+    axiosInstance.put(`/warehouse/${id}`, data),
+  deleteWarehouse: (id) => axiosInstance.delete(`/warehouse/${id}`),
 
   // Marchandises en entrepot
-  getItems: (filtres = {}) => api.get("/warehouse/items", { params: filtres }),
-  getAvailableItems: () => api.get("/warehouse/items/disponibles"),
-  createItem: (data) => api.post("/warehouse/items", data),
-  pickupItem: (id, data = {}) => api.post(`/warehouse/items/${id}/pickup`, data),
-  embarkItem: (id, data) => api.post(`/warehouse/items/${id}/embark`, data),
+  getItems: (filtres = {}) =>
+    lire("/warehouse/items", { params: filtres }),
+  getAvailableItems: () => lire("/warehouse/items/disponibles"),
+  createItem: (data) => axiosInstance.post("/warehouse/items", data),
+  pickupItem: (id, data = {}) =>
+    axiosInstance.post(`/warehouse/items/${id}/pickup`, data),
+  embarkItem: (id, data) =>
+    axiosInstance.post(`/warehouse/items/${id}/embark`, data),
 
   // Mouvements
   getMovements: (filtres = {}) =>
-    api.get("/warehouse/items/movements", { params: filtres }),
+    lire("/warehouse/items/movements", { params: filtres }),
 };
