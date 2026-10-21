@@ -10,12 +10,9 @@
     "test:integration": "node --test test/integration/logistics-data.test.js",
     "dev": "npx dotenv -e .env.development -- nodemon server.js",
     "start": "npx dotenv -e .env.production -- node server.js",
-    "seed": "npm run seed:structure && npm run seed:modules && npm run seed:admin",
-    "seed:demo": "node prisma/seedDemo.js",
-    "seed:structure": "node prisma/seed.js",
-    "seed:modules": "node prisma/seedAppModules.js",
-    "seed:admin": "node prisma/seedAdmin.js",
-    "seed:loading": "node prisma/seedLoadingPlan.js"
+    "seed": "node prisma/seeds/index.js",
+    "seed:base": "node prisma/seeds/index.js --base",
+    "seed:reset": "node prisma/seeds/index.js --reset"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.0",

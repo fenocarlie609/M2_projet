@@ -1067,13 +1067,42 @@ Dossier `server/prisma/migrations/` (verrou : `migration_lock.toml`, fournisseur
 
 ### 5.8 Données de démonstration (seeds)
 
-| Fichier | Contenu | Précaution |
-| --- | --- | --- |
-| `prisma/seed.js` | Structure de l'entreprise : départements (`LOGISTICS`, `ADMIN`, `FINANCE`, …) et leurs postes (`QUAY_AGENT`, `HR_MGR`, `ACCOUNTANT`, …) | — |
-| `prisma/seedAppModules.js` | Modules de permission (`*`, `EMPLOYEES`, `USERS`, `COMPANY_STRUCTURE`, `MODULE`, `CLIENT`, `VESSELS`, `PORTS`, `VOYAGES`, `LOADING_PLANS`, `CARGO`) | Complet : la liste reprend exactement les codes vérifiés par le serveur et par le client |
-| `prisma/seedAdmin.js` (`npm run seed:admin`) | Administrateur universel : matricule `TECH-SA-01`, droit `(*, *)`, rattaché au département technique | Idempotent ; exécuté par le service `seed` au démarrage de l'environnement conteneurisé |
-| `prisma/seedDemo.js` (`npm run seed:demo`) | Jeu complet : employés et permissions, clients, adresses, documents, notifications, journal d'audit, jetons de session | Idempotent ; enchaîne les scripts de référence puis complète les tables restantes |
-| `prisma/seedLoadingPlan.js` (`npm run seed:loading`) | Navires, voyages, clients et plans de référence (total attendu 95,444 t) | **Destructif** : supprime puis recrée les marchandises des plans de référence ; deux lignes créées avec `weightKg: 0` contournent la validation de l'API, ce qui est voulu : elles représentent des marchandises dont le poids reste à confirmer |
+Les scripts de données de référence sont rangés dans `server/prisma/seeds/`. Ils
+s'enchaînent et produisent un jeu cohérent, comme si la compagnie exploitait
+l'application depuis dix-huit mois.
+
+| Script | Contenu |
+| --- | --- |
+| `00_structure.js` | Les cinq départements et leurs quatorze postes |
+| `01_modules.js` | Les douze modules de permissions, alignés sur les codes vérifiés par le code |
+| `02_employes.js` | Seize employés, embauchés sur dix-huit mois, avec leurs permissions ; trois d'entre eux n'ont pas d'accès et illustrent le circuit de demande d'accès |
+| `03_clients.js` | Quatorze exportateurs et leurs seize adresses |
+| `04_maritime.js` | Six ports, trois navires et seize voyages : onze terminés, un en route, quatre programmés |
+| `05_manutention.js` | Quatorze plans de chargement et leurs lignes, avec les plans de déchargement générés comme le fait l'application |
+| `06_entrepot.js` | Deux dépôts, les marchandises qui y attendent et la trace de leurs mouvements |
+| `07_suivi.js` | Notifications, lectures, journal d'audit reconstruit à partir des opérations réellement dues, et sessions |
+| `index.js` | Enchaînement des scripts, avec les options `--base` et `--reset` |
+
+```powershell
+cd server
+npm run seed          # jeu complet
+npm run seed:base     # socle minimal : structure, modules, administrateur
+npm run seed:reset    # vide les tables avant de rejouer
+```
+
+Le jeu respecte les règles de l'application : un plan de chargement validé a
+généré son plan de déchargement, un voyage en route porte des marchandises
+encore à bord, les marchandises en entrepôt proviennent d'un déchargement validé,
+et la position d'une marchandise désigne le quai de chargement à Toamasina
+(`QUAI 1`, `QUAI 2`, `QUAI 3`). Les dates sont calculées par rapport à
+l'instant de l'exécution : les voyages terminés se situent dans le passé, un
+voyage est en route et les autres sont programmés.
+
+En conteneur :
+
+```powershell
+docker compose --profile demo run --rm seed-demo
+```
 
 ## 6. Authentification et sécurité
 
@@ -1244,8 +1273,9 @@ cd client; npm run dev      # Vite, http://localhost:5173
 | --- | --- | --- |
 | `server/` | `npm test` | tests unitaires (`node --test test/unit/`) |
 | `server/` | `npm run test:integration` | test d'intégration (nécessite une base seedée) |
-| `server/` | `npm run seed:demo` | jeu de démonstration complet : structure, modules, administrateur, marchandises, entrepôt (**destructif** pour les plans de référence) |
-| `server/` | `npm run seed:loading` | seed du plan de chargement de référence (**destructif** pour les plans de référence) |
+| `server/` | `npm run seed` | jeu de démonstration complet : dix-huit mois d'exploitation, toutes les tables |
+| `server/` | `npm run seed:base` | socle minimal : structure, modules de permissions, administrateur universel |
+| `server/` | `npm run seed:reset` | vide les tables puis rejoue le jeu complet |
 | `server/` | `npm start` | production (`.env.production`) |
 | `server/` | `npx prisma migrate status` / `studio` | état des migrations / interface de données |
 | `client/` | `npm run build` / `preview` | build / prévisualisation |

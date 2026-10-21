@@ -1,9 +1,7 @@
-// prisma/structure.js
-// Structure de l'entreprise utilisée par les scripts de données de référence.
-// Partagée par le script de structure et par le script de démonstration afin
-// que les deux restent alignés.
+// prisma/seeds/00_structure.js
+// Structure de l'entreprise : departements et postes.
 
-const structure = [
+const structureEntreprise = [
   {
     code: "LOGISTICS",
     label: "Logistique & Opérations Maritimes",
@@ -50,4 +48,28 @@ const structure = [
   },
 ];
 
-module.exports = { structure };
+async function run(prisma) {
+  for (const departement of structureEntreprise) {
+    await prisma.department.upsert({
+      where: { code: departement.code },
+      update: { label: departement.label },
+      create: {
+        code: departement.code,
+        label: departement.label,
+        positions: {
+          create: departement.positions.map((poste) => ({
+            code: poste.code,
+            label: poste.label,
+          })),
+        },
+      },
+    });
+  }
+
+  console.log(
+    `   structure : ${structureEntreprise.length} departements, ` +
+      `${structureEntreprise.reduce((t, d) => t + d.positions.length, 0)} postes`,
+  );
+}
+
+module.exports = { run, structureEntreprise };

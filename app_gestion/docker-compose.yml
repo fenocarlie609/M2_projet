@@ -36,6 +36,8 @@ services:
     networks:
       - gestion
 
+  # Socle minimal : migrations, structure de l'entreprise, catalogue des
+  # modules de permissions et compte administrateur universel.
   seed:
     build:
       context: ./server
@@ -43,9 +45,7 @@ services:
     container_name: gestion-seed
     command: >
       sh -c "npx prisma migrate deploy &&
-             node prisma/seed.js &&
-             node prisma/seedAppModules.js &&
-             node prisma/seedAdmin.js"
+             node prisma/seeds/index.js --base"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-gestion}:${POSTGRES_PASSWORD:-gestion}@db:5432/${POSTGRES_DB:-gestion}
       ADMIN_NAME: ${ADMIN_NAME:-Administrateur Système}
@@ -58,14 +58,14 @@ services:
     networks:
       - gestion
 
-  # Jeu de donnees de demonstration complet (toutes les tables).
+  # Jeu de donnees de demonstration complet : dix-huit mois d'exploitation.
   # Usage : docker compose --profile demo run --rm seed-demo
   seed-demo:
     build:
       context: ./server
       target: build
     container_name: gestion-seed-demo
-    command: node prisma/seedDemo.js
+    command: node prisma/seeds/index.js
     profiles:
       - demo
     environment:
