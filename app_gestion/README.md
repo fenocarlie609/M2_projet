@@ -1242,8 +1242,9 @@ cd client; npm run dev      # Vite, http://localhost:5173
 
 | Où | Commande | Rôle |
 | --- | --- | --- |
-| `server/` | `npm test` | tests unitaires (`node --test`) |
+| `server/` | `npm test` | tests unitaires (`node --test test/unit/`) |
 | `server/` | `npm run test:integration` | test d'intégration (nécessite une base seedée) |
+| `server/` | `npm run seed:demo` | jeu de démonstration complet : structure, modules, administrateur, marchandises, entrepôt (**destructif** pour les plans de référence) |
 | `server/` | `npm run seed:loading` | seed du plan de chargement de référence (**destructif** pour les plans de référence) |
 | `server/` | `npm start` | production (`.env.production`) |
 | `server/` | `npx prisma migrate status` / `studio` | état des migrations / interface de données |
@@ -1494,6 +1495,20 @@ Aucun test frontend, aucun test HTTP de bout en bout, aucun test de permissions 
 | 19 | Amorçage de l'administrateur universel | `prisma/seedAdmin.js` installe un compte disposant du droit `(*, *)` dans le département technique, exécuté automatiquement par le service `seed` au démarrage de l'environnement conteneurisé |
 | 20 | Casse des noms de fichiers importés | La construction des images Linux a révélé cinq incohérences invisibles sur Windows : `Departmentaddmodal.jsx`, `Positionaddmodal.jsx`, `Employeepage.jsx` et `Employeetable.jsx` côté interface, `User.validation.js` côté serveur. Les fichiers ont été renommés pour correspondre à leurs imports (`DepartmentAddModal`, `PositionAddModal`, `EmployeePage`, `EmployeeTable`, `user.validation`) |
 | 21 | Droits `USERS` et `MODULE` non appliqués par le serveur | Les routes de gestion des accès et celles du catalogue des modules n'étaient protégées que par le département technique : les permissions `USERS` et `MODULE` du catalogue n'étaient donc jamais vérifiées, alors que l'interface les exige. Chaque route vérifie désormais le droit correspondant, en plus de la restriction de département pour la gestion des accès |
+
+### 14.3. Finalisation de l'application
+
+| # | Sujet | Correction |
+| --- | --- | --- |
+| 22 | Table `client_documents` | Elle n'etait utilisee par aucun module : la table et ses donnees de demonstration ont ete retirees par la migration `20261021120000_retirer_client_documents_et_indexer_audit` |
+| 23 | Suppression d'un client | Elle etait definitive, alors que les listes filtrent sur `deletedAt` : elle est desormais logique, comme pour les employes, la structure, les voyages, les navires et l'entrepot |
+| 24 | Journal d'audit | Un index sur `createdAt` a ete ajoute, et la reponse n'y est plus recopiee en entier : seules les identites de l'enregistrement concerne sont conservees |
+| 25 | Limiteur de connexion | Il comptait les tentatives reussies : seules les tentatives infructueuses sont desormais comptees |
+| 26 | Matricule des employes | Le numero est calcule sur le plus grand deja utilise pour le poste, et non sur un simple comptage, ce qui evite une collision apres une suppression |
+| 27 | Identite de l'application | Le bandeau, le titre de l'onglet, le manifeste et l'ecran de connexion ne portaient plus que des residus de gabarit : ils indiquent desormais l'entreprise et l'application |
+| 28 | Page de demonstration `/template` | Bac a sable de developpement accessible sans permission : route, composant et import supprimes |
+| 29 | Ecran entrepot | Vue en cartes pour le mobile, filtres entrepot, client et statut, selection du plan par le composant du kit, et mise en stock en un clic des marchandises dechargees d'un plan valide |
+| 30 | Plan de dechargement de demonstration | Le jeu de demonstration contient un plan de dechargement valide : le circuit « le navire est arrive, les marchandises attendent en entrepot » est demontrable |
 | 22 | Boutons de modification des modules toujours visibles | `ModuleTable.jsx` calculait `canManage` avec `département === "TECH" || "ADMIN"`, expression toujours vraie : les boutons étaient affichés pour tout le monde. L'interface applique maintenant `checkPermission("MODULE", ...)`, comme le serveur |
 | 23 | Événement `load:changed` sans écouteur | Le serveur diffuse la modification des lignes de marchandises, mais aucun écran ne l'écoutait : l'écran des plans ne se rafraîchissait pas. L'écoute a été ajouté |### 14.2. Points assumés
 

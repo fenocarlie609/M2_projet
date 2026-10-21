@@ -2,22 +2,24 @@
 const rateLimit = require("express-rate-limit");
 const logger = require("../../config/logger");
 
-// Limiteur ultra strict pour le brute-force (Login, Register, Password Reset)
+// Limiteur destine au forcage brutal (connexion, reinitialisation de mot de
+// passe). Seules les tentatives infructueuses sont comptees : une connexion
+// reussie ne doit jamais Consommer le quota de l'utilisateur.
 const authLimiter = rateLimit({
-  // windowMs: 15 * 60 * 1000, // 15 minutes
-  windowMs: 60 * 1000, // 60 secondes pour les tests
-  max: 5, // Seulement 5 tentatives autorisées !
+  windowMs: 60 * 1000,
+  max: 5,
+  // Une reponse moins de 400 rend la tentative au quota.
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     status: "fail",
     message:
-      // "Trop de tentatives de connexion. Veuillez réessayer dans 15 minutes.",
-      "Trop de tentatives de connexion. Veuillez réessayer dans 1 minutes.",
+      "Trop de tentatives de connexion infructueuses. Veuillez réessayer dans une minute.",
   },
   handler: (req, res, next, options) => {
     logger.warn(
-      `[BRUTE-FORCE DETECTED] Trop de requêtes sur l'authentification depuis l'IP: ${req.ip}`,
+      `[BRUTE-FORCE DETECTED] Trop de tentatives sur l'authentification depuis l'IP: ${req.ip}`,
     );
     res.status(options.statusCode).json(options.message);
   },

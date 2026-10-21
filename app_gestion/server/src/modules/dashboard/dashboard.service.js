@@ -111,41 +111,20 @@ const blocPlans = async (utilisateur) => {
 };
 
 /**
- * Referentiel commercial : clients actifs, nouveaux clients, documents qui
- * expirent.
+ * Referentiel commercial : clients actifs et nouveaux clients.
  */
 const blocClients = async (utilisateur) => {
   if (!possede(utilisateur, "CLIENT")) return null;
 
   const depuis = new Date(Date.now() - 30 * JOURS);
-  const echeance = new Date(Date.now() + 30 * JOURS);
 
-  const [actifs, nouveaux, documents] = await Promise.all([
+  const [actifs, nouveaux, total] = await Promise.all([
     prisma.client.count({ where: { deletedAt: null, isActive: true } }),
     prisma.client.count({ where: { deletedAt: null, createdAt: { gte: depuis } } }),
-    prisma.clientDocument.findMany({
-      where: {
-        deletedAt: null,
-        expiresAt: { not: null, lte: echeance },
-      },
-      include: { client: { select: { name: true, reference: true } } },
-      orderBy: { expiresAt: "asc" },
-      take: 5,
-    }),
+    prisma.client.count({ where: { deletedAt: null } }),
   ]);
 
-  return {
-    actifs,
-    nouveaux,
-    documentsExpires: documents.map((document) => ({
-      id: document.id,
-      client: document.client?.name || "—",
-      type: document.documentType,
-      numero: document.documentNumber,
-      expireLe: document.expiresAt,
-      expire: document.expiresAt < new Date(),
-    })),
-  };
+  return { actifs, nouveaux, total };
 };
 
 /**

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FiAnchor } from "react-icons/fi";
 import { useAuth, loginService } from "@/features/auth";
 import { showToast } from "@/shared/utils/toast";
 
@@ -32,7 +33,18 @@ function LoginPage() {
         onSubmit={handleSubmit}
         className="w-full max-w-md bg-slate-900/90 border border-slate-700 rounded-3xl p-8 shadow-xl"
       >
-        <h1 className="text-2xl font-semibold mb-6">Connexion</h1>
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-xl bg-brand-primary flex items-center justify-center text-white mx-auto mb-3">
+            <FiAnchor size={24} />
+          </div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+            LCT Premium A. Fenovavy
+          </p>
+          <h1 className="text-xl font-semibold mt-1">
+            Suivi logistique & fret maritime
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">Connexion à l'application</p>
+        </div>
 
         <label className="block text-sm text-slate-300 mb-2">
           Identifient

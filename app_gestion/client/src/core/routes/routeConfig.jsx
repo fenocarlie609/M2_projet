@@ -13,7 +13,6 @@ import { DashboardPage } from "@/features/dashboard";
 import { EmployeePage } from "@/features/employee";
 import { UsersPage } from "@/features/users";
 import { CompanyStructurePage } from "@/features/companyStructure";
-import { TemplatePage } from "@/features/template";
 import { ClientPage } from "@/features/client";
 import { ModulePage } from "@/features/module";
 import { PlansPage } from "@/features/plans";
@@ -36,15 +35,6 @@ export const appRoutes = [
     requiredPermission: null,
     icon: MdSpaceDashboard,
     showInSidebar: true,
-  },
-  {
-    path: "/template",
-    label: "Template",
-    section: "Général",
-    element: withDashboardLayout(<TemplatePage />),
-    requiredPermission: null,
-    icon: FiAnchor,
-    showInSidebar: false,
   },
   {
     path: "/employees",

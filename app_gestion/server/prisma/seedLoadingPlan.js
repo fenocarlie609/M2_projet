@@ -95,6 +95,59 @@ async function seedPlan({ reference, voyageId, lines }) {
   });
 }
 
+/**
+ * Plan de dechargement associe a un plan de chargement valide : il represente
+ * l'arrivee du navire et les marchandises deposees sur le quai, disponibles
+ * pour une entree en entrepot.
+ */
+async function seedUnloadPlan({ sourcePlan, voyageId, lines }) {
+  const unloadPlan = await prisma.loadingPlan.upsert({
+    where: { reference: `DECH-${sourcePlan.reference}` },
+    update: {
+      voyageId,
+      status: true,
+      operationType: "UNLOAD",
+      validatedAt: new Date(),
+      sourceLoadingPlanId: sourcePlan.id,
+    },
+    create: {
+      reference: `DECH-${sourcePlan.reference}`,
+      voyageId,
+      status: true,
+      operationType: "UNLOAD",
+      validatedAt: new Date(),
+      sourceLoadingPlanId: sourcePlan.id,
+      totalWeightKg: decimal(0),
+    },
+  });
+
+  await prisma.load.deleteMany({ where: { loadingPlanId: unloadPlan.id } });
+
+  const totalWeightKg = lines.reduce(
+    (total, line) => total + Number(line.weightKg),
+    0,
+  );
+
+  await prisma.load.createMany({
+    data: lines.map(({ driverId, vehicleId, ...line }) => ({
+      ...line,
+      loadingPlanId: unloadPlan.id,
+      weightKg: decimal(line.weightKg),
+      driverName: null,
+      vehiclePlate: null,
+      loadingDate: null,
+      status: "LOADED",
+    })),
+  });
+
+  await prisma.loadingPlan.update({
+    where: { id: unloadPlan.id },
+    data: { totalWeightKg: decimal(totalWeightKg) },
+  });
+
+  return unloadPlan;
+}
+
 async function main() {
   console.log("Debut du seed des donnees logistiques de demonstration...");
 
@@ -372,6 +425,58 @@ async function main() {
       },
     ],
   });
+
+  // Le navire est arrive : un plan de dechargement valide accompagne le plan
+  // de chargement, et ses marchandises peuvent etre mises en entrepot.
+  const planDechargement = await seedUnloadPlan({
+    sourcePlan: referencePlan,
+    voyageId: voyage13.id,
+    lines: [
+      {
+        clientId: kenny.id,
+        packageCount: 135,
+        description: "Colis Balles FRIPE 45KG",
+        weightKg: 6075,
+        anomaly: null,
+        loadingPosition: "QUAI 2",
+        isHazardous: false,
+        status: "LOADED",
+      },
+      {
+        clientId: kenny.id,
+        packageCount: 295,
+        description: "Colis Balles FRIPE 40KG",
+        weightKg: 11800,
+        anomaly: null,
+        loadingPosition: "QUAI 2",
+        isHazardous: false,
+        status: "LOADED",
+      },
+      {
+        clientId: richard.id,
+        packageCount: 46,
+        description: "Cornieres de 60x60",
+        weightKg: 1380,
+        anomaly: null,
+        loadingPosition: "QUAI 3",
+        isHazardous: false,
+        status: "LOADED",
+      },
+      {
+        clientId: richard.id,
+        packageCount: 100,
+        description: "SABA FLORAL 3,75 kg",
+        weightKg: 375,
+        anomaly: null,
+        loadingPosition: "QUAI 3",
+        isHazardous: false,
+        status: "LOADED",
+      },
+    ],
+  });
+  console.log(
+    `Plan de dechargement cree : ${planDechargement.reference} (marchandises a stocker)`,
+  );
 
   await seedPlan({
     reference: "PL-14E-2026",

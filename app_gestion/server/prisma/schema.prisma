@@ -147,6 +147,7 @@ model AuditLog {
 
   createdAt DateTime @default(now())
 
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -194,10 +195,9 @@ model Client {
   // MODIFICATION : Relation mise à jour vers Load
   loads          Load[]
   addresses      ClientAddress[]
-  documents      ClientDocument[]
   warehouseItems WarehouseItem[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   deletedAt      DateTime?
 
   @@index([type])
@@ -229,34 +229,6 @@ model ClientAddress {
   @@index([deletedAt])
   @@map("client_addresses")
 }
-
-model ClientDocument {
-  id             String    @id @default(uuid())
-  clientId       String
-  documentType   String
-  documentNumber String?
-  fileName       String?
-  fileUrl        String?
-  issuedAt       DateTime?
-  expiresAt      DateTime?
-  verifiedAt     DateTime?
-  notes          String?
-
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([clientId, documentType])
-  @@index([expiresAt])
-  @@index([deletedAt])
-  @@map("client_documents")
-}
-
-// ==========================================
-// 3. DONNÉES MARITIMES
-// ==========================================
 
 model Vessel {
   id                 String   @id @default(uuid())

@@ -16,9 +16,11 @@ export default defineConfig({
         "nano tech logo.svg",
       ],
       manifest: {
-        name: "Maritime Admin",
-        short_name: "Maritime Admin",
-        description: "Application de gestion maritime et RH",
+        name: "LCT Premium — Suivi logistique & fret maritime",
+        short_name: "LCT Premium",
+        description:
+          "Suivi logistique et gestion de fret maritime : employés, accès, clients, navires, voyages, plans de manutention et entrepôt.",
+        lang: "fr",
         theme_color: "#0f172a",
         background_color: "#f8fafc",
         display: "standalone",

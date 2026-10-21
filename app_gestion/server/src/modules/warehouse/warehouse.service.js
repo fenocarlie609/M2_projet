@@ -362,6 +362,48 @@ const embarkItem = async (id, employeeId, data) => {
 };
 
 /**
+ * Marchandises disponibles pour une entree en entrepot : lignes de plan de
+ * dechargement validees, donc decharges, et non encore stockees.
+ */
+const getAvailableItems = async () => {
+  const lignes = await prisma.load.findMany({
+    where: {
+      deletedAt: null,
+      status: "LOADED",
+      stockSource: null,
+      loadingPlan: {
+        operationType: "UNLOAD",
+        status: true,
+        deletedAt: null,
+      },
+    },
+    include: {
+      client: { select: { id: true, name: true } },
+      loadingPlan: {
+        select: {
+          id: true,
+          reference: true,
+          voyage: { select: { voyageNumber: true, vessel: { select: { name: true } } } },
+        },
+      },
+    },
+    orderBy: { loadingDate: "desc" },
+  });
+
+  return lignes.map((ligne) => ({
+    id: ligne.id,
+    clientId: ligne.clientId,
+    client: ligne.client?.name || "—",
+    description: ligne.description,
+    packageCount: ligne.packageCount,
+    weightKg: ligne.weightKg,
+    plan: ligne.loadingPlan?.reference || "—",
+    voyage: ligne.loadingPlan?.voyage?.voyageNumber || "—",
+    navire: ligne.loadingPlan?.voyage?.vessel?.name || "—",
+  }));
+};
+
+/**
  * Journal des mouvements d'un entrepot ou de l'ensemble.
  */
 const getMovements = async (filtres = {}) => {
@@ -389,6 +431,7 @@ module.exports = {
   deleteWarehouse,
   getItems,
   getItem,
+  getAvailableItems,
   createItem,
   pickupItem,
   embarkItem,

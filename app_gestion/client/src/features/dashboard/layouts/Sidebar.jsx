@@ -68,10 +68,10 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-white text-sm tracking-wider leading-none">
-                MADA MARITIME
+                LCT PREMIUM
               </span>
               <span className="text-[10px] text-slate-400 mt-1 font-medium tracking-widest">
-                PORTAIL NATIONAL
+                LOGISTIQUE & FRET
               </span>
             </div>
           </div>

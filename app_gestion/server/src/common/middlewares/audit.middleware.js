@@ -35,6 +35,44 @@ const redactSensitiveValues = (value) => {
 };
 
 /**
+ * Resume d'une reponse pour le journal d'audit : seuls les identifiants de
+ * l'enregistrement concerne sont conserves. Enregistrer la reponse entiere
+ * alourdirait le journal et y recopierait des donnees d'affaires.
+ */
+const summarizeResponse = (data) => {
+  if (!data || typeof data !== "object") return null;
+
+  let source = data;
+  if (source.data && typeof source.data === "object") {
+    source = source.data;
+  }
+
+  const cles = Object.keys(source);
+  if (
+    cles.length === 1 &&
+    source[cles[0]] &&
+    typeof source[cles[0]] === "object" &&
+    !Array.isArray(source[cles[0]])
+  ) {
+    source = source[cles[0]];
+  }
+
+  const retenues = ["id", "reference", "matricule", "code", "name", "status"];
+  const resume = {};
+
+  for (const cle of retenues) {
+    const valeur = source[cle];
+    if (valeur === undefined || valeur === null) continue;
+    resume[cle] =
+      valeur && typeof valeur === "object"
+        ? valeur.id || valeur.reference || "[enregistrement]"
+        : valeur;
+  }
+
+  return Object.keys(resume).length > 0 ? resume : { operation: "effectuee" };
+};
+
+/**
  * Middleware global pour enregistrer les actions critiques dans la table AuditLog
  * On cible principalement les méthodes de modification de données
  */
@@ -68,7 +106,7 @@ const auditTrail = () => {
             ipAddress,
             payload: req.body ? redactSensitiveValues(req.body) : null,
             oldValues: oldValues ? redactSensitiveValues(oldValues) : null,
-            newValues: data ? redactSensitiveValues(data) : null,
+            newValues: data ? redactSensitiveValues(summarizeResponse(data)) : null,
           },
         })
         .catch((err) => {
@@ -87,3 +125,4 @@ const auditTrail = () => {
 
 module.exports = auditTrail;
 module.exports.redactSensitiveValues = redactSensitiveValues;
+module.exports.summarizeResponse = summarizeResponse;

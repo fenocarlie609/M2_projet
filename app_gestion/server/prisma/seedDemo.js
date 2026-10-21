@@ -5,7 +5,7 @@
 // Le script enchaîne les scripts de référence (structure de l'entreprise,
 // catalogue des modules, administrateur universel, données logistiques), puis
 // complète les tables qui ne sont couvertes par aucun autre script : les
-// employés et leurs permissions, les adresses et les documents des clients,
+// employés et leurs permissions et les adresses des clients,
 // les notifications et leur lecture, le journal d'audit et les jetons de
 // session.
 //
@@ -337,79 +337,7 @@ const adressesParClient = {
   ],
 };
 
-const documentsParClient = {
-  "ETS RAKOTOVOINTSAKA": [
-    {
-      documentType: "NIF",
-      documentNumber: "4001234567",
-      fileName: "nif-rakotovointsaka.pdf",
-      issuedAt: new Date("2026-01-12T00:00:00.000Z"),
-      expiresAt: null,
-      verifiedAt: new Date("2026-02-04T00:00:00.000Z"),
-      notes: "Original vérifié au guichet.",
-    },
-    {
-      documentType: "STAT",
-      documentNumber: "65412",
-      fileName: "stat-65412.pdf",
-      issuedAt: new Date("2026-01-12T00:00:00.000Z"),
-      expiresAt: null,
-      verifiedAt: new Date("2026-02-04T00:00:00.000Z"),
-      notes: null,
-    },
-    {
-      documentType: "CONTRAT",
-      documentNumber: "CT-2026-001",
-      fileName: "contrat-transport-2026.pdf",
-      issuedAt: new Date("2026-01-20T00:00:00.000Z"),
-      expiresAt: new Date("2026-12-31T00:00:00.000Z"),
-      verifiedAt: null,
-      notes: "Contrat annuel de transport maritime.",
-    },
-  ],
-  "SOCIETE GENERALE DE TRANSPORT MARITIME": [
-    {
-      documentType: "RCS",
-      documentNumber: "2008 B 04567",
-      fileName: "rcs-sgtm.pdf",
-      issuedAt: new Date("2008-06-20T00:00:00.000Z"),
-      expiresAt: null,
-      verifiedAt: new Date("2026-02-11T00:00:00.000Z"),
-      notes: null,
-    },
-    {
-      documentType: "AGREMENT",
-      documentNumber: "AGR-2026-118",
-      fileName: "agrement-temporaire-2026.pdf",
-      issuedAt: new Date("2026-02-01T00:00:00.000Z"),
-      expiresAt: new Date("2026-11-05T00:00:00.000Z"),
-      verifiedAt: new Date("2026-02-11T00:00:00.000Z"),
-      notes: "Agrément temporaire à renouveler avant le 5 novembre.",
-    },
-  ],
-  "COOPÉRATIVE DES PRODUCTEURS DE VANILLE": [
-    {
-      documentType: "NIF",
-      documentNumber: "4009876543",
-      fileName: "nif-coop-vanille.pdf",
-      issuedAt: new Date("2024-05-02T00:00:00.000Z"),
-      expiresAt: null,
-      verifiedAt: new Date("2026-03-08T00:00:00.000Z"),
-      notes: null,
-    },
-  ],
-  "RAZAFIMAHATRATRA Sophie": [
-    {
-      documentType: "CIN",
-      documentNumber: "20110011223",
-      fileName: "cin-sophie.jpg",
-      issuedAt: new Date("2021-03-14T00:00:00.000Z"),
-      expiresAt: new Date("2031-03-14T00:00:00.000Z"),
-      verifiedAt: new Date("2026-04-02T00:00:00.000Z"),
-      notes: null,
-    },
-  ],
-};
+
 
 // Correspondance entre les tables physiques et les modeles du client Prisma
 const TABLES = [
@@ -421,7 +349,6 @@ const TABLES = [
   ["audit_logs", "auditLog"],
   ["clients", "client"],
   ["client_addresses", "clientAddress"],
-  ["client_documents", "clientDocument"],
   ["vessels", "vessel"],
   ["ports", "port"],
   ["voyages", "voyage"],
@@ -549,7 +476,7 @@ async function main() {
     employesCrees.push({ ...donnees, employe });
   }
 
-  console.log("4. Clients, adresses et documents");
+  console.log("4. Clients et adresses");
   for (const donnees of clients) {
     const { nom, ...champs } = donnees;
     const client = await prisma.client.upsert({
@@ -569,40 +496,6 @@ async function main() {
       }
     }
 
-    for (const document of documentsParClient[nom] || []) {
-      const existant = await prisma.clientDocument.findFirst({
-        where: {
-          clientId: client.id,
-          documentType: document.documentType,
-          documentNumber: document.documentNumber,
-        },
-      });
-      const donnees = {
-        fileName: document.fileName,
-        fileUrl: `/uploads/clients/${client.reference}/${document.fileName}`,
-        issuedAt: document.issuedAt,
-        expiresAt: document.expiresAt,
-        verifiedAt: document.verifiedAt,
-        notes: document.notes,
-      };
-      if (existant) {
-        // Les dates sont actualisees : le bloc « documents a renouveler »
-        // du tableau de bord reste alimente.
-        await prisma.clientDocument.update({
-          where: { id: existant.id },
-          data: donnees,
-        });
-      } else {
-        await prisma.clientDocument.create({
-          data: {
-            clientId: client.id,
-            documentType: document.documentType,
-            documentNumber: document.documentNumber,
-            ...donnees,
-          },
-        });
-      }
-    }
   }
 
   // Les clients crees par le script de donnees logistiques recoivent eux

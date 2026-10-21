@@ -20,6 +20,12 @@ router.get(
 );
 
 router.get(
+  "/items/disponibles",
+  authMiddleware.authorize("ENTREPOTS", APP_ACTIONS.READ),
+  controller.getAvailableItems,
+);
+
+router.get(
   "/items",
   authMiddleware.authorize("ENTREPOTS", APP_ACTIONS.READ),
   controller.getItems,

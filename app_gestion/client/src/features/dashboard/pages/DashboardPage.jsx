@@ -210,23 +210,6 @@ function DashboardPage() {
       });
     }
 
-    if (resume?.clients && resume.clients.documentsExpires?.length > 0) {
-      liste.push({
-        icone: FiFileText,
-        titre: `${resume.clients.documentsExpires.length} document(s) client(s) a renouveler`,
-        detail: resume.clients.documentsExpires
-          .map(
-            (document) =>
-              `${document.type} — ${document.client} (${formatDate(
-                document.expireLe,
-              )})`,
-          )
-          .join(" · "),
-        action: "Ouvrir les clients",
-        onClick: () => navigate("/client"),
-      });
-    }
-
     if (resume?.voyages && resume.voyages.prochains?.length > 0) {
       liste.push({
         icone: FiAnchor,
@@ -335,10 +318,10 @@ function DashboardPage() {
             variant="brand"
           />
           <StatsCard
-            title="Documents à renouveler"
-            value={resume.clients.documentsExpires?.length || 0}
-            subtext="Échéance sous trente jours"
-            icon={FiFileText}
+            title="Clients au total"
+            value={resume.clients.total}
+            subtext="Référentiel commercial"
+            icon={FiUsers}
           />
           {resume.voyages && (
             <StatsCard

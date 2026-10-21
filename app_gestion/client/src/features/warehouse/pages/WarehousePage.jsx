@@ -2,7 +2,7 @@
 // Entreposage : marchandises dechargees d'un navire, conservees en entrepot
 // dans l'attente de leur retrait par le client ou de leur reembarquement sur
 // un prochain voyage.
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   PageHeader,
   Button,
@@ -15,6 +15,7 @@ import {
   Modal,
   StatsCard,
   Alert,
+  Select,
 } from "@/shared/components/ui";
 import { FiPlus, FiPackage, FiArchive, FiRefreshCw } from "react-icons/fi";
 import { useAuth } from "@/features/auth";
@@ -25,6 +26,7 @@ import { warehouseService } from "@/features/warehouse/service/warehouse.service
 import { WarehouseForm } from "@/features/warehouse/components/WarehouseForm";
 import { StockItemForm } from "@/features/warehouse/components/StockItemForm";
 import { StockItemTable } from "@/features/warehouse/components/StockItemTable";
+import { StockItemCard } from "@/features/warehouse/components/StockItemCard";
 import { clientService } from "@/features/client";
 import { loadingPlanService } from "@/features/plans";
 
@@ -33,6 +35,13 @@ const TYPE_MOUVEMENT = {
   PICKUP: "Retrait client",
   RE_EMBARKMENT: "Réembarquement",
 };
+
+const STATUTS = [
+  { value: "", label: "Tous les statuts" },
+  { value: "IN_STOCK", label: "En stock" },
+  { value: "EMBARKED", label: "Réembarqué" },
+  { value: "PICKED_UP", label: "Retiré" },
+];
 
 function WarehousePage() {
   const { checkPermission } = useAuth();
@@ -43,10 +52,15 @@ function WarehousePage() {
   const [entrepots, setEntrepots] = useState([]);
   const [articles, setArticles] = useState([]);
   const [mouvements, setMouvements] = useState([]);
+  const [disponibles, setDisponibles] = useState([]);
   const [clients, setClients] = useState([]);
   const [plans, setPlans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [erreur, setErreur] = useState(null);
+
+  const [filtreEntrepot, setFiltreEntrepot] = useState("");
+  const [filtreClient, setFiltreClient] = useState("");
+  const [filtreStatut, setFiltreStatut] = useState("");
 
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isWarehouseModalOpen, setIsWarehouseModalOpen] = useState(false);
@@ -59,16 +73,18 @@ function WarehousePage() {
     setIsLoading(true);
     setErreur(null);
     try {
-      const [reponseEntrepots, reponseArticles, reponseMouvements] =
+      const [reponseEntrepots, reponseArticles, reponseMouvements, reponseDispo] =
         await Promise.all([
           warehouseService.getWarehouses(),
           warehouseService.getItems(),
           warehouseService.getMovements(),
+          warehouseService.getAvailableItems(),
         ]);
 
       setEntrepots(reponseEntrepots.data?.warehouses || []);
       setArticles(reponseArticles.data?.items || []);
       setMouvements(reponseMouvements.data?.mouvements || []);
+      setDisponibles(reponseDispo.data?.items || []);
     } catch (requestError) {
       setErreur(
         requestError?.response?.data?.message ||
@@ -115,6 +131,18 @@ function WarehousePage() {
     chargerReferences();
   }, []);
 
+  // Filtres appliques cote client, sans rechargement de la page.
+  const articlesFiltres = useMemo(() => {
+    return articles.filter((article) => {
+      if (filtreEntrepot && article.warehouseId !== filtreEntrepot) {
+        return false;
+      }
+      if (filtreClient && article.clientId !== filtreClient) return false;
+      if (filtreStatut && article.status !== filtreStatut) return false;
+      return true;
+    });
+  }, [articles, filtreEntrepot, filtreClient, filtreStatut]);
+
   const totalTonnage = entrepots.reduce(
     (total, entrepot) => total + (entrepot.tonnageEnStock || 0),
     0,
@@ -133,8 +161,7 @@ function WarehousePage() {
       await charger();
     } catch (error) {
       showToast.error(
-        error?.response?.data?.message ||
-          "L'entrée en entrepôt a échoué.",
+        error?.response?.data?.message || "L'entrée en entrepôt a échoué.",
       );
       throw error;
     } finally {
@@ -215,7 +242,8 @@ function WarehousePage() {
     {
       key: "tonnageEnStock",
       header: "Tonnage",
-      render: (ligne) => `${Number(ligne.tonnageEnStock).toLocaleString("fr-FR")} t`,
+      render: (ligne) =>
+        `${Number(ligne.tonnageEnStock).toLocaleString("fr-FR")} t`,
     },
     {
       key: "tauxOccupation",
@@ -274,10 +302,23 @@ function WarehousePage() {
     },
   ];
 
+  const optionsEntrepots = [
+    { value: "", label: "Tous les entrepôts" },
+    ...entrepots.map((entrepot) => ({
+      value: entrepot.id,
+      label: `${entrepot.code} — ${entrepot.name}`,
+    })),
+  ];
+
+  const optionsClients = [
+    { value: "", label: "Tous les clients" },
+    ...clients.map((client) => ({ value: client.id, label: client.name })),
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Entreposage"
+        title="Entrepôt"
         subtitle="Marchandises déchargées, en attente de retrait par le client ou de réembarquement."
       >
         <Button
@@ -347,15 +388,59 @@ function WarehousePage() {
           />
 
           {onglet === "stock" && (
-            <StockItemTable
-              data={articles}
-              isLoading={isLoading}
-              onPickup={enregistrerRetrait}
-              onEmbark={(article) => {
-                setEmbarkTarget(article);
-                setEmbarkPlanId("");
-              }}
-            />
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Select
+                  id="filtre-entrepot"
+                  value={filtreEntrepot}
+                  onChange={(e) => setFiltreEntrepot(e.target.value)}
+                  options={optionsEntrepots}
+                />
+                <Select
+                  id="filtre-client"
+                  value={filtreClient}
+                  onChange={(e) => setFiltreClient(e.target.value)}
+                  options={optionsClients}
+                />
+                <Select
+                  id="filtre-statut"
+                  value={filtreStatut}
+                  onChange={(e) => setFiltreStatut(e.target.value)}
+                  options={STATUTS}
+                />
+              </div>
+
+              <div className="hidden md:block">
+                <StockItemTable
+                  data={articlesFiltres}
+                  isLoading={isLoading}
+                  onPickup={enregistrerRetrait}
+                  onEmbark={(article) => {
+                    setEmbarkTarget(article);
+                    setEmbarkPlanId("");
+                  }}
+                />
+              </div>
+
+              <div className="grid md:hidden gap-3">
+                {articlesFiltres.length === 0 && !isLoading && (
+                  <p className="text-xs sm:text-sm text-slate-400 font-medium">
+                    Aucune marchandise en entrepôt.
+                  </p>
+                )}
+                {articlesFiltres.map((article) => (
+                  <StockItemCard
+                    key={article.id}
+                    item={article}
+                    onPickup={enregistrerRetrait}
+                    onEmbark={(element) => {
+                      setEmbarkTarget(element);
+                      setEmbarkPlanId("");
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
           )}
 
           {onglet === "entrepots" && (
@@ -402,6 +487,7 @@ function WarehousePage() {
         <StockItemForm
           warehouses={entrepots}
           clients={clients}
+          availableItems={disponibles}
           onSubmit={enregistrerEntree}
           onCancel={() => setIsItemModalOpen(false)}
           isSubmitting={isSubmitting}
@@ -433,27 +519,28 @@ function WarehousePage() {
         <div className="space-y-4">
           <p className="text-xs sm:text-sm text-slate-600">
             {embarkTarget?.description} — {embarkTarget?.packageCount} colis,{" "}
-            {Number(embarkTarget?.weightKg || 0).toLocaleString("fr-FR")} kg.
-            La marchandise quittera l'entrepôt et sera rattachée au plan de
+            {Number(embarkTarget?.weightKg || 0).toLocaleString("fr-FR")} kg. La
+            marchandise quittera l'entrepôt et sera rattachée au plan de
             chargement choisi.
           </p>
 
-          <select
+          <Select
+            id="embark-plan"
+            label="Plan de chargement"
             value={embarkPlanId}
             onChange={(e) => setEmbarkPlanId(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"
-          >
-            <option value="">Choisir un plan de chargement</option>
-            {plans
-              .filter(
-                (plan) => plan.operationType === "LOAD" && !plan.status,
-              )
-              .map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.reference} — {Number(plan.totalWeightKg).toLocaleString("fr-FR")} kg
-                </option>
-              ))}
-          </select>
+            options={[
+              { value: "", label: "Choisir un plan de chargement" },
+              ...plans
+                .filter((plan) => plan.operationType === "LOAD" && !plan.status)
+                .map((plan) => ({
+                  value: plan.id,
+                  label: `${plan.reference} — ${Number(
+                    plan.totalWeightKg,
+                  ).toLocaleString("fr-FR")} kg`,
+                })),
+            ]}
+          />
 
           <div className="flex justify-end gap-2">
             <Button

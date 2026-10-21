@@ -1,4 +1,5 @@
 const { prisma } = require("../../config/database");
+const AppError = require("../../common/utils/AppError");
 
 const activeAddressInclude = {
   addresses: {
@@ -93,13 +94,30 @@ const updateClient = async (id, data) => {
   });
 };
 
-const deleteClient = async (id) =>
-  prisma.client.delete({
-    where: { id },
+const deleteClient = async (id) => {
+  const client = await prisma.client.findFirst({
+    where: { id, deletedAt: null },
   });
+  if (!client) throw new AppError("Client non trouvé.", 404);
+
+  // Suppression logique : la fiche et ses adresses restent consultables dans
+  // l'historique, comme pour les employes, les voyages et les navires.
+  return prisma.$transaction(async (transaction) => {
+    await transaction.clientAddress.updateMany({
+      where: { clientId: id, deletedAt: null },
+      data: { deletedAt: new Date(), isDefault: false },
+    });
+
+    return transaction.client.update({
+      where: { id },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+  });
+};
 
 const getAllClients = async () => {
   const clients = await prisma.client.findMany({
+    where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
     include: activeAddressInclude,
   });
@@ -108,10 +126,12 @@ const getAllClients = async () => {
 };
 
 const getClientById = async (id) => {
-  const client = await prisma.client.findUnique({
-    where: { id },
+  const client = await prisma.client.findFirst({
+    where: { id, deletedAt: null },
     include: activeAddressInclude,
   });
+
+  if (!client) throw new AppError("Client non trouvé.", 404);
 
   return toBasicClient(client);
 };

@@ -51,14 +51,25 @@ const generateMatricule = async (departmentId, positionId) => {
 
   const deptCode = formatCode(department.code || department.name);
   const posCode = formatCode(position.code || position.title);
+  const prefix = `${deptCode}-${posCode}-`;
 
-  // Compte les employés ayant le même poste
-  const count = await prisma.employee.count({
+  // Le numero est le plus grand deja utilise pour ce poste, et non le
+  // nombre d'employes : apres une suppression, un simple comptage
+  // attribuerait un matricule deja porte par un autre employe.
+  const employes = await prisma.employee.findMany({
     where: { positionId },
+    select: { matricule: true },
   });
 
-  const sequence = String(count + 1).padStart(2, "0");
-  return `${deptCode}-${posCode}-${sequence}`;
+  const plusGrand = employes.reduce((maximum, employe) => {
+    const matricule = employe.matricule || "";
+    if (!matricule.startsWith(prefix)) return maximum;
+    const numero = Number.parseInt(matricule.slice(prefix.length), 10);
+    return Number.isNaN(numero) ? maximum : Math.max(maximum, numero);
+  }, 0);
+
+  const sequence = String(plusGrand + 1).padStart(2, "0");
+  return `${prefix}${sequence}`;
 };
 
 /**

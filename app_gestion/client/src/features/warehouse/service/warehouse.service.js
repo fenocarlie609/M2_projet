@@ -10,6 +10,7 @@ export const warehouseService = {
 
   // Marchandises en entrepot
   getItems: (filtres = {}) => api.get("/warehouse/items", { params: filtres }),
+  getAvailableItems: () => api.get("/warehouse/items/disponibles"),
   createItem: (data) => api.post("/warehouse/items", data),
   pickupItem: (id, data = {}) => api.post(`/warehouse/items/${id}/pickup`, data),
   embarkItem: (id, data) => api.post(`/warehouse/items/${id}/embark`, data),

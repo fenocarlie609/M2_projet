@@ -45,6 +45,11 @@ exports.getItem = catchAsync(async (req, res) => {
   return sendSuccess(res, { data: { item } });
 });
 
+exports.getAvailableItems = catchAsync(async (req, res) => {
+  const items = await warehouseService.getAvailableItems();
+  return sendSuccess(res, { data: { items } });
+});
+
 exports.createItem = catchAsync(async (req, res) => {
   const item = await warehouseService.createItem(req.body, req.user.id);
   return sendCreated(res, { data: { item } });
