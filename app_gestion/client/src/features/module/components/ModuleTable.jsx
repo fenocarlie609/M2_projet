@@ -5,14 +5,12 @@ import { FiTrash2, FiEdit3 } from "react-icons/fi";
 import { useAuth } from "@/features/auth";
 
 export function ModuleTable({ data, isLoading, onEdit, onDelete }) {
-  const { user } = useAuth();
+  const { checkPermission } = useAuth();
 
-  // ⚠️ Le backend protège création/modification/suppression avec
-  // restrictToDepartment("TECH") (pas authorize("MODULES", ...)) — donc ici
-  // on se base sur le département de l'employé, pas sur checkPermission.
-  // Si vous migrez ce endpoint vers le système de permissions plus tard,
-  // remplacez cette ligne par checkPermission("MODULES", "UPDATE"/"DELETE").
-  const canManage = user.department.code === "TECH" || "ADMIN";
+  // Le serveur protege la creation, la modification et la suppression par le
+  // droit MODULE : l'interface doit appliquer la meme regle.
+  const canUpdate = checkPermission("MODULE", "UPDATE");
+  const canDelete = checkPermission("MODULE", "DELETE");
 
   const columns = [
     { header: "Code", key: "code" },
@@ -21,25 +19,29 @@ export function ModuleTable({ data, isLoading, onEdit, onDelete }) {
       header: "Actions",
       key: "actions",
       render: (row) => {
-        if (!canManage)
+        if (!canUpdate && !canDelete)
           return <span className="text-xs text-slate-400">—</span>;
 
         return (
           <div className="flex items-center gap-1.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={FiEdit3}
-              className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
-              onClick={() => onEdit(row)}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={FiTrash2}
-              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-              onClick={() => onDelete(row)}
-            />
+            {canUpdate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={FiEdit3}
+                className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
+                onClick={() => onEdit(row)}
+              />
+            )}
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={FiTrash2}
+                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                onClick={() => onDelete(row)}
+              />
+            )}
           </div>
         );
       },

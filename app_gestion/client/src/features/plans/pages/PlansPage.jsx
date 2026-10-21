@@ -8,6 +8,7 @@ import {
   LoadPlanTable,
 } from "@/features/plans";
 import { voyageService } from "@/features/voyages";
+import { socket } from "@/shared/services/";
 import { useAuth } from "@/features/auth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -79,6 +80,18 @@ function PlansPage() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Temps reel : la modification d'une ligne de marchandise par un autre
+  // utilisateur (ajout, validation, generation du plan de dechargement)
+  // declenche le rechargement de la liste des plans.
+  useEffect(() => {
+    const onLoadChanged = () => loadData();
+
+    socket.on("load:changed", onLoadChanged);
+    return () => {
+      socket.off("load:changed", onLoadChanged);
+    };
   }, []);
 
   const handleOpenModal = (plan = null) => {

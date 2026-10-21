@@ -1465,7 +1465,9 @@ Aucun test frontend, aucun test HTTP de bout en bout, aucun test de permissions 
 | 18 | Cohérence des données de référence | Le seed de démonstration employait des statuts de voyage (`CLOSED`, `OPEN`) qui ne sont plus acceptés par l'interface de programmation : les valeurs ont été alignées sur `ARRIVED` et `IN_TRANSIT` |
 | 19 | Amorçage de l'administrateur universel | `prisma/seedAdmin.js` installe un compte disposant du droit `(*, *)` dans le département technique, exécuté automatiquement par le service `seed` au démarrage de l'environnement conteneurisé |
 | 20 | Casse des noms de fichiers importés | La construction des images Linux a révélé cinq incohérences invisibles sur Windows : `Departmentaddmodal.jsx`, `Positionaddmodal.jsx`, `Employeepage.jsx` et `Employeetable.jsx` côté interface, `User.validation.js` côté serveur. Les fichiers ont été renommés pour correspondre à leurs imports (`DepartmentAddModal`, `PositionAddModal`, `EmployeePage`, `EmployeeTable`, `user.validation`) |
-### 14.2. Points assumés
+| 21 | Droits `USERS` et `MODULE` non appliqués par le serveur | Les routes de gestion des accès et celles du catalogue des modules n'étaient protégées que par le département technique : les permissions `USERS` et `MODULE` du catalogue n'étaient donc jamais vérifiées, alors que l'interface les exige. Chaque route vérifie désormais le droit correspondant, en plus de la restriction de département pour la gestion des accès |
+| 22 | Boutons de modification des modules toujours visibles | `ModuleTable.jsx` calculait `canManage` avec `département === "TECH" || "ADMIN"`, expression toujours vraie : les boutons étaient affichés pour tout le monde. L'interface applique maintenant `checkPermission("MODULE", ...)`, comme le serveur |
+| 23 | Événement `load:changed` sans écouteur | Le serveur diffuse la modification des lignes de marchandises, mais aucun écran ne l'écoutait : l'écran des plans ne se rafraîchissait pas. L'écoute a été ajouté |### 14.2. Points assumés
 
 | # | Sujet | Explication |
 | --- | --- | --- |

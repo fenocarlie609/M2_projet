@@ -12,8 +12,10 @@ import {
 } from "@/features/module";
 
 function ModulePage() {
-  const { user } = useAuth();
-  const canManage = user?.department?.code === "TECH";
+  const { checkPermission } = useAuth();
+  // Le serveur exige le droit MODULE pour creer un module : l'interface
+  // applique la meme regle.
+  const canManage = checkPermission("MODULE", "CREATE");
 
   const [modules, setModules] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
