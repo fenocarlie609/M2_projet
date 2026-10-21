@@ -331,6 +331,8 @@ app_gestion/
 │   │   ├── seed.js                                           # Départements et postes
 │   │   ├── seedAppModules.js                                 # Catalogue des modules de permissions
 │   │   ├── seedAdmin.js                                      # Administrateur universel (droit *,*)
+│   │   ├── seedDemo.js                                       # Jeu de demonstration complet (toutes tables)
+│   │   ├── structure.js                                     # Structure de l'entreprise partagee par les seeds
 │   │   └── seedLoadingPlan.js                                # Navires, voyages, clients et plans de référence (destructif)
 │   ├── src/
 │   │   ├── common/                                           # Code partagé
@@ -1068,6 +1070,7 @@ Dossier `server/prisma/migrations/` (verrou : `migration_lock.toml`, fournisseur
 | `prisma/seed.js` | Structure de l'entreprise : départements (`LOGISTICS`, `ADMIN`, `FINANCE`, …) et leurs postes (`QUAY_AGENT`, `HR_MGR`, `ACCOUNTANT`, …) | — |
 | `prisma/seedAppModules.js` | Modules de permission (`*`, `EMPLOYEES`, `USERS`, `COMPANY_STRUCTURE`, `MODULE`, `CLIENT`, `VESSELS`, `PORTS`, `VOYAGES`, `LOADING_PLANS`, `CARGO`) | Complet : la liste reprend exactement les codes vérifiés par le serveur et par le client |
 | `prisma/seedAdmin.js` (`npm run seed:admin`) | Administrateur universel : matricule `TECH-SA-01`, droit `(*, *)`, rattaché au département technique | Idempotent ; exécuté par le service `seed` au démarrage de l'environnement conteneurisé |
+| `prisma/seedDemo.js` (`npm run seed:demo`) | Jeu complet : employés et permissions, clients, adresses, documents, notifications, journal d'audit, jetons de session | Idempotent ; enchaîne les scripts de référence puis complète les tables restantes |
 | `prisma/seedLoadingPlan.js` (`npm run seed:loading`) | Navires, voyages, clients et plans de référence (total attendu 95,444 t) | **Destructif** : supprime puis recrée les marchandises des plans de référence ; deux lignes créées avec `weightKg: 0` contournent la validation de l'API, ce qui est voulu : elles représentent des marchandises dont le poids reste à confirmer |
 
 ## 6. Authentification et sécurité
@@ -1287,9 +1290,46 @@ docker compose ps                 # état des services
 docker compose logs -f server     # journaux du serveur
 docker compose down               # arrêt (les volumes sont conservés)
 docker compose down -v            # arrêt et suppression des volumes
+docker compose --profile demo run --rm seed-demo   # jeu de données de démonstration
 ```
 
-### 12.2. Compte administrateur universel
+### 12.2. Jeu de données de démonstration
+
+Un jeu de données de démonstration alimente **l'ensemble des tables** du modèle physique :
+structure de l'entreprise, employés et permissions, clients avec leurs adresses et leurs
+documents, référentiel maritime, plans de chargement et lignes de marchandises,
+notifications et leur lecture, journal d'audit et jetons de session.
+
+```powershell
+cd app_gestion
+docker compose --profile demo run --rm seed-demo
+```
+
+Le script est idempotent : il peut être relancé sans dupliquer les enregistrements. Il
+enchaîne les scripts de référence (structure, modules, administrateur, données logistiques)
+puis complète les tables que ceux-ci ne couvrent pas.
+
+| Compte | Identifiant | Mot de passe | Périmètre |
+| --- | --- | --- | --- |
+| Administrateur universel | `admin@lct.mg` | `Admin@2026` | Toutes les permissions (département technique) |
+| Technicien | `t.rabe@lct.mg` | `Demo@2026` | Employés, utilisateurs, modules, structure |
+| Coordinatrice logistique | `n.rasoanaivo@lct.mg` | `Demo@2026` | Clients, navires, ports, voyages, plans, marchandises |
+| Agent de quai | `j.rakoto@lct.mg` | `Demo@2026` | Lecture clients et plans, saisie des marchandises |
+| Responsable RH | `t.rabemananarisoa@lct.mg` | `Demo@2026` | Employés et structure de l'entreprise |
+| Chargé de clientèle | `m.andrianarisoa@lct.mg` | `Demo@2026` | Clients et lecture des plans |
+| Comptable | `h.randrianasolo@lct.mg` | `Demo@2026` | Lecture clients et plans |
+| Développeur | `f.rakotomalala@lct.mg` | `Demo@2026` | Lecture employés, clients et plans |
+| Responsable de flotte | `f.rakotonirina@lct.mg` | — | Pas d'accès : illustre une demande d'accès en attente |
+| Membre d'équipage | `s.raharimalala@lct.mg` | — | Pas d'accès : illustre une demande d'accès en attente |
+| Directeur des opérations | `f.rabemananarisoa@lct.mg` | — | Pas d'accès : illustre une demande d'accès en attente |
+
+Les trois derniers employés n'ont pas d'accès à l'application : ils illustrent le circuit de
+demande d'accès, qui notifie les administrateurs du département technique.
+
+En local, le même jeu s'obtient par `npm run seed:demo`, la base du conteneur étant alors
+atteignable sur le port publié `DB_PORT` (5432 par défaut).
+
+### 12.3. Compte administrateur universel
 
 Le service `seed` installe un compte disposant de tous les droits, afin de pouvoir créer
 ensuite les comptes des utilisateurs de l'entreprise depuis l'interface. Ce compte est
