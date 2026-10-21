@@ -1,4 +1,7 @@
+// L'environnement de developpement est prioritaire ; en conteneur, les
+// variables proviennent de l'orchestrateur.
 require("dotenv").config({ path: ".env.development" });
+require("dotenv").config();
 
 const { PrismaClient, Prisma } = require("../src/generated/prisma");
 const { PrismaPg } = require("@prisma/adapter-pg");
@@ -143,7 +146,7 @@ async function main() {
       voyageNumber: "13E VOYAGE",
       departureDate: new Date("2026-07-10T08:00:00.000Z"),
       arrivalDate: new Date("2026-07-11T08:00:00.000Z"),
-      status: "CLOSED",
+      status: "ARRIVED",
     }),
     upsertVoyage({
       vesselId: lctAzad.id,
@@ -152,7 +155,7 @@ async function main() {
       voyageNumber: "14E VOYAGE",
       departureDate: new Date("2026-08-02T08:00:00.000Z"),
       arrivalDate: new Date("2026-08-04T08:00:00.000Z"),
-      status: "OPEN",
+      status: "ARRIVED",
     }),
     upsertVoyage({
       vesselId: premiumExpress.id,
@@ -161,7 +164,7 @@ async function main() {
       voyageNumber: "21E VOYAGE",
       departureDate: new Date("2026-09-20T08:00:00.000Z"),
       arrivalDate: new Date("2026-09-22T08:00:00.000Z"),
-      status: "OPEN",
+      status: "IN_TRANSIT",
     }),
   ]);
 

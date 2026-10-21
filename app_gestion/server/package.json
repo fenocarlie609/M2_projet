@@ -10,6 +10,10 @@
     "test:integration": "node --test test/integration/logistics-data.test.js",
     "dev": "npx dotenv -e .env.development -- nodemon server.js",
     "start": "npx dotenv -e .env.production -- node server.js",
+    "seed": "npm run seed:structure && npm run seed:modules && npm run seed:admin",
+    "seed:structure": "node prisma/seed.js",
+    "seed:modules": "node prisma/seedAppModules.js",
+    "seed:admin": "node prisma/seedAdmin.js",
     "seed:loading": "node prisma/seedLoadingPlan.js"
   },
   "dependencies": {

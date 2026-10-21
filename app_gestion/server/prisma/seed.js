@@ -1,5 +1,8 @@
 // prisma/seed.js
-require("dotenv").config({ path: ".env.development" }); // Charge DATABASE_URL sans passer par le wrapper npx dotenv
+// L'environnement de developpement est prioritaire ; en conteneur, les
+// variables proviennent de l'orchestrateur.
+require("dotenv").config({ path: ".env.development" });
+require("dotenv").config(); // Charge DATABASE_URL sans passer par le wrapper npx dotenv
 const { PrismaClient } = require("../src/generated/prisma"); // Adapté selon ton output personnalisé
 const { PrismaPg } = require("@prisma/adapter-pg");
 

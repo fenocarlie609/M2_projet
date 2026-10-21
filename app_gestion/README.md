@@ -330,7 +330,8 @@ app_gestion/
 │   │   ├── schema.prisma                                     # Source de vérité du modèle de données
 │   │   ├── seed.js                                           # Départements et postes
 │   │   ├── seedAppModules.js                                 # Catalogue des modules de permissions
-│   │   └── seedLoadingPlan.js                                # Navires, voyage, clients et plan de référence (destructif)
+│   │   ├── seedAdmin.js                                      # Administrateur universel (droit *,*)
+│   │   └── seedLoadingPlan.js                                # Navires, voyages, clients et plans de référence (destructif)
 │   ├── src/
 │   │   ├── common/                                           # Code partagé
 │   │   │   ├── middlewares/
@@ -448,7 +449,7 @@ app_gestion/
 │   │       ├── upload-signature.test.js                      # Signature d’image (absent du script test:unit)
 │   │       └── voyage-read-auth.test.js                      # VOYAGES:READ sur les lectures
 │   ├── .gitignore                                            # node_modules, .env, src/generated/prisma
-│   ├── package.json                                          # Dépendances et scripts (dev, start, test, seed:loading)
+│   ├── package.json                                          # Dépendances et scripts (dev, start, test, seed, seed:admin)
 │   ├── prisma.config.js                                      # Configuration Prisma 7 (schéma, migrations, DATABASE_URL)
 │   ├── README.md                                             # Documentation du backend
 │   └── server.js                                             # Point d’entrée : dotenv, validateEnv, connectDB, listen, initSocket
@@ -1066,7 +1067,8 @@ Dossier `server/prisma/migrations/` (verrou : `migration_lock.toml`, fournisseur
 | --- | --- | --- |
 | `prisma/seed.js` | Structure de l'entreprise : départements (`LOGISTICS`, `ADMIN`, `FINANCE`, …) et leurs postes (`QUAY_AGENT`, `HR_MGR`, `ACCOUNTANT`, …) | — |
 | `prisma/seedAppModules.js` | Modules de permission (`*`, `EMPLOYEES`, `USERS`, `COMPANY_STRUCTURE`, `MODULE`, `CLIENT`, `VESSELS`, `PORTS`, `VOYAGES`, `LOADING_PLANS`, `CARGO`) | Complet : la liste reprend exactement les codes vérifiés par le serveur et par le client |
-| `prisma/seedLoadingPlan.js` (`npm run seed:loading`) | Navires, voyage, clients et plan de référence (total attendu 95,444 t) | **Destructif** : supprime puis recrée les marchandises des plans de référence ; deux lignes créées avec `weightKg: 0` contournent la validation de l'API |
+| `prisma/seedAdmin.js` (`npm run seed:admin`) | Administrateur universel : matricule `TECH-SA-01`, droit `(*, *)`, rattaché au département technique | Idempotent ; exécuté par le service `seed` au démarrage de l'environnement conteneurisé |
+| `prisma/seedLoadingPlan.js` (`npm run seed:loading`) | Navires, voyages, clients et plans de référence (total attendu 95,444 t) | **Destructif** : supprime puis recrée les marchandises des plans de référence ; deux lignes créées avec `weightKg: 0` contournent la validation de l'API, ce qui est voulu : elles représentent des marchandises dont le poids reste à confirmer |
 
 ## 6. Authentification et sécurité
 
@@ -1242,7 +1244,7 @@ cd client; npm run dev      # Vite, http://localhost:5173
 | `server/` | `npx prisma migrate status` / `studio` | état des migrations / interface de données |
 | `client/` | `npm run build` / `preview` | build / prévisualisation |
 
-Seeds : `prisma/seed.js` (structure : départements et postes), `prisma/seedAppModules.js` (catalogue des modules de permissions), `prisma/seedLoadingPlan.js` (navires, voyage, clients, plan de référence). Logs Winston dans `server/logs/` (`errors.log`, `combined.log`).
+Seeds : `prisma/seed.js` (structure : départements et postes), `prisma/seedAppModules.js` (catalogue des modules de permissions), `prisma/seedAdmin.js` (administrateur universel), `prisma/seedLoadingPlan.js` (navires, voyages, clients, plans de référence). Les trois premiers sont enchaînés par `npm run seed` et exécutés automatiquement par le service `seed` de l'orchestrateur ; le dernier reste une commande manuelle, car il écrase les plans de référence. Logs Winston dans `server/logs/` (`errors.log`, `combined.log`).
 
 ### 12.1. Déploiement avec Docker
 
@@ -1257,7 +1259,7 @@ docker compose up --build
 | Service | Rôle | Accès |
 | --- | --- | --- |
 | `db` | PostgreSQL 16, volume persistant `donnees-postgres` | port interne 5432 |
-| `migrate` | applique les migrations (`prisma migrate deploy`) puis s'arrête | — |
+| `seed` | applique les migrations, installe les données de référence et amorce l'administrateur universel, puis s'arrête | — |
 | `server` | API Node.js/Express, utilisateur non privilégié, sonde de santé | http://localhost:5000 |
 | `client` | interface web compilée par Vite, servie par nginx, relais de `/api` vers le serveur | http://localhost:8080 |
 
@@ -1265,13 +1267,16 @@ Points notables :
 
 - le serveur est construit en trois étapes (dépendances de développement, dépendances de
   production, image finale) et s'exécute avec l'utilisateur `nodejs` ;
+- le service `seed` enchaîne l'application des migrations, la création de la structure de
+  l'entreprise, le catalogue des modules de permissions et l'amorçage de l'administrateur
+  universel ; le serveur ne démarre qu'une fois cette étape réussie ;
 - la sonde de santé du conteneur serveur interroge `GET /api/v1/health` ;
 - nginx sert le bundle de l'interface, met en cache les ressources versionnées et renvoie
   toute route inconnue vers `index.html`, le routeur de l'application prenant le relais ;
 - les secrets sont lus dans l'environnement ; un fichier `.env` placé à la racine de
   `app_gestion` permet de les surcharger (`POSTGRES_USER`, `POSTGRES_PASSWORD`,
   `POSTGRES_DB`, `COOKIE_SECRET`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `SERVER_PORT`,
-  `CLIENT_PORT`) ;
+  `CLIENT_PORT`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`) ;
 - les fichiers téléversés et les données de la base sont conservés dans des volumes nommés.
 
 Commandes courantes :
@@ -1283,6 +1288,23 @@ docker compose logs -f server     # journaux du serveur
 docker compose down               # arrêt (les volumes sont conservés)
 docker compose down -v            # arrêt et suppression des volumes
 ```
+
+### 12.2. Compte administrateur universel
+
+Le service `seed` installe un compte disposant de tous les droits, afin de pouvoir créer
+ensuite les comptes des utilisateurs de l'entreprise depuis l'interface. Ce compte est
+rattaché au département technique, seul département autorisé à gérer les accès.
+
+| Identifiant | Valeur par défaut | Variable d'environnement |
+| --- | --- | --- |
+| Adresse de connexion | `admin@lct.mg` | `ADMIN_EMAIL` |
+| Mot de passe initial | `Admin@2026` | `ADMIN_PASSWORD` |
+| Nom affiché | `Administrateur Système` | `ADMIN_NAME` |
+
+Le script `prisma/seedAdmin.js` est idempotent : le relancer met à jour le mot de passe et
+les droits du compte existant au lieu d'en créer un second. Le mot de passe doit être changé
+dès la première connexion ; il est par ailleurs lisible dans la configuration de
+l'environnement, ce qui doit être traité comme une information provisoire.
 
 ## 13. Tests
 
@@ -1297,7 +1319,7 @@ les 20 tests passent.
 | `test/unit/socket-auth.test.js` | authentification du handshake Socket.IO |
 | `test/unit/voyage-read-auth.test.js` | `VOYAGES:READ` sur les lectures de voyages |
 | `test/unit/upload-signature.test.js` | détection de signature d'image |
-| `test/integration/logistics-data.test.js` | données de démonstration, total 95,444 t, seed rejouable |
+| `test/integration/logistics-data.test.js` | données de démonstration, total 95,444 t, seed rejouable (nécessite une base seedée) |
 
 Aucun test frontend, aucun test HTTP de bout en bout, aucun test de permissions par route.
 
@@ -1327,6 +1349,8 @@ Aucun test frontend, aucun test HTTP de bout en bout, aucun test de permissions 
 | 15 | Test de signature des fichiers téléversés | Ajouté au script `test:unit` (`node --test test/unit/`) |
 | 16 | Catalogue des modules de permissions | `seedAppModules.js` reprend exactement les codes vérifiés par le serveur et par le client, et retire les modules devenus inutiles |
 | 17 | Conteneurisation | `Dockerfile` pour le serveur et pour le client, `nginx.conf`, `docker-compose.yml` (base, migration, serveur, interface) et `.dockerignore` |
+| 18 | Cohérence des données de référence | Le seed de démonstration employait des statuts de voyage (`CLOSED`, `OPEN`) qui ne sont plus acceptés par l'interface de programmation : les valeurs ont été alignées sur `ARRIVED` et `IN_TRANSIT` |
+| 19 | Amorçage de l'administrateur universel | `prisma/seedAdmin.js` installe un compte disposant du droit `(*, *)` dans le département technique, exécuté automatiquement par le service `seed` au démarrage de l'environnement conteneurisé |
 
 ### 14.2. Points assumés
 

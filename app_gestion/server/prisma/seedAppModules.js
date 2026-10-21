@@ -6,7 +6,10 @@
 // (routeConfig). Ajouter un module ici a pour effet de le rendre
 // attribuable aux employes ; un code absent ici ne peut pas etre coche
 // dans l'ecran de gestion des permissions.
+// L'environnement de developpement est prioritaire ; en conteneur, les
+// variables proviennent de l'orchestrateur.
 require("dotenv").config({ path: ".env.development" });
+require("dotenv").config();
 const { PrismaClient } = require("../src/generated/prisma");
 const { PrismaPg } = require("@prisma/adapter-pg");
 

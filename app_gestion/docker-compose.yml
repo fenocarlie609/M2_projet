@@ -6,6 +6,14 @@
 #   docker compose up --build
 #   interface web      : http://localhost:8080
 #   interface de prog. : http://localhost:5000/api/v1/health
+#
+# Le service « seed » applique les migrations puis installe les donnees de
+# reference : structure de l'entreprise, catalogue des modules de permissions
+# et administrateur universel. Ce dernier permet de creer ensuite les comptes
+# des utilisateurs depuis l'interface.
+#
+#   identifiant  : admin@lct.mg        (variable ADMIN_EMAIL)
+#   mot de passe : Admin@2026         (variable ADMIN_PASSWORD)
 
 services:
   db:
@@ -26,14 +34,21 @@ services:
     networks:
       - gestion
 
-  migrate:
+  seed:
     build:
       context: ./server
       target: build
-    container_name: gestion-migrate
-    command: npx prisma migrate deploy
+    container_name: gestion-seed
+    command: >
+      sh -c "npx prisma migrate deploy &&
+             node prisma/seed.js &&
+             node prisma/seedAppModules.js &&
+             node prisma/seedAdmin.js"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-gestion}:${POSTGRES_PASSWORD:-gestion}@db:5432/${POSTGRES_DB:-gestion}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrateur Système}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@lct.mg}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@2026}
     depends_on:
       db:
         condition: service_healthy
@@ -58,7 +73,7 @@ services:
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
-      migrate:
+      seed:
         condition: service_completed_successfully
     ports:
       - "${SERVER_PORT:-5000}:5000"
