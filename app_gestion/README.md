@@ -1351,7 +1351,7 @@ Aucun test frontend, aucun test HTTP de bout en bout, aucun test de permissions 
 | 17 | Conteneurisation | `Dockerfile` pour le serveur et pour le client, `nginx.conf`, `docker-compose.yml` (base, migration, serveur, interface) et `.dockerignore` |
 | 18 | Cohérence des données de référence | Le seed de démonstration employait des statuts de voyage (`CLOSED`, `OPEN`) qui ne sont plus acceptés par l'interface de programmation : les valeurs ont été alignées sur `ARRIVED` et `IN_TRANSIT` |
 | 19 | Amorçage de l'administrateur universel | `prisma/seedAdmin.js` installe un compte disposant du droit `(*, *)` dans le département technique, exécuté automatiquement par le service `seed` au démarrage de l'environnement conteneurisé |
-
+| 20 | Casse des noms de fichiers importés | La construction des images Linux a révélé cinq incohérences invisibles sur Windows : `Departmentaddmodal.jsx`, `Positionaddmodal.jsx`, `Employeepage.jsx` et `Employeetable.jsx` côté interface, `User.validation.js` côté serveur. Les fichiers ont été renommés pour correspondre à leurs imports (`DepartmentAddModal`, `PositionAddModal`, `EmployeePage`, `EmployeeTable`, `user.validation`) |
 ### 14.2. Points assumés
 
 | # | Sujet | Explication |

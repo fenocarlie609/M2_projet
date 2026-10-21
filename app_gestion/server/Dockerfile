@@ -9,6 +9,12 @@ COPY package*.json ./
 RUN npm ci --no-audit --no-fund
 COPY prisma ./prisma
 COPY prisma.config.js ./
+# Le code source est necessaire au service d'amorcage, qui reutilise les
+# utilitaires de l'application (hachage des mots de passe).
+COPY src ./src
+# La generation du client ne se connecte pas a la base, mais la
+# configuration de Prisma 7 exige la presence de la variable.
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN npx prisma generate
 
 FROM node:20-alpine AS deps
