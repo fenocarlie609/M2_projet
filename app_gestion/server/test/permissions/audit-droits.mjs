@@ -263,6 +263,108 @@ const cheminDeModele = {
   COMPANY_STRUCTURE: "/company-structure/departments",
 };
 
+// Les sous-routes : elles portent des droits propres, absents des routes
+// de collection. Toutes visent des identifiants aleatoires, pour ne
+// modifier aucune donnee reelle.
+const construireSondesComplementaires = (contexte) => {
+  const inconnu = alea();
+  const planId = contexte.planId;
+
+  return [
+    {
+      code: "LOADING_PLANS",
+      action: "UPDATE",
+      nom: "validation d'un plan",
+      methode: "POST",
+      chemin: () => `/loading-plans/${inconnu}/validate`,
+    },
+    {
+      code: "ENTREPOTS",
+      action: "CREATE",
+      nom: "entree d'une marchandise en entrepot",
+      methode: "POST",
+      chemin: () => "/warehouse/items",
+      corps: {},
+    },
+    {
+      code: "ENTREPOTS",
+      action: "UPDATE",
+      nom: "retrait d'une marchandise par son client",
+      methode: "POST",
+      chemin: () => `/warehouse/items/${inconnu}/pickup`,
+      corps: {},
+    },
+    {
+      code: "ENTREPOTS",
+      action: "UPDATE",
+      nom: "reembarquement d'une marchandise",
+      methode: "POST",
+      chemin: () => `/warehouse/items/${inconnu}/embark`,
+      corps: { loadingPlanId: planId },
+    },
+    {
+      code: "EMPLOYEES",
+      action: "READ",
+      nom: "fiche d'un autre employe",
+      methode: "GET",
+      chemin: () => `/employees/${inconnu}`,
+    },
+    {
+      code: "EMPLOYEES",
+      action: "UPDATE",
+      nom: "modification d'un autre employe",
+      methode: "PUT",
+      chemin: () => `/employees/${inconnu}`,
+      corps: { name: "TMP-AUDIT" },
+    },
+    {
+      code: "EMPLOYEES",
+      action: "UPDATE",
+      nom: "attribution d'un droit a un employe",
+      methode: "POST",
+      chemin: () => `/employees/${inconnu}/permissions`,
+      corps: { module: "CLIENT", action: "READ" },
+    },
+    {
+      code: "EMPLOYEES",
+      action: "UPDATE",
+      nom: "revocation d'un droit d'un employe",
+      methode: "DELETE",
+      chemin: () => `/employees/${inconnu}/permissions/${inconnu}`,
+    },
+    {
+      code: "USERS",
+      action: "READ",
+      nom: "fiche d'un compte",
+      methode: "GET",
+      chemin: () => `/users/${inconnu}`,
+    },
+    {
+      code: "USERS",
+      action: "UPDATE",
+      nom: "attribution d'un droit a un compte",
+      methode: "POST",
+      chemin: () => `/users/${inconnu}/permissions`,
+      corps: { module: "CLIENT", action: "READ" },
+    },
+    {
+      code: "USERS",
+      action: "UPDATE",
+      nom: "revocation groupee des droits d'un compte",
+      methode: "DELETE",
+      chemin: () => `/users/${inconnu}/permissions`,
+      corps: { permissionIds: [inconnu] },
+    },
+    {
+      code: "USERS",
+      action: "DELETE",
+      nom: "revocation d'un droit d'un compte",
+      methode: "DELETE",
+      chemin: () => `/users/${inconnu}/permissions/${inconnu}`,
+    },
+  ];
+};
+
 const executer = async () => {
   const sessionAdmin = await connecter(IDENTIFIANT_ADMIN, MOT_DE_PASSE_ADMIN);
 
@@ -294,6 +396,65 @@ const executer = async () => {
   const creations = [];
   const matrice = [];
 
+  // Le verdict d'une operation : refusee quand la reponse est 403,
+  // accordee dans les autres cas. La comparaison avec les droits declares
+  // produit les anomalies.
+  const evaluer = (compte, moduleConcerne, action, reponse, lignes, nom) => {
+    const refuse = reponse.statut === 403;
+    const erreurCsrf = /CSRF/i.test(reponse.message || "");
+    const limite = reponse.statut === 429;
+    const accorde = !refuse && reponse.statut !== 401;
+    const attendu = AU_HAS(compte.droits, moduleConcerne, action);
+
+    if (limite) {
+      // Le limiteur global a coupe le parcours : le verdict de cette
+      // operation ne veut rien dire.
+      anomalies.push({
+        type: "LIMITE",
+        compte: compte.email,
+        module: moduleConcerne,
+        action,
+        detail:
+          "limiteur de requetes atteint : le parcours doit etre relance avec un volume plus eleve (RATE_LIMIT_MAX)",
+      });
+    } else if (erreurCsrf) {
+      anomalies.push({
+        type: "SCRIPT",
+        compte: compte.email,
+        module: moduleConcerne,
+        action,
+        detail: "jeton CSRF manquant : la sonde ne prouve rien",
+      });
+    } else if (attendu && refuse) {
+      anomalies.push({
+        type: "TROP STRICT",
+        compte: compte.email,
+        module: moduleConcerne,
+        action,
+        detail: `droit ${moduleConcerne}:${action} declare, operation refusee (${reponse.statut})`,
+      });
+    } else if (!attendu && accorde) {
+      anomalies.push({
+        type: "TROP LARGE",
+        compte: compte.email,
+        module: moduleConcerne,
+        action,
+        detail: `droit ${moduleConcerne}:${action} absent, operation acceptee (${reponse.statut} ${reponse.message || ""})`,
+      });
+    }
+
+    lignes.push({
+      module: moduleConcerne,
+      action,
+      nom: nom || "",
+      attendu,
+      statut: reponse.statut,
+      verdict: refuse ? "refuse" : "accorde",
+    });
+
+    return { refuse, accorde, attendu };
+  };
+
   for (const compte of comptes) {
     // Le compte administrateur universel a son propre mot de passe.
     const motDePasse =
@@ -307,74 +468,46 @@ const executer = async () => {
         // des ecritures (les lignes de marchandises suivent le plan).
         const moduleConcerne =
           action.cle === "READ" ? sonde.droitLecture || sonde.code : sonde.code;
-        const attendu = AU_HAS(compte.droits, moduleConcerne, action.cle);
         const [methode, chemin, corps] = action.sonde(sonde, compte.email);
 
         const reponse = await appeler(session, methode, chemin, corps);
-
-        const refuse = reponse.statut === 403;
-        const erreurCsrf = /CSRF/i.test(reponse.message || "");
-        const limite = reponse.statut === 429;
-        const accorde = !refuse && reponse.statut !== 401;
-
-        if (limite) {
-          // Le limiteur global a coupe le parcours : le verdict de cette
-          // operation ne veut rien dire.
-          anomalies.push({
-            type: "LIMITE",
-            compte: compte.email,
-            module: moduleConcerne,
-            action: action.cle,
-            detail:
-              "limiteur de requetes atteint : le parcours doit etre relance avec un volume plus eleve (RATE_LIMIT_MAX)",
-          });
-        } else if (erreurCsrf) {
-          anomalies.push({
-            type: "SCRIPT",
-            compte: compte.email,
-            module: moduleConcerne,
-            action: action.cle,
-            detail: "jeton CSRF manquant : la sonde ne prouve rien",
-          });
-        } else if (attendu && refuse) {
-          anomalies.push({
-            type: "TROP STRICT",
-            compte: compte.email,
-            module: moduleConcerne,
-            action: action.cle,
-            detail: `droit ${moduleConcerne}:${action.cle} declare, operation refusee (${reponse.statut})`,
-          });
-        } else if (!attendu && accorde) {
-          anomalies.push({
-            type: "TROP LARGE",
-            compte: compte.email,
-            module: moduleConcerne,
-            action: action.cle,
-            detail: `droit ${moduleConcerne}:${action.cle} absent, operation acceptee (${reponse.statut} ${reponse.message || ""})`,
-          });
-        }
+        const verdict = evaluer(
+          compte,
+          moduleConcerne,
+          action.cle,
+          reponse,
+          lignes,
+        );
 
         // Les creations reellement abouties sont memorisees pour etre
         // annulees a la fin du parcours.
         if (
           action.cle === "CREATE" &&
-          accorde &&
+          verdict.accorde &&
           (reponse.statut === 200 || reponse.statut === 201)
         ) {
           const cree = reponse.donnees?.data?.[cleDuModele[sonde.code]];
           if (cree?.id) {
-            creations.push({ module: sonde.code, id: cree.id, chemin: cheminDeModele[sonde.code] });
+            creations.push({
+              module: sonde.code,
+              id: cree.id,
+              chemin: cheminDeModele[sonde.code],
+            });
           }
         }
-
-        lignes.push({
-          module: sonde.code,
-          action: action.cle,
-          attendu,
-          statut: reponse.statut,
-          verdict: refuse ? "refuse" : "accorde",
-        });
       }
+    }
+
+    // Les sous-routes : validation d'un plan, entrees et sorties
+    // d'entrepot, gestion des droits d'un employe ou d'un compte.
+    for (const sonde of construireSondesComplementaires({ planId: plan?.id })) {
+      const reponse = await appeler(
+        session,
+        sonde.methode,
+        sonde.chemin(),
+        sonde.corps,
+      );
+      evaluer(compte, sonde.code, sonde.action, reponse, lignes, sonde.nom);
     }
 
     matrice.push({ compte: compte.email, nom: compte.nom, lignes });

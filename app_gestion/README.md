@@ -1157,6 +1157,8 @@ Le parcours a fait apparaître deux ouvertures involontaires, depuis refermées 
 
 Le parcours envoie environ six cents requêtes : il demande un limiteur global plus large que la valeur habituelle (`RATE_LIMIT_MAX=5000` sur l'environnement conteneurisé), faute de quoi il est coupé en cours de route. Il signale alors chaque réponse `429` et ses verdicts ne valent plus rien.
 
+Le parcours couvre aussi les **sous-routes**, qui portent des droits propres : validation d'un plan de manutention, entrée, retrait et réembarquement d'une marchandise, attribution et révocation des droits d'un employé ou d'un compte, fiche individuelle d'un employé et d'un compte. `test/permissions/audit-avatar.mjs` (`npm run audit:avatar`) vérifie de son côté le televersement des avatars : un employé ne peut écrire que le sien, l'écriture de l'avatar d'un employé existant exige `EMPLOYEES:UPDATE` et la création d'un avatar pour un matricule inconnu exige `EMPLOYEES:CREATE`.
+
 ## 8. API REST
 
 Préfixe : `/api/v1`. Toutes les routes ci-dessous exigent l'authentification (`protect`) sauf mention contraire, et les mutations exigent le header CSRF.
