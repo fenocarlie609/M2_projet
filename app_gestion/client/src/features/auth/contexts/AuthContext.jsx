@@ -18,7 +18,7 @@ import Load from "@/shared/utils/Load";
 export const AuthContext = createContext(null);
 
 const readStoredUser = () => {
-  const storedUser = localStorage.getItem("mada_user");
+  const storedUser = localStorage.getItem("lct_premium_user");
   if (!storedUser) return null;
 
   try {
@@ -28,7 +28,7 @@ const readStoredUser = () => {
       permissions: normalizePermissions(parsedUser.permissions),
     };
   } catch {
-    localStorage.removeItem("mada_user");
+    localStorage.removeItem("lct_premium_user");
     return null;
   }
 };
@@ -39,7 +39,7 @@ const persistUser = (userData) => {
     permissions: normalizePermissions(userData?.permissions),
   };
 
-  localStorage.setItem("mada_user", JSON.stringify(normalizedUser));
+  localStorage.setItem("lct_premium_user", JSON.stringify(normalizedUser));
   return normalizedUser;
 };
 
@@ -49,6 +49,10 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Une session conservee avant une evolution des droits ne doit pas
+    // survivre : elle est retiree au demarrage.
+    localStorage.removeItem("mada_user");
+
     const checkAuthStatus = async () => {
       try {
         const storedUser = readStoredUser();
@@ -64,11 +68,11 @@ export const AuthProvider = ({ children }) => {
           const normalizedUser = persistUser(currentUser);
           setUser(normalizedUser);
         } else {
-          localStorage.removeItem("mada_user");
+          localStorage.removeItem("lct_premium_user");
           setUser(null);
         }
       } catch (error) {
-        localStorage.removeItem("mada_user");
+        localStorage.removeItem("lct_premium_user");
         setUser(null);
       } finally {
         setLoading(false);
@@ -111,7 +115,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       document.cookie =
         "xsrf-token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
-      localStorage.removeItem("mada_user");
+      localStorage.removeItem("lct_premium_user");
       setUser(null);
       navigate("/login");
     }
@@ -139,7 +143,7 @@ export const AuthProvider = ({ children }) => {
       };
 
       setUser(normalizedProfile);
-      localStorage.setItem("mada_user", JSON.stringify(normalizedProfile));
+      localStorage.setItem("lct_premium_user", JSON.stringify(normalizedProfile));
     };
 
     // Le backend pousse cet événement si le compte est désactivé/supprimé
