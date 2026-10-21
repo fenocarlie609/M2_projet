@@ -1,6 +1,7 @@
 export { loadingPlanService } from "./service/loadingPlan.service";
 export { LoadPlanModal } from "./components/LoadPlanModal";
 export { LoadPlanTable } from "./components/LoadPlanTable";
+export { LoadPlanCard } from "./components/LoadPlanCard";
 export { LoadPlanForm } from "./components/LoadPlanForm";
 export { LoadEditorModal } from "./components/LoadEditorModal";
 export { PlanOverview } from "./components/PlanOverview";

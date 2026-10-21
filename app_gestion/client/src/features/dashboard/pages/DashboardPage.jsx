@@ -37,22 +37,12 @@ import {
   FiClock,
 } from "react-icons/fi";
 
-const VARIANT_STATUT = {
-  SCHEDULED: "info",
-  IN_TRANSIT: "warning",
-  ARRIVED: "success",
-  CANCELLED: "error",
-  PENDING: "warning",
-  LOADED: "success",
-};
-
-const libelleStatut = (statut) =>
-  ({
-    SCHEDULED: "Planifié",
-    IN_TRANSIT: "En transit",
-    ARRIVED: "Arrivé",
-    CANCELLED: "Annulé",
-  })[statut] || statut;
+import {
+  VARIANT_STATUT,
+  libelleStatut,
+  UpcomingVoyageCard,
+} from "@/features/dashboard/components/UpcomingVoyageCard";
+import { AuditLineCard } from "@/features/dashboard/components/AuditLineCard";
 
 /**
  * Barre horizontale de repartition, dessinee sans bibliotheque de
@@ -436,46 +426,59 @@ function DashboardPage() {
               subtitle="Dix dernières opérations tracées"
             />
             <CardContent className="p-0">
-              <Table
-                data={resume.audit}
-                initialRowsPerPage={5}
-                emptyMessage="Aucune operation tracee"
-                columns={[
-                  {
-                    key: "date",
-                    header: "Date",
-                    render: (ligne) => formatDateTime(ligne.date),
-                  },
-                  {
-                    key: "auteur",
-                    header: "Auteur",
-                    render: (ligne) => (
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-slate-800">
-                          {ligne.auteur}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {ligne.matricule}
-                        </span>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "action",
-                    header: "Opération",
-                    render: (ligne) => (
-                      <div className="flex flex-col">
-                        <span className="font-medium text-slate-700">
-                          {ligne.action}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {ligne.ip}
-                        </span>
-                      </div>
-                    ),
-                  },
-                ]}
-              />
+              <div className="hidden md:block">
+                <Table
+                  data={resume.audit}
+                  initialRowsPerPage={5}
+                  emptyMessage="Aucune operation tracee"
+                  columns={[
+                    {
+                      key: "date",
+                      header: "Date",
+                      render: (ligne) => formatDateTime(ligne.date),
+                    },
+                    {
+                      key: "auteur",
+                      header: "Auteur",
+                      render: (ligne) => (
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-slate-800">
+                            {ligne.auteur}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {ligne.matricule}
+                          </span>
+                        </div>
+                      ),
+                    },
+                    {
+                      key: "action",
+                      header: "Opération",
+                      render: (ligne) => (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-700">
+                            {ligne.action}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {ligne.ip}
+                          </span>
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
+              </div>
+
+              <div className="grid md:hidden gap-3 p-3">
+                {resume.audit.length === 0 && (
+                  <p className="text-sm text-slate-400 font-medium">
+                    Aucune operation tracee.
+                  </p>
+                )}
+                {resume.audit.map((ligne) => (
+                  <AuditLineCard key={ligne.id} ligne={ligne} />
+                ))}
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -598,36 +601,44 @@ function DashboardPage() {
             subtitle="Voyages planifiés ou en cours"
           />
           <CardContent className="p-0">
-            <Table
-              data={resume.voyages.prochains}
-              initialRowsPerPage={5}
-              columns={[
-                {
-                  key: "numero",
-                  header: "Voyage",
-                  render: (ligne) => (
-                    <span className="font-semibold text-slate-800">
-                      {ligne.numero}
-                    </span>
-                  ),
-                },
-                { key: "navire", header: "Navire" },
-                {
-                  key: "statut",
-                  header: "Statut",
-                  render: (ligne) => (
-                    <Badge variant={VARIANT_STATUT[ligne.statut] || "info"}>
-                      {libelleStatut(ligne.statut)}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: "depart",
-                  header: "Départ",
-                  render: (ligne) => formatDate(ligne.depart),
-                },
-              ]}
-            />
+            <div className="hidden md:block">
+              <Table
+                data={resume.voyages.prochains}
+                initialRowsPerPage={5}
+                columns={[
+                  {
+                    key: "numero",
+                    header: "Voyage",
+                    render: (ligne) => (
+                      <span className="font-semibold text-slate-800">
+                        {ligne.numero}
+                      </span>
+                    ),
+                  },
+                  { key: "navire", header: "Navire" },
+                  {
+                    key: "statut",
+                    header: "Statut",
+                    render: (ligne) => (
+                      <Badge variant={VARIANT_STATUT[ligne.statut] || "info"}>
+                        {libelleStatut(ligne.statut)}
+                      </Badge>
+                    ),
+                  },
+                  {
+                    key: "depart",
+                    header: "Départ",
+                    render: (ligne) => formatDate(ligne.depart),
+                  },
+                ]}
+              />
+            </div>
+
+            <div className="grid md:hidden gap-3 p-3">
+              {resume.voyages.prochains.map((ligne) => (
+                <UpcomingVoyageCard key={ligne.numero} voyage={ligne} />
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}

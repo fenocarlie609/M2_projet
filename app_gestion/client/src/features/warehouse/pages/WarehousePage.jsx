@@ -27,6 +27,8 @@ import { WarehouseForm } from "@/features/warehouse/components/WarehouseForm";
 import { StockItemForm } from "@/features/warehouse/components/StockItemForm";
 import { StockItemTable } from "@/features/warehouse/components/StockItemTable";
 import { StockItemCard } from "@/features/warehouse/components/StockItemCard";
+import { MovementCard } from "@/features/warehouse/components/MovementCard";
+import { WarehouseCard } from "@/features/warehouse/components/WarehouseCard";
 import { clientService } from "@/features/client";
 import { loadingPlanService } from "@/features/plans";
 
@@ -457,23 +459,61 @@ function WarehousePage() {
                   Ajouter un entrepôt
                 </Button>
               )}
-              <Table
-                columns={colonnesEntrepots}
-                data={entrepots}
-                isLoading={isLoading}
-                emptyMessage="Aucun entrepôt"
-              />
+              <div className="hidden md:block">
+                <Table
+                  columns={colonnesEntrepots}
+                  data={entrepots}
+                  isLoading={isLoading}
+                  emptyMessage="Aucun entrepôt"
+                />
+              </div>
+
+              <div className="grid md:hidden gap-3">
+                {isLoading && (
+                  <p className="text-sm text-slate-400 font-medium">
+                    Chargement...
+                  </p>
+                )}
+                {!isLoading && entrepots.length === 0 && (
+                  <p className="text-sm text-slate-400 font-medium">
+                    Aucun entrepôt.
+                  </p>
+                )}
+                {entrepots.map((entrepot) => (
+                  <WarehouseCard key={entrepot.id} entrepot={entrepot} />
+                ))}
+              </div>
             </div>
           )}
 
           {onglet === "mouvements" && (
-            <Table
-              columns={colonnesMouvements}
-              data={mouvements}
-              isLoading={isLoading}
-              initialRowsPerPage={10}
-              emptyMessage="Aucun mouvement enregistré"
-            />
+            <>
+              <div className="hidden md:block">
+                <Table
+                  columns={colonnesMouvements}
+                  data={mouvements}
+                  isLoading={isLoading}
+                  initialRowsPerPage={10}
+                  emptyMessage="Aucun mouvement enregistré"
+                />
+              </div>
+
+              <div className="grid md:hidden gap-3">
+                {isLoading && (
+                  <p className="text-sm text-slate-400 font-medium">
+                    Chargement...
+                  </p>
+                )}
+                {!isLoading && mouvements.length === 0 && (
+                  <p className="text-sm text-slate-400 font-medium">
+                    Aucun mouvement enregistré.
+                  </p>
+                )}
+                {mouvements.map((mouvement) => (
+                  <MovementCard key={mouvement.id} mouvement={mouvement} />
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

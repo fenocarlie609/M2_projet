@@ -17,7 +17,7 @@ export const PageHeader = ({ title, subtitle, children }) => {
 
       {/* Zone optionnelle pour insérer des boutons (Ajouter, Exporter, etc.) */}
       {children && (
-        <div className="flex items-center gap-3 shrink-0">{children}</div>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">{children}</div>
       )}
     </div>
   );

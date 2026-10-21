@@ -4,3 +4,5 @@ export { WarehouseForm } from "./components/WarehouseForm";
 export { StockItemForm } from "./components/StockItemForm";
 export { StockItemTable } from "./components/StockItemTable";
 export { StockItemCard } from "./components/StockItemCard";
+export { MovementCard } from "./components/MovementCard";
+export { WarehouseCard } from "./components/WarehouseCard";

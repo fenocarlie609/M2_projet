@@ -232,7 +232,7 @@ export function PermissionsModal({
         )}
 
         {/* Formulaire d'ajout à la liste (n'envoie rien au serveur) */}
-        <div className="flex items-end gap-2 pt-4 border-t border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-2 pt-4 border-t border-slate-100">
           <Select
             label="Module"
             name="module"
@@ -253,6 +253,7 @@ export function PermissionsModal({
             type="button"
             variant="ghost"
             icon={FiPlus}
+            className="sm:self-center"
             disabled={!formData.module || !formData.action}
             onClick={handleAddToPending}
           >

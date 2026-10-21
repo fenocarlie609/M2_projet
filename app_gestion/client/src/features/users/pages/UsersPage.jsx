@@ -6,6 +6,8 @@ import { FiPlus } from "react-icons/fi";
 import {
   usersService,
   UsersTable,
+  UserCard,
+  PermissionsCard,
   UsersPermissionsTable,
   GrantAccessModal,
   PermissionsModal,
@@ -239,20 +241,71 @@ function UsersPage() {
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       {activeTab === "accounts" ? (
-        <UsersTable
-          data={users}
-          isLoading={isLoading}
-          onTogglePermissions={handleOpenPermissions}
-          onToggleStatus={handleToggleStatus}
-          onResetPassword={handleResetPassword}
-          onRevokeAccess={handleOpenRevokeAccess}
-        />
+        <>
+          <div className="hidden md:block">
+            <UsersTable
+              data={users}
+              isLoading={isLoading}
+              onTogglePermissions={handleOpenPermissions}
+              onToggleStatus={handleToggleStatus}
+              onResetPassword={handleResetPassword}
+              onRevokeAccess={handleOpenRevokeAccess}
+            />
+          </div>
+
+          <div className="grid md:hidden gap-3">
+            {isLoading && (
+              <p className="text-sm text-slate-400 font-medium">
+                Chargement...
+              </p>
+            )}
+            {!isLoading && users.length === 0 && (
+              <p className="text-sm text-slate-400 font-medium">
+                Aucun compte.
+              </p>
+            )}
+            {users.map((compte) => (
+              <UserCard
+                key={compte.id}
+                user={compte}
+                onTogglePermissions={handleOpenPermissions}
+                onToggleStatus={handleToggleStatus}
+                onResetPassword={handleResetPassword}
+                onRevokeAccess={handleOpenRevokeAccess}
+              />
+            ))}
+          </div>
+        </>
       ) : (
-        <UsersPermissionsTable
-          data={permissionsOverview}
-          isLoading={isLoading}
-          onManage={handleOpenPermissions}
-        />
+        <>
+          <div className="hidden md:block">
+            <UsersPermissionsTable
+              data={permissionsOverview}
+              isLoading={isLoading}
+              onManage={handleOpenPermissions}
+            />
+          </div>
+
+          <div className="grid md:hidden gap-3">
+            {isLoading && (
+              <p className="text-sm text-slate-400 font-medium">
+                Chargement...
+              </p>
+            )}
+            {!isLoading && permissionsOverview.length === 0 && (
+              <p className="text-sm text-slate-400 font-medium">
+                Aucun employé.
+              </p>
+            )}
+            {permissionsOverview.map((employe) => (
+              <PermissionsCard
+                key={employe.id}
+                employe={employe}
+                onManage={handleOpenPermissions}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       <GrantAccessModal

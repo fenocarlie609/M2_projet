@@ -6,6 +6,7 @@ import {
   loadingPlanService,
   LoadPlanModal,
   LoadPlanTable,
+  LoadPlanCard,
 } from "@/features/plans";
 import { voyageService } from "@/features/voyages";
 import { socket } from "@/shared/services/";
@@ -188,14 +189,37 @@ function PlansPage() {
 
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
-      <LoadPlanTable
-        data={visiblePlans}
-        isLoading={isLoading}
-        operationType={activeTab}
-        onOpen={handleOpenPlan}
-        onEdit={(plan) => handleOpenModal(plan)}
-        onDelete={(plan) => handleDeletePlan(plan)}
-      />
+      <div className="hidden md:block">
+        <LoadPlanTable
+          data={visiblePlans}
+          isLoading={isLoading}
+          operationType={activeTab}
+          onOpen={handleOpenPlan}
+          onEdit={(plan) => handleOpenModal(plan)}
+          onDelete={(plan) => handleDeletePlan(plan)}
+        />
+      </div>
+
+      <div className="grid md:hidden gap-3">
+        {isLoading && (
+          <p className="text-sm text-slate-400 font-medium">Chargement...</p>
+        )}
+        {!isLoading && visiblePlans.length === 0 && (
+          <p className="text-sm text-slate-400 font-medium">
+            Aucun plan de {activeTab === "UNLOAD" ? "déchargement" : "chargement"}.
+          </p>
+        )}
+        {visiblePlans.map((plan) => (
+          <LoadPlanCard
+            key={plan.id}
+            plan={plan}
+            operationType={activeTab}
+            onOpen={handleOpenPlan}
+            onEdit={(element) => handleOpenModal(element)}
+            onDelete={(element) => handleDeletePlan(element)}
+          />
+        ))}
+      </div>
 
       <LoadPlanModal
         isOpen={isModalOpen}

@@ -9,6 +9,7 @@ import {
   Table,
 } from "@/shared/components/ui";
 import { formatDate } from "@/shared/utils/formatDate";
+import { LoadLineCard } from "./LoadLineCard";
 
 const formatLoader = (load) => {
   if (!load.loadedBy?.name) {
@@ -155,12 +156,37 @@ export function PlanLoadsSection({
         )}
       </CardHeader>
       <CardContent>
-        <Table
-          columns={columns}
-          data={loads}
-          isLoading={isSaving}
-          emptyMessage="Aucune marchandise dans ce plan."
-        />
+        <div className="hidden md:block">
+          <Table
+            columns={columns}
+            data={loads}
+            isLoading={isSaving}
+            emptyMessage="Aucune marchandise dans ce plan."
+          />
+        </div>
+
+        <div className="grid md:hidden gap-3">
+          {isSaving && (
+            <p className="text-sm text-slate-400 font-medium">Chargement...</p>
+          )}
+          {!isSaving && loads.length === 0 && (
+            <p className="text-sm text-slate-400 font-medium">
+              Aucune marchandise dans ce plan.
+            </p>
+          )}
+          {loads.map((load) => (
+            <LoadLineCard
+              key={load.id}
+              load={load}
+              operationType={operationType}
+              isLocked={isLocked}
+              canUpdate={canUpdate}
+              canDelete={canDelete}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
