@@ -13,9 +13,13 @@ const router = express.Router();
 // Protéger toutes les routes de ce module
 router.use(authMiddleware.protect);
 
-// Route principale pour alimenter le formulaire de création d'employé
-// (renvoie tous les départements actifs + leurs postes actifs)
-router.route("/").get(companyStructureController.getStructure);
+// Route principale : departements et postes actifs. Elle alimente l'ecran
+// de structure et le formulaire de creation d'employe. Elle suit le droit
+// COMPANY_STRUCTURE:READ, accorde aux comptes qui gerent la structure.
+router.route("/").get(
+  authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.READ),
+  companyStructureController.getStructure,
+);
 
 // --- Départements ---
 // NB: ces chemins sont préfixés par "/departments" pour matcher exactement
@@ -30,7 +34,10 @@ router
 
 router
   .route("/departments/:id")
-  .get(companyStructureController.getDepartment)
+  .get(
+    authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.READ),
+    companyStructureController.getDepartment,
+  )
   .put(
     authMiddleware.authorize("COMPANY_STRUCTURE", APP_ACTIONS.UPDATE),
     validate(companyStructureValidation.updateDepartment),

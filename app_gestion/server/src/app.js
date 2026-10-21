@@ -10,6 +10,7 @@ const auditTrail = require("./common/middlewares/audit.middleware");
 const { appLimiter } = require("./config/security");
 const apiRoutes = require("./modules/_routes");
 const logger = require("./config/logger");
+const AppError = require("./common/utils/AppError");
 
 const app = express();
 const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
@@ -59,9 +60,7 @@ app.use("/api/v1", apiRoutes);
 
 // Gestion globale des routes non trouvées (Renvoie vers le middleware d'erreur avec un 404)
 app.use((req, res, next) => {
-  const error = new Error(`Route non trouvée - ${req.originalUrl}`);
-  res.status(404);
-  next(error);
+  next(new AppError(`Route non trouvée - ${req.originalUrl}`, 404));
 });
 
 // 5. INTERCEPTEUR ET GESTIONNAIRE CENTRALISÉ DES ERREURS

@@ -10,10 +10,19 @@ const router = express.Router();
 
 router.use(authMiddleware.protect);
 
-// Lecture : utile pour peupler le <Select> du formulaire de permissions,
-// donc accessible à tout employé authentifié (pas seulement l'IT).
-router.get("/", moduleController.getAll);
-router.get("/:id", moduleController.getById);
+// Lecture : le catalogue des modules alimente le <Select> du formulaire de
+// permissions et l'ecran de gestion des modules. Il suit donc le droit
+// MODULE:READ, accorde aux comptes qui administrent les acces.
+router.get(
+  "/",
+  authMiddleware.authorize("MODULE", APP_ACTIONS.READ),
+  moduleController.getAll,
+);
+router.get(
+  "/:id",
+  authMiddleware.authorize("MODULE", APP_ACTIONS.READ),
+  moduleController.getById,
+);
 
 // Création, modification et suppression : elles suivent le systeme de
 // permissions, comme les autres modules. Le droit MODULE est donc

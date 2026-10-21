@@ -8,6 +8,7 @@
     "test": "npm run test:unit",
     "test:unit": "node --test test/unit/*.test.js",
     "test:integration": "node --test test/integration/*.test.js",
+    "audit:droits": "node test/permissions/audit-droits.mjs",
     "dev": "npx dotenv -e .env.development -- nodemon server.js",
     "start": "npx dotenv -e .env.production -- node server.js",
     "seed": "node prisma/seeds/index.js",

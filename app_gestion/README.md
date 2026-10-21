@@ -1145,6 +1145,18 @@ Les codes de module sont libres côté base (`AppModule`), mais ceux **réelleme
 
 Le seed `server/prisma/seedAppModules.js` liste exactement ces codes ; les modules devenus inutiles sont retirés du catalogue lors de son exécution.
 
+### 7.1. Audit des accès
+
+`server/test/permissions/audit-droits.mjs` (`npm run audit:droits`) met chaque compte de démonstration dans la situation d'exécuter les quatre opérations de chaque module (lire, créer, modifier, supprimer) et compare le verdict de l'API aux droits déclarés dans `EmployeePermission` :
+
+- une opération **refusée** doit répondre `403` ; elle est signalée comme *trop stricte* si le droit est pourtant déclaré ;
+- une opération **accordée** (droit absent, mais réponse `2xx`, `400` ou `404`) est signalée comme *trop large* : c'est un accès non autorisé ;
+- les modifications et suppressions visent des identifiants aléatoires : aucune donnée réelle n'est touchée ; les créations réellement abouties sont supprimées à la fin du parcours.
+
+Le parcours a fait apparaître deux ouvertures involontaires, depuis refermées : la lecture du catalogue des modules (`GET /modules`) et celle de la structure de l'entreprise (`GET /company-structure`) étaient accessibles à tout employé authentifié, alors que les droits `MODULE:READ` et `COMPANY_STRUCTURE:READ` les réservent. Les comptes qui administrent les accès ou les employés détenaient déjà ces droits : rien n'a été perdu de leur côté.
+
+Le parcours envoie environ six cents requêtes : il demande un limiteur global plus large que la valeur habituelle (`RATE_LIMIT_MAX=5000` sur l'environnement conteneurisé), faute de quoi il est coupé en cours de route. Il signale alors chaque réponse `429` et ses verdicts ne valent plus rien.
+
 ## 8. API REST
 
 Préfixe : `/api/v1`. Toutes les routes ci-dessous exigent l'authentification (`protect`) sauf mention contraire, et les mutations exigent le header CSRF.
@@ -1273,6 +1285,7 @@ cd client; npm run dev      # Vite, http://localhost:5173
 | --- | --- | --- |
 | `server/` | `npm test` | tests unitaires (`node --test test/unit/*.test.js`) |
 | `server/` | `npm run test:integration` | test d'intégration (nécessite une base seedée) |
+| `server/` | `npm run audit:droits` | audit des accès : chaque compte de démonstration est mis en situation d'exécuter les opérations de chaque module, et le verdict de l'API est comparé aux droits déclarés |
 | `server/` | `npm run seed` | jeu de démonstration complet : dix-huit mois d'exploitation, toutes les tables |
 | `server/` | `npm run seed:base` | socle minimal : structure, modules de permissions, administrateur universel |
 | `server/` | `npm run seed:reset` | vide les tables puis rejoue le jeu complet |
