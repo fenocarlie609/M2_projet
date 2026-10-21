@@ -6,11 +6,13 @@
 # dossier 03_Projet du memoire ; la copie de travail, qui contient les
 # dependances installees, reste sur le disque local.
 
+param(
+  [string]$Cible = "C:\Users\CarlieFeno\OneDrive - so-api consulting\Documents\Memoire M2 - FENO Carlie\03_Projet"
+)
+
 $ErreurActionPreference = "Stop"
 
-$Source = "C:\Users\CarlieFeno\Projets\AppGestion"
-$Cible = Join-Path $PSScriptRoot "..\03_Projet"
-
+$Source = $PSScriptRoot
 if (-not (Test-Path $Source)) {
     Write-Error "Copie de travail introuvable : $Source"
 }
@@ -32,6 +34,6 @@ Write-Host "Termine."
 Write-Host "  cible   : $cible"
 Write-Host "  commit  : $dernier"
 if ($etat) {
-    Write-Host "  modifiees non versionnees :"
+    Write-Host "  differences non versionnees :"
     $etat | ForEach-Object { Write-Host "    $_" }
 }
