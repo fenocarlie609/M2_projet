@@ -53,10 +53,7 @@ function LoadPage({ operationType = "LOAD" }) {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [planResponse, clientsResponse] = await Promise.all([
-        loadingPlanService.getPlanByReference(reference),
-        clientService.getClients(),
-      ]);
+      const planResponse = await loadingPlanService.getPlanByReference(reference);
       const nextPlan = planResponse?.data?.loadingPlan;
       if (!nextPlan || (nextPlan.operationType || "LOAD") !== operationType) {
         setPlan(null);
@@ -66,12 +63,22 @@ function LoadPage({ operationType = "LOAD" }) {
         return;
       }
       setPlan(nextPlan);
-      setClients(clientsResponse?.data?.clients || []);
       setError("");
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Impossible de charger le plan."));
     } finally {
       setIsLoading(false);
+    }
+
+    // La liste des clients est une donnee annexe : elle alimente le choix
+    // du client dans l'editeur de ligne. Un compte qui n'a pas le droit
+    // de lire les clients doit pouvoir consulter le manifeste sans que
+    // l'ecran soit bloque.
+    try {
+      const clientsResponse = await clientService.getClients();
+      setClients(clientsResponse?.data?.clients || []);
+    } catch {
+      setClients([]);
     }
   };
 

@@ -86,6 +86,12 @@ export function LoadEditorModal({
             {error}
           </Alert>
         )}
+        {clients.length === 0 && (
+          <Alert variant="info" title="Liste des clients indisponible">
+            Le choix du client n'est pas proposé : le compte ne peut pas lire
+            la liste des clients.
+          </Alert>
+        )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Select
             label="Client"

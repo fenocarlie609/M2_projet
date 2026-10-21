@@ -146,14 +146,92 @@ const parcourir = async (navigateur, profil) => {
   return resultats;
 };
 
+// Les profils restreints : un compte qui n'a pas tous les droits doit
+// pouvoir consulter les ecrans qui le concernent. Une liste annexe
+// belonging to another module (les voyages sur l'ecran des plans, par
+// exemple) ne doit pas condamner l'ecran : c'est le piege que le
+// parcours a deja rencontre.
+const COMPTES_RESTREINTS = [
+  {
+    email: "j.rakoto@lct.mg",
+    motDePasse: "Demo@2026",
+    nom: "agent de quai",
+    ecrans: ["/plans", "/client", "/warehouse", "/dashboard"],
+  },
+  {
+    email: "t.rajaonarison@lct.mg",
+    motDePasse: "Demo@2026",
+    nom: "responsable commercial",
+    ecrans: ["/plans", "/client", "/voyages", "/dashboard"],
+  },
+  {
+    email: "m.rajaonarison@lct.mg",
+    motDePasse: "Demo@2026",
+    nom: "administrateur de base de donnees",
+    ecrans: ["/employees", "/client", "/dashboard"],
+  },
+];
+
+const verifierProfils = async (navigateur) => {
+  const anomalies = [];
+
+  for (const profil of COMPTES_RESTREINTS) {
+    // Une session propre par compte : les droits de l'un ne doivent pas
+    // deborder sur l'autre.
+    const contexte = await navigateur.newContext({
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+      deviceScaleFactor: 2,
+      serviceWorkers: "block",
+      locale: "fr-FR",
+    });
+    const page = await contexte.newPage();
+
+    await page.goto(`${RACINE}/login`, { waitUntil: "domcontentloaded" });
+    await page.locator('input[type="text"]').first().fill(profil.email);
+    await page.locator('input[type="password"]').first().fill(profil.motDePasse);
+    await page.getByRole("button", { name: "Se connecter" }).click();
+    await page.waitForURL(/dashboard/, { timeout: 20000 });
+
+    for (const chemin of profil.ecrans) {
+      await page.goto(`${RACINE}${chemin}`, { waitUntil: "networkidle" });
+      await page.waitForTimeout(700);
+
+      const texte = await page.locator("main").innerText();
+      const refus = /Vous n'avez pas la permission/i.test(texte);
+      const erreur = /^Erreur$/m.test(texte);
+      const vide = texte.trim().length < 60;
+
+      if (refus || erreur || vide) {
+        anomalies.push({
+          profil: profil.email,
+          chemin,
+          detail: refus
+            ? "la page affiche un refus de droit"
+            : erreur
+              ? "la page affiche un bandeau d'erreur"
+              : "la page est vide",
+        });
+      }
+    }
+
+    await contexte.close();
+  }
+
+  return anomalies;
+};
+
 const executer = async () => {
   const navigateur = await chromium.launch({ channel: "chrome", headless: true });
 
   let bureau;
   let mobile;
+  let anomaliesProfils;
   try {
     bureau = await parcourir(navigateur, PROFILS.bureau);
     mobile = await parcourir(navigateur, PROFILS.mobile);
+    anomaliesProfils = await verifierProfils(navigateur);
   } finally {
     await navigateur.close();
   }
@@ -221,9 +299,24 @@ const executer = async () => {
   } else {
     console.log(`${anomalies} ecran(s) presentent une anomalie.`);
   }
-  console.log("Captures : e2e/captures/mobile et e2e/captures/bureau");
 
-  process.exit(anomalies === 0 ? 0 : 1);
+  console.log("\n== Profils restreints ==");
+  if (anomaliesProfils.length === 0) {
+    console.log(
+      "Chaque compte consulte les ecrans qui le concernent, sans refus de droit.",
+    );
+  } else {
+    for (const anomalie of anomaliesProfils) {
+      console.log(
+        `ANOMALIE ${anomalie.profil} sur ${anomalie.chemin} : ${anomalie.detail}`,
+      );
+    }
+    console.log(`\n${anomaliesProfils.length} anomalie(s) sur les profils restreints.`);
+  }
+
+  console.log("\nCaptures : e2e/captures/mobile et e2e/captures/bureau");
+
+  process.exit(anomalies === 0 && anomaliesProfils.length === 0 ? 0 : 1);
 };
 
 executer().catch((erreur) => {

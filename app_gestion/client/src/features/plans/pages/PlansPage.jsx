@@ -45,6 +45,9 @@ function PlansPage() {
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [voyages, setVoyages] = useState([]);
+  // La liste des voyages est une donnee annexe : son absence ne doit pas
+  // empecher la consultation des plans.
+  const [voyagesDisponibles, setVoyagesDisponibles] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,14 +62,16 @@ function PlansPage() {
 
   const loadData = async () => {
     setIsLoading(true);
-    try {
-      const [plansRes, voyagesRes] = await Promise.all([
-        loadingPlanService.getPlans(),
-        voyageService.getVoyages(),
-      ]);
+    setError("");
 
+    // Les plans de manutention sont l'objet de l'ecran. La liste des
+    // voyages n'est qu'une donnee annexe : elle alimente le choix du
+    // voyage dans le formulaire de creation. Un compte qui n'a pas le
+    // droit de lire les voyages doit donc pouvoir consulter les plans
+    // sans que l'ecran soit bloque par une erreur de droit.
+    try {
+      const plansRes = await loadingPlanService.getPlans();
       setPlans(Array.isArray(plansRes) ? plansRes : []);
-      setVoyages(voyagesRes?.data?.voyages || voyagesRes || []);
     } catch (requestError) {
       setError(
         getErrorMessage(
@@ -76,6 +81,17 @@ function PlansPage() {
       );
     } finally {
       setIsLoading(false);
+    }
+
+    try {
+      const voyagesRes = await voyageService.getVoyages();
+      setVoyages(voyagesRes?.data?.voyages || voyagesRes || []);
+      setVoyagesDisponibles(true);
+    } catch {
+      // Le compte n'a pas le droit de lire les voyages : les plans
+      // restent consultables, la creation ne l'est pas.
+      setVoyages([]);
+      setVoyagesDisponibles(false);
     }
   };
 
@@ -168,22 +184,31 @@ function PlansPage() {
         }
         subtitle="Consultez les opérations et le manifeste associés à chaque voyage."
       >
-        {activeTab === "LOAD" && checkPermission("LOADING_PLANS", "CREATE") && (
-          <Button
-            variant="primary"
-            icon={FiPlus}
-            onClick={() => handleOpenModal()}
-          >
-            {activeTab === "UNLOAD"
-              ? "Nouveau plan de déchargement"
-              : "Nouveau plan de chargement"}
-          </Button>
-        )}
+        {activeTab === "LOAD" &&
+          checkPermission("LOADING_PLANS", "CREATE") &&
+          voyagesDisponibles && (
+            <Button
+              variant="primary"
+              icon={FiPlus}
+              onClick={() => handleOpenModal()}
+            >
+              {activeTab === "UNLOAD"
+                ? "Nouveau plan de déchargement"
+                : "Nouveau plan de chargement"}
+            </Button>
+          )}
       </PageHeader>
 
       {error && (
         <Alert variant="error" title="Erreur">
           {error}
+        </Alert>
+      )}
+
+      {!voyagesDisponibles && (
+        <Alert variant="info" title="Création indisponible">
+          Vous pouvez consulter les plans de manutention, mais pas les
+          voyages : la création d'un plan n'est donc pas proposée.
         </Alert>
       )}
 
