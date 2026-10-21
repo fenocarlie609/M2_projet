@@ -1298,7 +1298,6 @@ navigateur et sert le bundle précédent. Un rechargement forcé
 paramètres du navigateur suffit à retrouver la version courante.
 
 ### 12.1. Déploiement avec Docker
-
 Le projet se déploie intégralement avec Docker : une commande suffit à démarrer la base,
 appliquer les migrations, lancer l'interface de programmation et servir l'interface web.
 
@@ -1356,6 +1355,9 @@ docker compose --profile demo run --rm seed-demo
 Le script est idempotent : il peut être relancé sans dupliquer les enregistrements. Il
 enchaîne les scripts de référence (structure, modules, administrateur, données logistiques)
 puis complète les tables que ceux-ci ne couvrent pas.
+
+Le tableau complet des comptes, des adresses et des ports figure dans
+`IDENTIFIANTS.md`, à la racine du dépôt.
 
 | Compte | Identifiant | Mot de passe | Périmètre |
 | --- | --- | --- | --- |
