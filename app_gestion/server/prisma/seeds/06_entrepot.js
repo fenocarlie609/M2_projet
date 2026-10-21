@@ -120,17 +120,25 @@ async function run(prisma, { plansCrees, clientsCrees, employesCrees }) {
 
   // Une marchandise retiree par son client, et une marchandise
   // reembarquee sur le voyage en cours : les deux sorties du cycle.
-  const sortants = [];
-  for (const article of articlesCrees) {
-    sortants.push(article);
-  }
+  // Les marchandises sont classees par reference et non dans l'ordre de
+  // lecture : deux marchandises peuvent porter la meme description, et
+  // l'ordre de la base n'est alors pas garanti. Le choix des sorties doit
+  // rester le meme a chaque execution.
+  const sortants = [...articlesCrees].sort((a, b) =>
+    a.reference.localeCompare(b.reference),
+  );
 
   // Un mouvement n'est enregistre qu'une fois : rejouer le jeu ne doit pas
   // multiplier la trace des entrees et des sorties.
   const mouvementDejaTrace = async (itemId, type) =>
     (await prisma.warehouseMovement.count({ where: { itemId, type } })) > 0;
 
-  if (sortants.length > 0) {
+  // Une sortie de chaque nature, au total : le jeu ne retire qu'une
+  // marchandise et n'en reembarque qu'une.
+  const sortieDejaTracee = async (type) =>
+    (await prisma.warehouseMovement.count({ where: { type } })) > 0;
+
+  if (sortants.length > 0 && !(await sortieDejaTracee("PICKUP"))) {
     const retiree = sortants[0];
     await prisma.warehouseItem.update({
       where: { id: retiree.id },
@@ -140,21 +148,19 @@ async function run(prisma, { plansCrees, clientsCrees, employesCrees }) {
         departureReason: "PICKUP",
       },
     });
-    if (!(await mouvementDejaTrace(retiree.id, "PICKUP"))) {
-      await prisma.warehouseMovement.create({
-        data: {
-          itemId: retiree.id,
-          warehouseId: retiree.warehouseId,
-          employeeId: coordinateur.id,
-          type: "PICKUP",
-          note: "Retrait par le client",
-          createdAt: jours(-2),
-        },
-      });
-    }
+    await prisma.warehouseMovement.create({
+      data: {
+        itemId: retiree.id,
+        warehouseId: retiree.warehouseId,
+        employeeId: coordinateur.id,
+        type: "PICKUP",
+        note: "Retrait par le client",
+        createdAt: jours(-2),
+      },
+    });
   }
 
-  if (sortants.length > 1) {
+  if (sortants.length > 1 && !(await sortieDejaTracee("RE_EMBARKMENT"))) {
     const reembarquee = sortants[1];
 
     // Le reembarquement porte sur un plan de chargement d'un voyage a venir :
