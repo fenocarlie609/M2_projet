@@ -117,6 +117,13 @@ const grantAccess = async (
     }
   }
 
+  // L'attribution definit l'ensemble des droits du compte : les droits
+  // precedents sont remplaces. Sans cela, une reattribution echouait sur
+  // la contrainte d'unicite des permissions.
+  await prisma.employeePermission.deleteMany({
+    where: { employeeId },
+  });
+
   const updatedEmployee = await prisma.employee.update({
     where: { id: employeeId },
     data: {
@@ -206,6 +213,12 @@ const revokeAccess = async (employeeId) => {
       isActive: false,
       hasAppAccess: false,
     },
+  });
+
+  // Les droits disparaissent avec l'acces : la liste des permissions
+  // decrit l'etat autorise du compte.
+  await prisma.employeePermission.deleteMany({
+    where: { employeeId },
   });
 
   // CORRECTION : nettoyage défensif — couvre le cas rare où une notification

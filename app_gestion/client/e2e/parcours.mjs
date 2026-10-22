@@ -466,33 +466,98 @@ const verifierComptes = async (navigateur, comptes, references) => {
   return { anomalies, verifications };
 };
 
-// Un compte de deduction : il ne peut lire que les plans de manutention,
-// ni les clients ni les voyages. Le jeu de demonstration n'a pas de
-// profil aussi restrictif, et c'est precisement le cas ou une liste
-// annexe appartient a un autre module. Le compte est cree sur un employe
-// en attente d'acces, puis l'acces est retire : le jeu retrouve son etat.
-const verifierCompteRestreint = async (navigateur, references) => {
+// Pour chaque module, l'ecran corresponding. Le test attribue a un
+// employe le seul droit de lecture de ce module : l'ecran doit alors
+// afficher ses donnees. C'est le cas qui avait ete decouvert sur les
+// plans : un droit manquant sur une liste annexe ne doit pas condamner
+// l'ecran principal.
+const DROITS_ECRANS = [
+  { module: "EMPLOYEES", ecrans: [{ chemin: "/employees", contenu: "cartes" }] },
+  { module: "CLIENT", ecrans: [{ chemin: "/client", contenu: "cartes" }] },
+  { module: "VESSELS", ecrans: [{ chemin: "/ship", contenu: "cartes" }] },
+  { module: "PORTS", ecrans: [{ chemin: "/ports", contenu: "cartes" }] },
+  { module: "VOYAGES", ecrans: [{ chemin: "/voyages", contenu: "cartes" }] },
+  {
+    module: "LOADING_PLANS",
+    ecrans: [
+      { chemin: "/plans", contenu: "cartes" },
+      { chemin: "/plans/load/PLAN", contenu: "cartes" },
+      { chemin: "/plans/unload/PLAN", contenu: "cartes" },
+    ],
+  },
+  { module: "ENTREPOTS", ecrans: [{ chemin: "/warehouse", contenu: "cartes" }] },
+  { module: "USERS", ecrans: [{ chemin: "/users", contenu: "cartes" }] },
+  { module: "MODULE", ecrans: [{ chemin: "/module", contenu: "cartes" }] },
+  {
+    module: "COMPANY_STRUCTURE",
+    ecrans: [{ chemin: "/company-structure", contenu: "titres" }],
+  },
+];
+
+// Un employe de test, cree pour le passage puis supprime : les demandes
+// d'acces du jeu de demonstration ne sont pas consommees.
+const creerEmployeDeTest = async (entetes) => {
+  const structure = await (
+    await fetch(`${RACINE}/api/v1/company-structure`, { headers: entetes })
+  ).json();
+  const departement = structure?.data?.structure?.[0];
+  const poste = departement?.positions?.[0];
+  if (!departement || !poste) return null;
+
+  const protection = await csrf();
+  const reponse = await fetch(`${RACINE}/api/v1/employees`, {
+    method: "POST",
+    headers: {
+      ...entetes,
+      "Content-Type": "application/json",
+      "X-CSRF-Token": protection.token,
+      Cookie: `xsrf-token=${protection.cookie}`,
+    },
+    body: JSON.stringify({
+      name: "TEST PARCOURS",
+      email: `test.parcours@exemple.mg`,
+      departmentId: departement.id,
+      positionId: poste.id,
+    }),
+  });
+  if (!reponse.ok) return null;
+  return (await reponse.json())?.data?.employee || null;
+};
+
+const supprimerEmployeDeTest = async (entetes, id) => {
+  const protection = await csrf();
+  await fetch(`${RACINE}/api/v1/employees/${id}`, {
+    method: "DELETE",
+    headers: {
+      ...entetes,
+      "X-CSRF-Token": protection.token,
+      Cookie: `xsrf-token=${protection.cookie}`,
+    },
+  });
+};
+
+// Un compte de deduction : il ne peut lire que le module indique, ni les
+// clients ni les voyages ni les autres modules. Le compte est cree sur un
+// employe de test, puis supprime : le jeu retrouve son etat.
+const verifierCompteRestreint = async (navigateur, references, droit, employe) => {
   const anomalies = [];
 
   const jetonAdmin = await jetonAdministrateur();
   const entetes = { Authorization: `Bearer ${jetonAdmin}` };
 
-  const reponsePending = await fetch(`${RACINE}/api/v1/users/pending`, {
-    headers: entetes,
-  });
-  const enAttente = (await reponsePending.json())?.data?.employees || [];
-  if (enAttente.length === 0) {
-    console.log(
-      "Aucun employe en attente d'acces : le compte de deduction n'a pas ete mis en place.",
-    );
+  if (!employe) {
+    anomalies.push({
+      profil: "(employe de test)",
+      chemin: `(ouverture du compte ${droit.module})`,
+      detail: "l'employe de test n'a pas pu etre cree",
+    });
     return anomalies;
   }
-  const employe = enAttente[0];
 
   const protection = await csrf();
   const corps = JSON.stringify({
     password: "Deduit@2026",
-    permissions: [{ module: "LOADING_PLANS", action: "READ" }],
+    permissions: [{ module: droit.module, action: "READ" }],
   });
   const reponseAcces = await fetch(
     `${RACINE}/api/v1/users/${employe.id}/access`,
@@ -511,9 +576,10 @@ const verifierCompteRestreint = async (navigateur, references) => {
   if (!reponseAcces.ok) {
     anomalies.push({
       profil: employe.matricule,
-      chemin: "(ouverture du compte)",
+      chemin: `(ouverture du compte ${droit.module})`,
       detail: `impossible d'accorder l'acces : ${reponseAcces.status}`,
     });
+    await supprimerEmployeDeTest(entetes, employe.id);
     return anomalies;
   }
 
@@ -534,13 +600,20 @@ const verifierCompteRestreint = async (navigateur, references) => {
     await page.getByRole("button", { name: "Se connecter" }).click();
     await page.waitForURL(/dashboard/, { timeout: 20000 });
 
-    const ecrans = [
-      { chemin: "/plans", module: "LOADING_PLANS", contenu: "cartes" },
-      ...ecransDeManifeste(references),
-    ];
+    for (const ecran of droit.ecrans) {
+      const chemin = ecran.chemin.replace(
+        "/plans/load/PLAN",
+        references.find((r) => r.operationType === "LOAD")
+          ? `/plans/load/${references.find((r) => r.operationType === "LOAD").reference}`
+          : "/plans",
+      ).replace(
+        "/plans/unload/PLAN",
+        references.find((r) => r.operationType === "UNLOAD")
+          ? `/plans/unload/${references.find((r) => r.operationType === "UNLOAD").reference}`
+          : "/plans",
+      );
 
-    for (const ecran of ecrans) {
-      await page.goto(`${RACINE}${ecran.chemin}`, { waitUntil: "networkidle" });
+      await page.goto(`${RACINE}${chemin}`, { waitUntil: "networkidle" });
       await page.waitForTimeout(800);
 
       let texte = "";
@@ -552,26 +625,34 @@ const verifierCompteRestreint = async (navigateur, references) => {
 
       const refus = /Vous n'avez pas la permission/i.test(texte);
       const erreur = /^Erreur$/m.test(texte);
-      const elements = await page
-        .locator("main .md\\:hidden > *:visible")
-        .count();
+      let elements = 0;
+      if (ecran.contenu === "cartes") {
+        elements = await page
+          .locator("main .md\\:hidden > *:visible")
+          .count();
+        if (elements === 0) {
+          elements = await page.locator("main table tbody tr:visible").count();
+        }
+      } else if (ecran.contenu === "titres") {
+        elements = await page.locator("main h3:visible").count();
+      }
 
       if (refus || erreur || elements === 0) {
         anomalies.push({
-          profil: employe.matricule,
-          chemin: ecran.chemin,
+          profil: `${employe.matricule} (${droit.module} seulement)`,
+          chemin,
           detail: refus
             ? "la page affiche un refus de droit alors que le compte a le droit de lecture"
             : erreur
               ? "la page affiche un bandeau d'erreur"
-              : "la page n'affiche aucune donnee",
+              : "la page n'affiche aucune donnee de sa liste",
         });
       }
     }
 
     await contexte.close();
   } finally {
-    // L'acces est retire : l'employe retrouve son etat d'attente.
+    // L'acces est retire : l'employe de test retrouve son etat d'attente.
     const protection = await csrf();
     await fetch(`${RACINE}/api/v1/users/${employe.id}/access`, {
       method: "DELETE",
@@ -619,7 +700,29 @@ const executer = async () => {
     comptes = lus.comptes;
     references = lus.references;
     resultatMatrice = await verifierComptes(navigateur, comptes, references);
-    resultatDeduction = await verifierCompteRestreint(navigateur, references);
+
+    // Un employe de test sert a tous les comptes de deduction : il est
+    // supprime a la fin, le jeu de demonstration n'est pas altere.
+    const jetonAdmin = await jetonAdministrateur();
+    const entetesAdmin = { Authorization: `Bearer ${jetonAdmin}` };
+    const employeDeTest = await creerEmployeDeTest(entetesAdmin);
+
+    for (const droit of DROITS_ECRANS) {
+      const anomaliesDroit = await verifierCompteRestreint(
+        navigateur,
+        references,
+        droit,
+        employeDeTest,
+      );
+      resultatDeduction = resultatDeduction.concat(anomaliesDroit);
+      if (anomaliesDroit.length === 0) {
+        console.log(`  ${droit.module} : ecran conforme avec ce seul droit`);
+      }
+    }
+
+    if (employeDeTest) {
+      await supprimerEmployeDeTest(entetesAdmin, employeDeTest.id);
+    }
   } finally {
     await navigateur.close();
   }
@@ -719,10 +822,10 @@ const executer = async () => {
     console.log(`\n${resultatMatrice.anomalies.length} anomalie(s).`);
   }
 
-  console.log("\n== Compte de deduction (plans seuls) ==");
+  console.log("\n== Un droit de lecture par module ==");
   if (resultatDeduction.length === 0) {
     console.log(
-      "Un compte qui ne peut lire que les plans consulte les plans et leurs manifestes.",
+      "Chaque module, avec son seul droit de lecture, affiche ses donnees.",
     );
   } else {
     for (const anomalie of resultatDeduction) {
