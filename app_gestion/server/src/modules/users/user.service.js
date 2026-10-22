@@ -9,7 +9,7 @@ const getPendingAccessRequests = async () => {
   return prisma.employee.findMany({
     where: {
       deletedAt: null,
-      hasAppAccess: true,
+      // Un employe sans compte actif attend qu'on lui en attribue un.
       isActive: false,
     },
     select: {
@@ -99,19 +99,18 @@ const grantAccess = async (
   if (!employee || employee.deletedAt) {
     throw new AppError("Employé non trouvé.", 404);
   }
-  if (!employee.hasAppAccess) {
-    throw new AppError(
-      "Cet employé n'a pas été signalé par la RH comme ayant besoin d'un accès à l'application.",
-      400,
-    );
-  }
+  // L'attribution d'un acces cree le compte de l'employe : elle concerne
+  // donc un employe qui n'a pas encore de compte actif. Exiger un acces
+  // deja accorde rendait la demande impossible a satisfaire.
   if (employee.isActive) {
     throw new AppError("Cet employé a déjà un accès à l'application.", 400);
   }
 
   if (email) {
-    const existingEmail = await prisma.employee.findUnique({
-      where: { email },
+    // L'adresse peut appartenir a l'employe lui-meme : elle ne le bloque
+    // alors pas.
+    const existingEmail = await prisma.employee.findFirst({
+      where: { email, NOT: { id: employeeId } },
     });
     if (existingEmail) {
       throw new AppError("Cet email est déjà utilisé.", 400);
@@ -123,6 +122,9 @@ const grantAccess = async (
     data: {
       email: email ?? undefined,
       password: await hashPassword(password),
+      // Le compte devient utilisable : sans ce drapeau, l'authentification
+      // refuse l'employe alors meme que l'acces vient d'etre accorde.
+      hasAppAccess: true,
       isActive: true,
       permissions: permissions.length
         ? {
@@ -197,7 +199,9 @@ const revokeAccess = async (employeeId) => {
   const updatedEmployee = await prisma.employee.update({
     where: { id: employeeId },
     data: {
-      email: null,
+      // L'adresse electronique identifie l'employe dans l'entreprise : elle
+      // est conservee. C'est le compte qui est revoque : le mot de passe
+      // disparait et l'employe ne peut plus se connecter.
       password: null,
       isActive: false,
       hasAppAccess: false,

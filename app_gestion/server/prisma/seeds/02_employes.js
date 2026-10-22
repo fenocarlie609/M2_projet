@@ -49,8 +49,16 @@ async function run(prisma) {
       where: { code: donnees.position, departmentId: departement.id },
     });
 
-    const existant = await prisma.employee.findUnique({
-      where: { email: donnees.email },
+    const existant = await prisma.employee.findFirst({
+      where: {
+        OR: [
+          { email: donnees.email },
+          // Un employe dont l'adresse a ete effacee (revocation d'acces)
+          // reste reconnaissable a son nom : le jeu doit pouvoir etre
+          // rejoue sur n'importe quel etat.
+          { email: null, name: donnees.name },
+        ],
+      },
     });
     const matricule = existant
       ? existant.matricule
@@ -60,35 +68,35 @@ async function run(prisma) {
       ? await hashPassword(MOT_DE_PASSE_ADMIN)
       : await hashPassword(MOT_DE_PASSE);
 
-    const employe = await prisma.employee.upsert({
-      where: { email: donnees.email },
-      update: {
-        name: donnees.name,
-        cin: donnees.cin,
-        phone: donnees.phone,
-        matricule,
-        hasAppAccess: donnees.acces,
-        isActive: donnees.acces,
-        password: motDePasse,
-        departmentId: departement.id,
-        positionId: poste.id,
-        deletedAt: null,
-      },
-      create: {
-        name: donnees.name,
-        email: donnees.email,
-        cin: donnees.cin,
-        phone: donnees.phone,
-        matricule,
-        hasAppAccess: donnees.acces,
-        isActive: donnees.acces,
-        password: motDePasse,
-        departmentId: departement.id,
-        positionId: poste.id,
-        createdAt: donnees.embauche,
-        updatedAt: donnees.embauche,
-      },
-    });
+    const donneesCommunes = {
+      name: donnees.name,
+      email: donnees.email,
+      cin: donnees.cin,
+      phone: donnees.phone,
+      matricule,
+      hasAppAccess: donnees.acces,
+      isActive: donnees.acces,
+      password: motDePasse,
+      departmentId: departement.id,
+      positionId: poste.id,
+      deletedAt: null,
+    };
+
+    // L'employe est mis a jour s'il existe deja, cree sinon : le jeu
+    // peut ainsi etre rejoue apres une revocation d'acces, qui laisse
+    // l'adresse vide.
+    const employe = existant
+      ? await prisma.employee.update({
+          where: { id: existant.id },
+          data: donneesCommunes,
+        })
+      : await prisma.employee.create({
+          data: {
+            ...donneesCommunes,
+            createdAt: donnees.embauche,
+            updatedAt: donnees.embauche,
+          },
+        });
 
     // Les permissions sont reecrites : le catalogue doit toujours decrire
     // l'etat voulu, sans accumulation.

@@ -230,22 +230,36 @@ const verifierProfils = async (navigateur) => {
 };
 
 // Les ecrans de l'application et le droit de lecture qu'ils exigent.
+// « contenu » designe ce que l'ecran doit montrer : les cartes de la
+// liste sur telephone, les blocs de la structure.
 const ECRANS = [
-  { chemin: "/dashboard", module: null },
-  { chemin: "/employees", module: "EMPLOYEES" },
-  { chemin: "/client", module: "CLIENT" },
-  { chemin: "/ship", module: "VESSELS" },
-  { chemin: "/ports", module: "PORTS" },
-  { chemin: "/voyages", module: "VOYAGES" },
-  { chemin: "/plans", module: "LOADING_PLANS" },
-  { chemin: "/warehouse", module: "ENTREPOTS" },
-  { chemin: "/users", module: "USERS" },
-  { chemin: "/module", module: "MODULE" },
-  { chemin: "/company-structure", module: "COMPANY_STRUCTURE" },
+  { chemin: "/dashboard", module: null, contenu: null },
+  { chemin: "/employees", module: "EMPLOYEES", contenu: "cartes" },
+  { chemin: "/client", module: "CLIENT", contenu: "cartes" },
+  { chemin: "/ship", module: "VESSELS", contenu: "cartes" },
+  { chemin: "/ports", module: "PORTS", contenu: "cartes" },
+  { chemin: "/voyages", module: "VOYAGES", contenu: "cartes" },
+  { chemin: "/plans", module: "LOADING_PLANS", contenu: "cartes" },
+  { chemin: "/warehouse", module: "ENTREPOTS", contenu: "cartes" },
+  { chemin: "/users", module: "USERS", contenu: "cartes" },
+  { chemin: "/module", module: "MODULE", contenu: "cartes" },
+  { chemin: "/company-structure", module: "COMPANY_STRUCTURE", contenu: "titres" },
 ];
 
-// La liste des comptes et leurs droits, lue par l'administrateur.
-const comptesDepuisLApi = async () => {
+// Les ecrans de manifeste : ils portent une reference de plan, ils sont
+// donc construits apres lecture des plans. Un plan de dechargement
+// s'ouvre sur sa propre route.
+const ecransDeManifeste = (references) =>
+  references.map(({ reference, operationType }) => ({
+    chemin: `/plans/${operationType === "UNLOAD" ? "unload" : "load"}/${reference}`,
+    module: "LOADING_PLANS",
+    contenu: "cartes",
+    reference,
+  }));
+
+// Le jeton de l'administrateur et le jeton CSRF, pour les appels
+// d'interface de programmation faits depuis le script.
+const jetonAdministrateur = async () => {
   const reponse = await fetch(`${RACINE}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -261,13 +275,58 @@ const comptesDepuisLApi = async () => {
     .find((c) => c.startsWith("token="))
     ?.split("=")[1]
     .split(";")[0];
-  const jeton = decodeURIComponent(cookie).slice(2).replace(/\.[^.]+$/, "");
+  return decodeURIComponent(cookie).slice(2).replace(/\.[^.]+$/, "");
+};
+
+// Le jeton CSRF et son cookie doivent provenir de la meme reponse : le
+// serveur compare les deux.
+const csrf = async () => {
+  const reponse = await fetch(`${RACINE}/api/v1/auth/csrf-token`);
+  const corps = await reponse.json();
+  const brut = reponse.headers.getSetCookie
+    ? reponse.headers.getSetCookie()
+    : [];
+  const cookie = brut.find((c) => c.startsWith("xsrf-token="));
+  return {
+    token: corps?.data?.csrfToken || "",
+    cookie: cookie ? cookie.split("=")[1].split(";")[0] : "",
+  };
+};
+
+// La liste des comptes et leurs droits, lue par l'administrateur, ainsi
+// que deux references de plan pour les ecrans de manifeste.
+const comptesDepuisLApi = async () => {
+  const jeton = await jetonAdministrateur();
+  const entetes = { Authorization: `Bearer ${jeton}` };
 
   const reponseComptes = await fetch(`${RACINE}/api/v1/users`, {
-    headers: { Authorization: `Bearer ${jeton}` },
+    headers: entetes,
   });
   const corps = await reponseComptes.json();
-  return corps?.data?.users || [];
+
+  const reponsePlans = await fetch(`${RACINE}/api/v1/loading-plans`, {
+    headers: entetes,
+  });
+  const plans = (await reponsePlans.json())?.data?.loadingPlans || [];
+  const chargement = plans.find(
+    (plan) => (plan.operationType || "LOAD") === "LOAD",
+  );
+  const dechargement = plans.find(
+    (plan) => plan.operationType === "UNLOAD",
+  );
+
+  const references = [];
+  if (chargement) {
+    references.push({ reference: chargement.reference, operationType: "LOAD" });
+  }
+  if (dechargement) {
+    references.push({
+      reference: dechargement.reference,
+      operationType: "UNLOAD",
+    });
+  }
+
+  return { comptes: corps?.data?.users || [], references };
 };
 
 const aLeDroitDeLecture = (compte, module) =>
@@ -282,9 +341,11 @@ const aLeDroitDeLecture = (compte, module) =>
 // compte a droit doit s'afficher, sans refus. Un ecran auquel il n'a pas
 // droit doit le renvoyer vers le tableau de bord, jamais lui opposer une
 // erreur.
-const verifierComptes = async (navigateur, comptes) => {
+const verifierComptes = async (navigateur, comptes, references) => {
   const anomalies = [];
   let verifications = 0;
+
+  const ecrans = [...ECRANS, ...ecransDeManifeste(references)];
 
   for (const compte of comptes) {
     const motDePasse =
@@ -312,7 +373,7 @@ const verifierComptes = async (navigateur, comptes) => {
     await page.getByRole("button", { name: "Se connecter" }).click();
     await page.waitForURL(/dashboard/, { timeout: 20000 });
 
-    for (const ecran of ECRANS) {
+    for (const ecran of ecrans) {
       const autorise = aLeDroitDeLecture(compte, ecran.module);
       const limiteAvant = limiteAtteinte.length;
 
@@ -340,6 +401,20 @@ const verifierComptes = async (navigateur, comptes) => {
         });
         continue;
       }
+
+      // L'ecran affiche-t-il ses donnees ? Sur telephone, la liste est
+      // portee par les cartes ; la structure, par ses blocs.
+      let elements = 0;
+      if (ecran.contenu === "cartes") {
+        elements = await page
+          .locator("main .md\\:hidden > *:visible")
+          .count();
+        if (elements === 0) {
+          elements = await page.locator("main table tbody tr:visible").count();
+        }
+      } else if (ecran.contenu === "titres") {
+        elements = await page.locator("main h3:visible").count();
+      }
       const refus = /Vous n'avez pas la permission/i.test(texte);
       const erreur = /^Erreur$/m.test(texte);
       const vide = texte.trim().length < 60;
@@ -358,6 +433,12 @@ const verifierComptes = async (navigateur, comptes) => {
             profil: compte.email,
             chemin: ecran.chemin,
             detail: "la page est vide",
+          });
+        } else if (ecran.contenu && elements === 0) {
+          anomalies.push({
+            profil: compte.email,
+            chemin: ecran.chemin,
+            detail: "la page n'affiche aucune donnee de sa liste",
           });
         }
       } else {
@@ -385,6 +466,126 @@ const verifierComptes = async (navigateur, comptes) => {
   return { anomalies, verifications };
 };
 
+// Un compte de deduction : il ne peut lire que les plans de manutention,
+// ni les clients ni les voyages. Le jeu de demonstration n'a pas de
+// profil aussi restrictif, et c'est precisement le cas ou une liste
+// annexe appartient a un autre module. Le compte est cree sur un employe
+// en attente d'acces, puis l'acces est retire : le jeu retrouve son etat.
+const verifierCompteRestreint = async (navigateur, references) => {
+  const anomalies = [];
+
+  const jetonAdmin = await jetonAdministrateur();
+  const entetes = { Authorization: `Bearer ${jetonAdmin}` };
+
+  const reponsePending = await fetch(`${RACINE}/api/v1/users/pending`, {
+    headers: entetes,
+  });
+  const enAttente = (await reponsePending.json())?.data?.employees || [];
+  if (enAttente.length === 0) {
+    console.log(
+      "Aucun employe en attente d'acces : le compte de deduction n'a pas ete mis en place.",
+    );
+    return anomalies;
+  }
+  const employe = enAttente[0];
+
+  const protection = await csrf();
+  const corps = JSON.stringify({
+    password: "Deduit@2026",
+    permissions: [{ module: "LOADING_PLANS", action: "READ" }],
+  });
+  const reponseAcces = await fetch(
+    `${RACINE}/api/v1/users/${employe.id}/access`,
+    {
+      method: "POST",
+      headers: {
+        ...entetes,
+        "Content-Type": "application/json",
+        "X-CSRF-Token": protection.token,
+        Cookie: `xsrf-token=${protection.cookie}`,
+      },
+      body: corps,
+    },
+  );
+
+  if (!reponseAcces.ok) {
+    anomalies.push({
+      profil: employe.matricule,
+      chemin: "(ouverture du compte)",
+      detail: `impossible d'accorder l'acces : ${reponseAcces.status}`,
+    });
+    return anomalies;
+  }
+
+  try {
+    const contexte = await navigateur.newContext({
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+      deviceScaleFactor: 2,
+      serviceWorkers: "block",
+      locale: "fr-FR",
+    });
+    const page = await contexte.newPage();
+
+    await page.goto(`${RACINE}/login`, { waitUntil: "domcontentloaded" });
+    await page.locator('input[type="text"]').first().fill(employe.matricule);
+    await page.locator('input[type="password"]').first().fill("Deduit@2026");
+    await page.getByRole("button", { name: "Se connecter" }).click();
+    await page.waitForURL(/dashboard/, { timeout: 20000 });
+
+    const ecrans = [
+      { chemin: "/plans", module: "LOADING_PLANS", contenu: "cartes" },
+      ...ecransDeManifeste(references),
+    ];
+
+    for (const ecran of ecrans) {
+      await page.goto(`${RACINE}${ecran.chemin}`, { waitUntil: "networkidle" });
+      await page.waitForTimeout(800);
+
+      let texte = "";
+      try {
+        texte = await page.locator("main").innerText({ timeout: 8000 });
+      } catch {
+        texte = await page.locator("body").innerText();
+      }
+
+      const refus = /Vous n'avez pas la permission/i.test(texte);
+      const erreur = /^Erreur$/m.test(texte);
+      const elements = await page
+        .locator("main .md\\:hidden > *:visible")
+        .count();
+
+      if (refus || erreur || elements === 0) {
+        anomalies.push({
+          profil: employe.matricule,
+          chemin: ecran.chemin,
+          detail: refus
+            ? "la page affiche un refus de droit alors que le compte a le droit de lecture"
+            : erreur
+              ? "la page affiche un bandeau d'erreur"
+              : "la page n'affiche aucune donnee",
+        });
+      }
+    }
+
+    await contexte.close();
+  } finally {
+    // L'acces est retire : l'employe retrouve son etat d'attente.
+    const protection = await csrf();
+    await fetch(`${RACINE}/api/v1/users/${employe.id}/access`, {
+      method: "DELETE",
+      headers: {
+        ...entetes,
+        "X-CSRF-Token": protection.token,
+        Cookie: `xsrf-token=${protection.cookie}`,
+      },
+    });
+  }
+
+  return anomalies;
+};
+
 const executer = async () => {
   // Le parcours complet envoie plusieurs centaines de requetes : un
   // limiteur global trop bas le couperait en cours de route.
@@ -407,13 +608,18 @@ const executer = async () => {
   let mobile;
   let anomaliesProfils;
   let comptes = [];
+  let references = [];
   let resultatMatrice = { anomalies: [], verifications: 0 };
+  let resultatDeduction = [];
   try {
     bureau = await parcourir(navigateur, PROFILS.bureau);
     mobile = await parcourir(navigateur, PROFILS.mobile);
     anomaliesProfils = await verifierProfils(navigateur);
-    comptes = await comptesDepuisLApi();
-    resultatMatrice = await verifierComptes(navigateur, comptes);
+    const lus = await comptesDepuisLApi();
+    comptes = lus.comptes;
+    references = lus.references;
+    resultatMatrice = await verifierComptes(navigateur, comptes, references);
+    resultatDeduction = await verifierCompteRestreint(navigateur, references);
   } finally {
     await navigateur.close();
   }
@@ -498,7 +704,7 @@ const executer = async () => {
 
   console.log("\n== Matrice des comptes et des ecrans ==");
   console.log(
-    `${resultatMatrice.verifications} verifications (${comptes.length} comptes x ${ECRANS.length} ecrans)`,
+    `${resultatMatrice.verifications} verifications (${comptes.length} comptes x ${ECRANS.length + references.length} ecrans)`,
   );
   if (resultatMatrice.anomalies.length === 0) {
     console.log(
@@ -513,12 +719,27 @@ const executer = async () => {
     console.log(`\n${resultatMatrice.anomalies.length} anomalie(s).`);
   }
 
+  console.log("\n== Compte de deduction (plans seuls) ==");
+  if (resultatDeduction.length === 0) {
+    console.log(
+      "Un compte qui ne peut lire que les plans consulte les plans et leurs manifestes.",
+    );
+  } else {
+    for (const anomalie of resultatDeduction) {
+      console.log(
+        `ANOMALIE ${anomalie.profil} sur ${anomalie.chemin} : ${anomalie.detail}`,
+      );
+    }
+    console.log(`\n${resultatDeduction.length} anomalie(s).`);
+  }
+
   console.log("\nCaptures : e2e/captures/mobile et e2e/captures/bureau");
 
   process.exit(
     anomalies === 0 &&
       anomaliesProfils.length === 0 &&
-      resultatMatrice.anomalies.length === 0
+      resultatMatrice.anomalies.length === 0 &&
+      resultatDeduction.length === 0
       ? 0
       : 1,
   );
